@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
+import { ModalConfirmar } from "@/components/casos/modal-confirmar";
 import { cn } from "@/lib/utils";
 
 type EstadoGravacao = "gravando" | "pausada" | "encerrada";
@@ -33,6 +34,8 @@ export default function PaginaSessaoAtiva() {
   const { casos, carregando } = useListaCasos();
   const [segundos, setSegundos] = useState(0);
   const [estado, setEstado] = useState<EstadoGravacao>("gravando");
+  const [confirmarAnalise, setConfirmarAnalise] = useState(false);
+  const estadoAntesDoFim = useRef<EstadoGravacao>("gravando");
   const caso = casos.find((item) => item.id === casoId);
 
   useEffect(() => {
@@ -64,15 +67,19 @@ export default function PaginaSessaoAtiva() {
             disabled={encerrada}
             aria-pressed={estado === "pausada"}
             onClick={() => setEstado((atual) => (atual === "gravando" ? "pausada" : "gravando"))}
-            className="border-borda bg-campo flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-semibold disabled:opacity-50"
+            className="pressionavel border-borda bg-campo flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-semibold disabled:opacity-50"
           >
             {estado === "pausada" ? "Retomar" : "Pausar"}
           </button>
           <button
             type="button"
             disabled={encerrada}
-            onClick={() => setEstado("encerrada")}
-            className="bg-acao text-acao-tinta flex h-8 items-center rounded-[8px] px-3 text-[12px] font-semibold disabled:opacity-50"
+            onClick={() => {
+              estadoAntesDoFim.current = estado;
+              setEstado("pausada");
+              setConfirmarAnalise(true);
+            }}
+            className="pressionavel bg-acao text-acao-tinta flex h-8 items-center rounded-[8px] px-3 text-[12px] font-semibold disabled:opacity-50"
           >
             Finalizar
           </button>
@@ -104,6 +111,21 @@ export default function PaginaSessaoAtiva() {
           ))}
         </section>
       </div>
+
+      <ModalConfirmar
+        aberto={confirmarAnalise}
+        titulo="Gerar análise de IA"
+        descricao="Finalizar a gravação e gerar a análise preliminar deste caso?"
+        confirmar="Gerar análise"
+        aoFechar={() => {
+          setConfirmarAnalise(false);
+          setEstado(estadoAntesDoFim.current);
+        }}
+        aoConfirmar={() => {
+          setConfirmarAnalise(false);
+          setEstado("encerrada");
+        }}
+      />
     </>
   );
 }
