@@ -69,7 +69,7 @@ export default function PaginaGravacao() {
               fonte === "arquivo" ? "border-destaque border-[1.5px]" : "border-borda",
             )}
           >
-            Upload MP3 ou MP4
+            Carregar Arquivo
           </button>
         </div>
 

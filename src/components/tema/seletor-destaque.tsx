@@ -12,11 +12,11 @@ import {
 import { cn } from "@/lib/utils";
 
 const AMOSTRA: Record<CorDestaque, string> = {
-  verde: "bg-[#47807a]",
+  verde: "bg-[#356660]",
   branco: "bg-white border-borda",
-  azul: "bg-[#3d6ea8]",
-  laranja: "bg-[#c96a2c]",
-  roxo: "bg-[#6b4c9a]",
+  azul: "bg-[#2f5a8c]",
+  laranja: "bg-[#b05620]",
+  roxo: "bg-[#5a3d82]",
 };
 
 export function SeletorDestaque() {

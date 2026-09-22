@@ -4,6 +4,7 @@ import { useEffect, useId, useState } from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 
+import { IconeTelefone } from "@/components/casos/icones-trilha";
 import { BotaoTema } from "@/components/tema/botao-tema";
 import { SeletorDestaque } from "@/components/tema/seletor-destaque";
 
@@ -97,7 +98,14 @@ export function ModalConfiguracoes({ aberto, aoFechar }: ModalConfiguracoesProps
           </div>
         </div>
 
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex items-center justify-between">
+          <span
+            title="Entre em contato o suporte"
+            aria-label="Entre em contato o suporte"
+            className="text-tinta-suave flex size-8 items-center justify-center rounded-[8px]"
+          >
+            <IconeTelefone />
+          </span>
           <button
             type="button"
             onClick={aoFechar}

@@ -80,6 +80,21 @@ export function IconeLixeira() {
   );
 }
 
+export function IconeTelefone() {
+  return (
+    <svg aria-hidden viewBox="0 0 20 20" className="text-tinta-suave size-5">
+      <path
+        d="M6.2 3.8c.4-.4 1-.5 1.5-.2l1.6.8c.4.2.7.7.6 1.2l-.3 1.6c0 .3.1.6.3.8l1.7 1.7c.2.2.5.3.8.3l1.6-.3c.5-.1 1 .2 1.2.6l.8 1.6c.3.5.2 1.1-.2 1.5l-.9.9c-.8.8-2 .9-3.4.4-2.1-.8-3.9-2.3-5.2-4.3C5.2 8.4 4.5 6.3 4.8 4.9c.2-1 .8-1.6 1.4-2.1Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function IconeSair() {
   return (
     <svg aria-hidden viewBox="0 0 20 20" className="text-tinta-suave size-5">
