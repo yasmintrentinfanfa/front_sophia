@@ -2,17 +2,20 @@
 
 import { createContext, useContext } from "react";
 
-import type { Caso } from "@/lib/api/types";
+import type { Caso, DadosNovoCaso } from "@/lib/api/types";
 
 interface ValorListaCasos {
   casos: Caso[];
   carregando: boolean;
+  criarCaso: (dados: DadosNovoCaso) => Promise<Caso>;
 }
 
-/** A lista é carregada uma vez no layout e compartilhada com a barra lateral e o painel. */
 const ContextoListaCasos = createContext<ValorListaCasos>({
   casos: [],
   carregando: true,
+  criarCaso: async () => {
+    throw new Error("ProvedorListaCasos ausente");
+  },
 });
 
 export const ProvedorListaCasos = ContextoListaCasos.Provider;

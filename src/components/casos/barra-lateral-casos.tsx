@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Hamburguer,
   IconeCasos,
@@ -20,9 +22,11 @@ interface BarraLateralCasosProps {
 }
 
 export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCasosProps) {
+  const pathname = usePathname();
   const [busca, setBusca] = useState("");
-  const [escolhido, setEscolhido] = useState<string | null>(null);
   const [expandida, setExpandida] = useState(true);
+  const segmento = pathname.match(/^\/casos\/([^/]+)/)?.[1] ?? null;
+  const idDaRota = segmento && segmento !== "novo" ? segmento : null;
 
   const casosFiltrados = useMemo(() => {
     const termo = normalizar(busca);
@@ -30,8 +34,9 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
     return casos.filter((caso) => normalizar(`${caso.titulo} ${caso.cliente}`).includes(termo));
   }, [busca, casos]);
 
-  /** Como no protótipo, o primeiro caso aparece em destaque até o usuário escolher outro. */
-  const idEmDestaque = escolhido ?? casosFiltrados[0]?.id;
+  /** Na lista, o primeiro caso; dentro de um caso, o da rota. Em /casos/novo, nenhum. */
+  const idEmDestaque =
+    idDaRota ?? (pathname === "/casos/novo" ? null : casosFiltrados[0]?.id);
 
   return (
     <aside
@@ -73,19 +78,18 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
               <ul className="flex w-full flex-col gap-[6px]">
                 {casosFiltrados.map((caso) => (
                   <li key={caso.id}>
-                    <button
-                      type="button"
-                      onClick={() => setEscolhido(caso.id)}
-                      aria-current={caso.id === idEmDestaque ? "true" : undefined}
-                      className={cn(
-                        "flex min-h-[36px] w-full items-center rounded-[8px] px-[10px] py-[8px] text-left text-[10px] leading-tight font-medium transition-colors",
-                        caso.id === idEmDestaque
-                          ? "border-destaque bg-ativo text-ativo-tinta border-[1.5px]"
-                          : "bg-chip text-meta border-borda hover:border-destaque/60 border",
-                      )}
-                    >
-                      <span className="line-clamp-2">{caso.titulo}</span>
-                    </button>
+                  <Link
+                    href={`/casos/${caso.id}/gravacao`}
+                    aria-current={caso.id === idEmDestaque ? "page" : undefined}
+                    className={cn(
+                      "flex min-h-[36px] w-full items-center rounded-[8px] px-[10px] py-[8px] text-left text-[10px] leading-tight font-medium transition-colors",
+                      caso.id === idEmDestaque
+                        ? "border-destaque bg-ativo text-ativo-tinta border-[1.5px]"
+                        : "bg-chip text-meta border-borda hover:border-destaque/60 border",
+                    )}
+                  >
+                    <span className="line-clamp-2">{caso.titulo}</span>
+                  </Link>
                   </li>
                 ))}
               </ul>
@@ -104,6 +108,8 @@ function TrilhaIcones({
   expandida: boolean;
   aoAlternar: () => void;
 }) {
+  const pathname = usePathname();
+
   return (
     <nav className="bg-trilha flex h-full w-[48px] flex-col items-center gap-[8px] rounded-[10px] px-[4px] pt-[4px] pb-[8px]">
       <Tooltip>
@@ -128,20 +134,48 @@ function TrilhaIcones({
         </TooltipContent>
       </Tooltip>
 
-      <BotaoTrilha rotulo="Novo caso">
-        <IconeNovoCaso />
-      </BotaoTrilha>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Link
+              href="/casos/novo"
+              aria-current={pathname === "/casos/novo" ? "page" : undefined}
+              className={cn(
+                "flex h-[36px] items-center justify-center rounded-[10px] px-[6px]",
+                pathname === "/casos/novo" && "bg-destaque-suave border-destaque border-[1.5px]",
+              )}
+            >
+              <IconeNovoCaso />
+              <span className="sr-only">Novo caso</span>
+            </Link>
+          }
+        />
+        <TooltipContent side="right">Novo caso</TooltipContent>
+      </Tooltip>
 
       <Tooltip>
         <TooltipTrigger
           render={
-            <span
-              aria-current="page"
-              className="bg-destaque-suave border-destaque flex h-[36px] items-center justify-center rounded-[10px] border-[1.5px] px-[6px]"
+            <Link
+              href="/casos"
+              aria-current={
+                pathname === "/casos" ||
+                pathname.includes("/gravacao") ||
+                pathname.includes("/sessao")
+                  ? "page"
+                  : undefined
+              }
+              className={cn(
+                "flex h-[36px] items-center justify-center rounded-[10px] px-[6px]",
+                (pathname === "/casos" ||
+                  pathname.includes("/gravacao") ||
+                  pathname.includes("/sessao")) &&
+                  "bg-destaque-suave border-destaque border-[1.5px]",
+              )}
             >
               <IconeCasos />
               <span className="sr-only">Casos em análise</span>
-            </span>
+            </Link>
           }
         />
         <TooltipContent side="right">Casos em análise</TooltipContent>

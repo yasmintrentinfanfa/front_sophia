@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { BarraLateralCasos } from "@/components/casos/barra-lateral-casos";
 import { ProvedorListaCasos } from "@/components/casos/contexto-lista-casos";
 import { api } from "@/lib/api";
-import type { Caso } from "@/lib/api/types";
+import type { Caso, DadosNovoCaso } from "@/lib/api/types";
 
 export default function LayoutCasos({ children }: { children: ReactNode }) {
   const [casos, setCasos] = useState<Caso[]>([]);
@@ -27,7 +27,18 @@ export default function LayoutCasos({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const contexto = useMemo(() => ({ casos, carregando }), [carregando, casos]);
+  const contexto = useMemo(
+    () => ({
+      casos,
+      carregando,
+      async criarCaso(dados: DadosNovoCaso) {
+        const criado = await api.criarCaso(dados);
+        setCasos((lista) => [criado, ...lista.filter((item) => item.id !== criado.id)]);
+        return criado;
+      },
+    }),
+    [carregando, casos],
+  );
 
   return (
     <ProvedorListaCasos value={contexto}>

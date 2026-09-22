@@ -57,6 +57,7 @@
   --color-ativo: #ffffff;
   --color-ativo-tinta: #47807a;
   --color-meta: #47807a;
+  --color-gravando: #6bb88c;
 }
 
 :root {
@@ -112,6 +113,7 @@ html.dark {
   --color-ativo: #f7f7fa;
   --color-ativo-tinta: #1c1c1f;
   --color-meta: #d1d1d6;
+  --color-gravando: #6bb88c;
 }
 
 @layer base {

@@ -15,11 +15,20 @@ export interface Caso {
   titulo: string;
   /** Nome do cliente atendido, exibido como "Cliente: …". */
   cliente: string;
+  /** Campo do formulário "Área jurídica" no protótipo. */
+  area?: string;
   status: StatusCaso;
   /** ISO 8601. */
   atualizadoEm: string;
 }
 
+export interface DadosNovoCaso {
+  titulo: string;
+  cliente: string;
+  area?: string;
+}
+
 export interface SophiaApi {
   listarCasos(): Promise<Caso[]>;
+  criarCaso(dados: DadosNovoCaso): Promise<Caso>;
 }
