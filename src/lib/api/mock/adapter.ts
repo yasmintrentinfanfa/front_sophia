@@ -6,6 +6,7 @@
  */
 
 import type { Caso, SophiaApi } from "@/lib/api/types";
+import { pastaDoCaso } from "@/lib/casos/rotulo";
 
 import { CASOS } from "./dados";
 
@@ -23,11 +24,15 @@ function slug(texto: string) {
   return base || `caso-${Date.now()}`;
 }
 
-let casos = structuredClone(CASOS);
+let casos = structuredClone(CASOS).map((caso) => ({
+  ...caso,
+  pasta: pastaDoCaso(caso),
+}));
 
 export const mockApi: SophiaApi = {
   async listarCasos() {
     await esperar(220);
+    casos = casos.map((caso) => ({ ...caso, pasta: pastaDoCaso(caso) }));
     return structuredClone(casos);
   },
 
@@ -43,9 +48,24 @@ export const mockApi: SophiaApi = {
       cliente: dados.cliente.trim(),
       area: dados.area?.trim() || undefined,
       status: "gravacao_pendente",
+      pasta: "ativo",
       atualizadoEm: new Date().toISOString(),
     };
     casos = [criado, ...casos];
     return structuredClone(criado);
+  },
+
+  async moverCaso(id, pasta) {
+    await esperar(120);
+    const atual = casos.find((caso) => caso.id === id);
+    if (!atual) throw new Error("Caso não encontrado");
+    const atualizado = { ...atual, pasta, atualizadoEm: new Date().toISOString() };
+    casos = casos.map((caso) => (caso.id === id ? atualizado : caso));
+    return structuredClone(atualizado);
+  },
+
+  async excluirCaso(id) {
+    await esperar(120);
+    casos = casos.filter((caso) => caso.id !== id);
   },
 };

@@ -43,6 +43,43 @@ export function IconeConfiguracoes() {
   );
 }
 
+export function IconeRestaurar() {
+  return (
+    <svg aria-hidden viewBox="0 0 20 20" className="text-tinta-suave size-5">
+      <path
+        d="M5 8.5A5 5 0 1 1 6.2 14"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M5 4.5v4h4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function IconeLixeira() {
+  return (
+    <svg aria-hidden viewBox="0 0 20 20" className="text-tinta-suave size-5">
+      <path
+        d="M5 6.5h10M8 6.5V5.2A1.2 1.2 0 0 1 9.2 4h1.6A1.2 1.2 0 0 1 12 5.2V6.5M7 6.5v8.2A1.3 1.3 0 0 0 8.3 16h3.4a1.3 1.3 0 0 0 1.3-1.3V6.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function IconeSair() {
   return (
     <svg aria-hidden viewBox="0 0 20 20" className="text-tinta-suave size-5">

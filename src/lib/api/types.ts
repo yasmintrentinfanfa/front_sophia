@@ -9,6 +9,8 @@
 /** Estados exibidos na lista de casos do protótipo. */
 export type StatusCaso = "gravacao_pendente" | "em_analise" | "concluido";
 
+export type PastaCaso = "ativo" | "arquivo";
+
 export interface Caso {
   id: string;
   /** "Rescisão contratual — Silva" */
@@ -18,6 +20,7 @@ export interface Caso {
   /** Campo do formulário "Área jurídica" no protótipo. */
   area?: string;
   status: StatusCaso;
+  pasta: PastaCaso;
   /** ISO 8601. */
   atualizadoEm: string;
 }
@@ -31,4 +34,6 @@ export interface DadosNovoCaso {
 export interface SophiaApi {
   listarCasos(): Promise<Caso[]>;
   criarCaso(dados: DadosNovoCaso): Promise<Caso>;
+  moverCaso(id: string, pasta: PastaCaso): Promise<Caso>;
+  excluirCaso(id: string): Promise<void>;
 }

@@ -11,6 +11,7 @@ export const CASOS: Caso[] = [
     titulo: "Rescisão contratual",
     cliente: "João Silva",
     status: "em_analise",
+    pasta: "ativo",
     atualizadoEm: "2026-09-21T14:32:00.000Z",
   },
   {
@@ -18,6 +19,7 @@ export const CASOS: Caso[] = [
     titulo: "Ação de cobrança",
     cliente: "Empresa XYZ Ltda",
     status: "gravacao_pendente",
+    pasta: "ativo",
     atualizadoEm: "2026-09-20T18:05:00.000Z",
   },
   {
@@ -25,6 +27,7 @@ export const CASOS: Caso[] = [
     titulo: "Revisão de contrato de locação",
     cliente: "Maria Santos",
     status: "concluido",
+    pasta: "ativo",
     atualizadoEm: "2026-03-10T11:20:00.000Z",
   },
 ];

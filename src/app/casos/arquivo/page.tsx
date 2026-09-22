@@ -2,6 +2,6 @@
 
 import { ListaPastaCasos } from "@/components/casos/lista-pasta-casos";
 
-export default function PaginaCasos() {
-  return <ListaPastaCasos pasta="ativo" />;
+export default function PaginaArquivo() {
+  return <ListaPastaCasos pasta="arquivo" />;
 }

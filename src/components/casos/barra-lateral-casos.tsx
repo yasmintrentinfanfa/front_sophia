@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -15,7 +15,7 @@ import { BotaoTema } from "@/components/tema/botao-tema";
 import { ModalConfiguracoes } from "@/components/casos/modal-configuracoes";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Caso } from "@/lib/api/types";
-import { rotuloCaso } from "@/lib/casos/rotulo";
+import { pastaDoCaso, rotuloCaso } from "@/lib/casos/rotulo";
 import { normalizar } from "@/lib/texto";
 import { cn } from "@/lib/utils";
 
@@ -29,17 +29,22 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
   const [busca, setBusca] = useState("");
   const [expandida, setExpandida] = useState(true);
   const segmento = pathname.match(/^\/casos\/([^/]+)/)?.[1] ?? null;
-  const idDaRota = segmento && segmento !== "novo" ? segmento : null;
+  const rotaDePainel = segmento === "novo" || segmento === "arquivo";
+  const idDaRota = segmento && !rotaDePainel ? segmento : null;
+
+  const casosAtivos = useMemo(
+    () => casos.filter((caso) => pastaDoCaso(caso) === "ativo"),
+    [casos],
+  );
 
   const casosFiltrados = useMemo(() => {
     const termo = normalizar(busca);
-    if (!termo) return casos;
-    return casos.filter((caso) => normalizar(`${caso.titulo} ${caso.cliente}`).includes(termo));
-  }, [busca, casos]);
+    if (!termo) return casosAtivos;
+    return casosAtivos.filter((caso) => normalizar(`${caso.titulo} ${caso.cliente}`).includes(termo));
+  }, [busca, casosAtivos]);
 
-  /** Na lista, o primeiro caso; dentro de um caso, o da rota. Em /casos/novo, nenhum. */
-  const idEmDestaque =
-    idDaRota ?? (pathname === "/casos/novo" ? null : casosFiltrados[0]?.id);
+  /** Na lista, o primeiro caso; dentro de um caso, o da rota. Em painéis, nenhum. */
+  const idEmDestaque = idDaRota ?? (rotaDePainel ? null : casosFiltrados[0]?.id);
 
   return (
     <aside
@@ -185,9 +190,22 @@ function TrilhaIcones({
         <TooltipContent side="right">Casos em análise</TooltipContent>
       </Tooltip>
 
-      <BotaoTrilha rotulo="Repositório de casos">
-        <IconeRepositorio />
-      </BotaoTrilha>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              className="flex h-8 items-center justify-center rounded-[8px] px-1 opacity-70 disabled:pointer-events-auto"
+            >
+              <IconeRepositorio />
+              <span className="sr-only">Repositório</span>
+            </button>
+          }
+        />
+        <TooltipContent side="right">Repositório · em breve</TooltipContent>
+      </Tooltip>
 
       <span className="flex-1" />
 
@@ -246,27 +264,6 @@ function TrilhaIcones({
         aoFechar={() => setConfiguracoesAberta(false)}
       />
     </nav>
-  );
-}
-
-/** Telas que existem no protótipo mas ainda não foram implementadas. */
-function BotaoTrilha({ rotulo, children }: { rotulo: string; children: ReactNode }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <button
-            type="button"
-            disabled
-            className="flex h-8 items-center justify-center rounded-[8px] px-1 disabled:pointer-events-auto"
-          >
-            {children}
-            <span className="sr-only">{rotulo}</span>
-          </button>
-        }
-      />
-      <TooltipContent side="right">{rotulo} · em breve</TooltipContent>
-    </Tooltip>
   );
 }
 
