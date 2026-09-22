@@ -38,7 +38,29 @@ export function IconeConfiguracoes() {
   return (
     <span className="relative block size-5">
       <span className="border-tinta-suave absolute top-[3.25px] left-[3.25px] size-[13.5px] rounded-full border-[1.5px]" />
+      <span className="border-tinta-suave absolute top-[7.25px] left-[7.25px] size-[5.5px] rounded-full border-[1.5px]" />
     </span>
+  );
+}
+
+export function IconeSair() {
+  return (
+    <svg aria-hidden viewBox="0 0 20 20" className="text-tinta-suave size-5">
+      <path
+        d="M8 4.5H5.5A1.5 1.5 0 0 0 4 6v8a1.5 1.5 0 0 0 1.5 1.5H8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M8.5 10H16M13.5 7.5 16 10l-2.5 2.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 

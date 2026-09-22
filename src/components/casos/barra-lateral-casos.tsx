@@ -9,8 +9,10 @@ import {
   IconeConfiguracoes,
   IconeNovoCaso,
   IconeRepositorio,
+  IconeSair,
 } from "@/components/casos/icones-trilha";
 import { BotaoTema } from "@/components/tema/botao-tema";
+import { ModalConfiguracoes } from "@/components/casos/modal-configuracoes";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Caso } from "@/lib/api/types";
 import { normalizar } from "@/lib/texto";
@@ -109,6 +111,7 @@ function TrilhaIcones({
   aoAlternar: () => void;
 }) {
   const pathname = usePathname();
+  const [configuracoesAberta, setConfiguracoesAberta] = useState(false);
 
   return (
     <nav className="bg-trilha flex h-full w-[48px] flex-col items-center gap-[8px] rounded-[10px] px-[4px] pt-[4px] pb-[8px]">
@@ -201,9 +204,46 @@ function TrilhaIcones({
         </TooltipContent>
       </Tooltip>
 
-      <BotaoTrilha rotulo="Configurações">
-        <IconeConfiguracoes />
-      </BotaoTrilha>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              aria-expanded={configuracoesAberta}
+              onClick={() => setConfiguracoesAberta(true)}
+              className={cn(
+                "flex h-[36px] items-center justify-center rounded-[10px] px-[6px]",
+                configuracoesAberta && "bg-destaque-suave border-destaque border-[1.5px]",
+              )}
+            >
+              <IconeConfiguracoes />
+              <span className="sr-only">Configurações</span>
+            </button>
+          }
+        />
+        <TooltipContent side="right">Configurações</TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Link
+              href="/login"
+              className="flex h-[36px] items-center justify-center rounded-[10px] px-[6px]"
+            >
+              <IconeSair />
+              <span className="sr-only">Sair</span>
+            </Link>
+          }
+        />
+        <TooltipContent side="right">Sair</TooltipContent>
+      </Tooltip>
+
+      <ModalConfiguracoes
+        aberto={configuracoesAberta}
+        aoFechar={() => setConfiguracoesAberta(false)}
+      />
     </nav>
   );
 }
