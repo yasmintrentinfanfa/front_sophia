@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const CLASSE_CAMPO =
-  "border-borda focus:border-destaque focus:ring-destaque/20 h-[52px] w-full rounded-[10px] border bg-white px-4 text-sm outline-none focus:ring-2";
+  "border-borda focus:border-destaque focus:ring-destaque/20 bg-campo h-[52px] w-full rounded-[10px] border px-4 text-sm outline-none focus:ring-2";
 
 export function FormularioLogin() {
   const router = useRouter();
@@ -60,7 +60,7 @@ export function FormularioLogin() {
         </div>
         <button
           type="submit"
-          className="bg-acao hover:bg-acao/90 flex h-[52px] w-full items-center justify-center rounded-[10px] text-[15px] font-semibold text-white transition-colors"
+          className="bg-acao text-acao-tinta hover:bg-acao/90 flex h-[52px] w-full items-center justify-center rounded-[10px] text-[15px] font-semibold transition-colors"
         >
           Entrar
         </button>

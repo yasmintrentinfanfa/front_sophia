@@ -23,7 +23,7 @@ export default function PaginaCasos() {
               <button
                 type="button"
                 disabled
-                className="bg-acao flex h-[40px] w-[140px] items-center justify-center rounded-[10px] text-[13px] font-semibold text-white disabled:pointer-events-auto"
+                className="bg-acao text-acao-tinta flex h-[40px] w-[140px] items-center justify-center rounded-[10px] text-[13px] font-semibold disabled:pointer-events-auto"
               >
                 Novo caso
               </button>
@@ -63,7 +63,7 @@ function CartaoCaso({ caso }: { caso: Caso }) {
         <h2 className="truncate text-[15px] font-semibold">{caso.titulo}</h2>
         <p className="text-tinta-suave truncate text-[13px]">Cliente: {caso.cliente}</p>
       </div>
-      <div className="text-destaque flex shrink-0 flex-col items-end gap-[6px] text-[12px]">
+      <div className="text-meta flex shrink-0 flex-col items-end gap-[6px] text-[12px]">
         <p className="font-medium">{STATUS_CASO[caso.status]}</p>
         <p>{formatarDataCurta(caso.atualizadoEm)}</p>
       </div>

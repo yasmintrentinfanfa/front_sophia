@@ -51,6 +51,12 @@
   --color-destaque: #47807a;
   --color-destaque-suave: #e0f0ed;
   --color-acao: #24211f;
+  --color-acao-tinta: #ffffff;
+  --color-campo: #ffffff;
+  --color-chip: #f6f2ed;
+  --color-ativo: #ffffff;
+  --color-ativo-tinta: #47807a;
+  --color-meta: #47807a;
 }
 
 :root {
@@ -66,10 +72,10 @@
   --foreground: var(--color-tinta);
   --card: var(--color-superficie);
   --card-foreground: var(--color-tinta);
-  --popover: #ffffff;
+  --popover: var(--color-campo);
   --popover-foreground: var(--color-tinta);
   --primary: var(--color-acao);
-  --primary-foreground: #ffffff;
+  --primary-foreground: var(--color-acao-tinta);
   --secondary: var(--color-barra);
   --secondary-foreground: var(--color-tinta);
   --muted: var(--color-barra);
@@ -84,10 +90,29 @@
 }
 
 /*
- * O protótipo também define uma variante escura para cada tela. Ela ainda não foi
- * implementada, então nenhum tema escuro é declarado aqui de propósito — um
- * `.dark` com a paleta padrão do shadcn produziria cores fora da marca.
+ * Hex dos frames "01 - Login (Dark)" e "02 - Dashboard (Dark)"
+ * (arquivo Jles7wHGaQaohjS8hQ6Rnk, nós 178:13 e 178:35).
  */
+html.dark {
+  color-scheme: dark;
+  --color-fundo: #1c1c1f;
+  --color-superficie: #29292e;
+  --color-painel: #1f1f24;
+  --color-barra: #17171a;
+  --color-trilha: #121214;
+  --color-borda: #595961;
+  --color-tinta: #f7f7fa;
+  --color-tinta-suave: #b2b2ba;
+  --color-destaque: #66a69e;
+  --color-destaque-suave: #2e4240;
+  --color-acao: #f7f7fa;
+  --color-acao-tinta: #1c1c1f;
+  --color-campo: #2b2b30;
+  --color-chip: #333338;
+  --color-ativo: #f7f7fa;
+  --color-ativo-tinta: #1c1c1f;
+  --color-meta: #d1d1d6;
+}
 
 @layer base {
   * {

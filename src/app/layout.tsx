@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
+import { ScriptTema } from "@/components/tema/script-tema";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import "./globals.css";
@@ -19,7 +20,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${inter.variable} h-full antialiased`}>
+    <html lang="pt-BR" suppressHydrationWarning className={`${inter.variable} h-full antialiased`}>
+      <head>
+        <ScriptTema />
+      </head>
       <body className="bg-fundo text-tinta flex min-h-full flex-col">
         <TooltipProvider delay={200}>{children}</TooltipProvider>
       </body>

@@ -1,14 +1,14 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import Image from "next/image";
-
 import {
   Hamburguer,
   IconeCasos,
+  IconeConfiguracoes,
   IconeNovoCaso,
   IconeRepositorio,
 } from "@/components/casos/icones-trilha";
+import { BotaoTema } from "@/components/tema/botao-tema";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Caso } from "@/lib/api/types";
 import { normalizar } from "@/lib/texto";
@@ -50,7 +50,7 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
           <p className="text-[15px] font-bold">SOPHIA</p>
           <h2 className="text-[12px] font-semibold">Casos em análise</h2>
 
-          <div className="border-borda focus-within:border-destaque flex h-[32px] w-full items-center gap-[6px] rounded-[8px] border bg-white px-[10px]">
+          <div className="border-borda focus-within:border-destaque bg-campo flex h-[32px] w-full items-center gap-[6px] rounded-[8px] border px-[10px]">
             <span aria-hidden className="text-tinta-suave text-[11px]">
               ⌕
             </span>
@@ -78,10 +78,10 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
                       onClick={() => setEscolhido(caso.id)}
                       aria-current={caso.id === idEmDestaque ? "true" : undefined}
                       className={cn(
-                        "text-destaque flex min-h-[36px] w-full items-center rounded-[8px] px-[10px] py-[8px] text-left text-[10px] leading-tight font-medium transition-colors",
+                        "flex min-h-[36px] w-full items-center rounded-[8px] px-[10px] py-[8px] text-left text-[10px] leading-tight font-medium transition-colors",
                         caso.id === idEmDestaque
-                          ? "border-destaque border-[1.5px] bg-white"
-                          : "bg-superficie border-borda hover:border-destaque/60 border",
+                          ? "border-destaque bg-ativo text-ativo-tinta border-[1.5px]"
+                          : "bg-chip text-meta border-borda hover:border-destaque/60 border",
                       )}
                     >
                       <span className="line-clamp-2">{caso.titulo}</span>
@@ -114,7 +114,7 @@ function TrilhaIcones({
               aria-expanded={expandida}
               aria-controls="painel-lista-casos"
               onClick={aoAlternar}
-              className="flex h-[28px] w-full items-center justify-center rounded-[8px] hover:bg-black/5"
+              className="hover:bg-tinta/5 flex h-[28px] w-full items-center justify-center rounded-[8px]"
             >
               <Hamburguer />
               <span className="sr-only">
@@ -153,10 +153,22 @@ function TrilhaIcones({
 
       <span className="flex-1" />
 
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <span className="flex justify-center">
+              <BotaoTema />
+            </span>
+          }
+        />
+        <TooltipContent side="right">
+          <span className="dark:hidden">Modo escuro</span>
+          <span className="hidden dark:inline">Modo claro</span>
+        </TooltipContent>
+      </Tooltip>
+
       <BotaoTrilha rotulo="Configurações">
-        {/* `unoptimized` porque o otimizador do Next recusa SVG (400) sem
-            `dangerouslyAllowSVG`, que não vale habilitar por um ícone local. */}
-        <Image src="/icone-configuracoes.svg" alt="" width={20} height={20} unoptimized />
+        <IconeConfiguracoes />
       </BotaoTrilha>
     </nav>
   );

@@ -34,6 +34,14 @@ export function IconeRepositorio() {
   );
 }
 
+export function IconeConfiguracoes() {
+  return (
+    <span className="relative block size-5">
+      <span className="border-tinta-suave absolute top-[3.25px] left-[3.25px] size-[13.5px] rounded-full border-[1.5px]" />
+    </span>
+  );
+}
+
 export function Hamburguer() {
   return (
     <span aria-hidden className="flex h-[12px] w-[18px] flex-col gap-[4px]">
