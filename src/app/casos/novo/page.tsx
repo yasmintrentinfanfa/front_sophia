@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
 
 const CLASSE_CAMPO =
-  "border-borda focus:border-destaque focus:ring-destaque/20 bg-campo placeholder:text-destaque h-10 w-full rounded-[8px] border px-3 text-[13px] outline-none focus:ring-2";
+  "border-borda focus:border-destaque focus:ring-destaque/20 bg-campo placeholder:text-destaque placeholder:text-[11px] h-10 w-full rounded-[8px] border px-3 text-[13px] outline-none focus:ring-2";
 
 export default function PaginaNovoCaso() {
   const router = useRouter();
@@ -54,7 +54,7 @@ export default function PaginaNovoCaso() {
             id={idTitulo}
             value={titulo}
             onChange={(evento) => setTitulo(evento.target.value)}
-            placeholder="Ex: Rescisão contratual — Silva"
+            placeholder="Ex: Rescisão contratual"
             required
             className={CLASSE_CAMPO}
           />

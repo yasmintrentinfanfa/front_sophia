@@ -116,6 +116,123 @@ html.dark {
   --color-gravando: #6bb88c;
 }
 
+html[data-destaque="verde"] {
+  --color-destaque: #47807a;
+  --color-destaque-suave: #e0f0ed;
+  --color-acao: #47807a;
+  --color-acao-tinta: #ffffff;
+  --color-ativo-tinta: #47807a;
+  --color-meta: #47807a;
+}
+
+html.dark[data-destaque="verde"] {
+  --color-destaque: #66a69e;
+  --color-destaque-suave: #2e4240;
+  --color-acao: #66a69e;
+  --color-acao-tinta: #1c1c1f;
+  --color-ativo-tinta: #1c1c1f;
+  --color-meta: #66a69e;
+}
+
+html[data-destaque="branco"] {
+  --color-destaque: #6b665e;
+  --color-destaque-suave: #f3efe9;
+  --color-acao: #ffffff;
+  --color-acao-tinta: #1c1b1a;
+  --color-ativo-tinta: #1c1b1a;
+  --color-meta: #6b665e;
+}
+
+html.dark[data-destaque="branco"] {
+  --color-destaque: #f7f7fa;
+  --color-destaque-suave: #2b2b30;
+  --color-acao: #f7f7fa;
+  --color-acao-tinta: #1c1c1f;
+  --color-ativo-tinta: #1c1c1f;
+  --color-meta: #f7f7fa;
+}
+
+html[data-destaque="azul"] {
+  --color-destaque: #3d6ea8;
+  --color-destaque-suave: #e4edf6;
+  --color-acao: #3d6ea8;
+  --color-acao-tinta: #ffffff;
+  --color-ativo-tinta: #3d6ea8;
+  --color-meta: #3d6ea8;
+}
+
+html.dark[data-destaque="azul"] {
+  --color-destaque: #7aa3d4;
+  --color-destaque-suave: #243044;
+  --color-acao: #7aa3d4;
+  --color-acao-tinta: #121214;
+  --color-ativo-tinta: #121214;
+  --color-meta: #7aa3d4;
+}
+
+html[data-destaque="laranja"] {
+  --color-destaque: #c96a2c;
+  --color-destaque-suave: #f8eadc;
+  --color-acao: #c96a2c;
+  --color-acao-tinta: #ffffff;
+  --color-ativo-tinta: #c96a2c;
+  --color-meta: #c96a2c;
+}
+
+html.dark[data-destaque="laranja"] {
+  --color-destaque: #e09a5a;
+  --color-destaque-suave: #3a2c20;
+  --color-acao: #e09a5a;
+  --color-acao-tinta: #1c1c1f;
+  --color-ativo-tinta: #1c1c1f;
+  --color-meta: #e09a5a;
+}
+
+html[data-destaque="roxo"] {
+  --color-destaque: #6b4c9a;
+  --color-destaque-suave: #eee6f6;
+  --color-acao: #6b4c9a;
+  --color-acao-tinta: #ffffff;
+  --color-ativo-tinta: #6b4c9a;
+  --color-meta: #6b4c9a;
+}
+
+html.dark[data-destaque="roxo"] {
+  --color-destaque: #b08ad4;
+  --color-destaque-suave: #322840;
+  --color-acao: #b08ad4;
+  --color-acao-tinta: #121214;
+  --color-ativo-tinta: #121214;
+  --color-meta: #b08ad4;
+}
+
+html[data-destaque="branco"] .bg-acao {
+  border: 1px solid var(--color-borda);
+}
+
+/* Login sempre no padrão do protótipo; a cor escolhida vale só após entrar. */
+html[data-destaque] .tela-login {
+  --color-destaque: #47807a;
+  --color-destaque-suave: #e0f0ed;
+  --color-acao: #24211f;
+  --color-acao-tinta: #ffffff;
+  --color-ativo-tinta: #47807a;
+  --color-meta: #47807a;
+}
+
+html.dark[data-destaque] .tela-login {
+  --color-destaque: #66a69e;
+  --color-destaque-suave: #2e4240;
+  --color-acao: #f7f7fa;
+  --color-acao-tinta: #1c1c1f;
+  --color-ativo-tinta: #1c1c1f;
+  --color-meta: #d1d1d6;
+}
+
+html[data-destaque] .tela-login .bg-acao {
+  border-color: transparent;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

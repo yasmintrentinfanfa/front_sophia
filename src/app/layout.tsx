@@ -20,7 +20,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning className={`${inter.variable} h-full antialiased`}>
+    <html
+      lang="pt-BR"
+      suppressHydrationWarning
+      data-destaque="verde"
+      className={`${inter.variable} h-full antialiased`}
+    >
       <head>
         <ScriptTema />
       </head>

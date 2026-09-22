@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createPortal } from "react-dom";
 
 import { BotaoTema } from "@/components/tema/botao-tema";
+import { SeletorDestaque } from "@/components/tema/seletor-destaque";
 
 interface ModalConfiguracoesProps {
   aberto: boolean;
@@ -52,7 +53,7 @@ export function ModalConfiguracoes({ aberto, aoFechar }: ModalConfiguracoesProps
         <h2 id={idTitulo} className="text-[15px] font-semibold">
           Configurações
         </h2>
-        <p className="text-tinta-suave mt-1 text-[12px]">Tema, pagamento e sessão</p>
+        <p className="text-tinta-suave mt-1 text-[12px]">Tema, cor, pagamento e sessão</p>
 
         <div className="mt-4 flex flex-col gap-3">
           <div className="border-borda flex items-center justify-between rounded-[10px] border px-3 py-2.5">
@@ -65,6 +66,8 @@ export function ModalConfiguracoes({ aberto, aoFechar }: ModalConfiguracoesProps
             </div>
             <BotaoTema className="size-8" />
           </div>
+
+          <SeletorDestaque />
 
           <div className="border-borda flex items-center justify-between gap-3 rounded-[10px] border px-3 py-2.5">
             <div className="flex min-w-0 flex-col gap-0.5">
