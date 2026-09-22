@@ -1,6 +1,7 @@
 import Image from "next/image";
 
 import { FormularioLogin } from "@/components/login/formulario-login";
+import { LinkTermos } from "@/components/login/link-termos";
 import { BotaoTema } from "@/components/tema/botao-tema";
 
 export default function PaginaLogin() {
@@ -10,9 +11,7 @@ export default function PaginaLogin() {
         <span className="text-[13px] font-semibold">SOPHIA</span>
         <div className="flex items-center gap-2">
           <BotaoTema />
-          <p className="text-destaque dark:text-tinta text-right text-[11px]">
-            Termos de uso e Política de privacidade
-          </p>
+          <LinkTermos />
         </div>
       </header>
 

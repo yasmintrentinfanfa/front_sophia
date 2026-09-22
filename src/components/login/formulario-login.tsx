@@ -3,7 +3,9 @@
 import { useId, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
+import { ModalClausulas } from "@/components/casos/modal-clausulas";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { gravarAceiteClausulas, leuAceiteClausulas } from "@/lib/clausulas";
 
 const CLASSE_CAMPO =
   "border-borda focus:border-destaque focus:ring-destaque/20 bg-campo h-10 w-full rounded-[8px] border px-3 text-[13px] outline-none focus:ring-2";
@@ -14,14 +16,19 @@ export function FormularioLogin() {
   const idSenha = useId();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [clausulasAbertas, setClausulasAbertas] = useState(false);
 
   /**
    * Ainda não há autenticação: o backend está sendo construído em paralelo.
-   * Por ora o envio apenas leva ao painel de casos.
+   * Por ora o envio apenas leva ao painel de casos, após o aceite na primeira vez.
    */
   function aoEnviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
-    router.push("/casos");
+    if (leuAceiteClausulas()) {
+      router.push("/casos");
+      return;
+    }
+    setClausulasAbertas(true);
   }
 
   return (
@@ -72,6 +79,17 @@ export function FormularioLogin() {
           Criar conta
         </AcaoFutura>
       </p>
+
+      <ModalClausulas
+        aberto={clausulasAbertas}
+        modo="aceite"
+        aoFechar={() => setClausulasAbertas(false)}
+        aoConfirmar={() => {
+          gravarAceiteClausulas();
+          setClausulasAbertas(false);
+          router.push("/casos");
+        }}
+      />
     </form>
   );
 }
