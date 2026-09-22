@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
 
 const CLASSE_CAMPO =
-  "border-borda focus:border-destaque focus:ring-destaque/20 bg-campo placeholder:text-destaque h-[52px] w-full rounded-[10px] border px-4 text-sm outline-none focus:ring-2";
+  "border-borda focus:border-destaque focus:ring-destaque/20 bg-campo placeholder:text-destaque h-10 w-full rounded-[8px] border px-3 text-[13px] outline-none focus:ring-2";
 
 export default function PaginaNovoCaso() {
   const router = useRouter();
@@ -37,17 +37,17 @@ export default function PaginaNovoCaso() {
 
   return (
     <>
-      <header className="flex w-full shrink-0 flex-col gap-[6px] px-[40px] pt-[28px] pb-[12px]">
-        <h1 className="text-[28px] leading-none font-bold">Criar novo caso</h1>
-        <p className="text-tinta-suave text-sm">Vincule um cliente e inicie a análise</p>
+      <header className="flex w-full shrink-0 flex-col gap-1 px-7 pt-5 pb-2">
+        <h1 className="text-[22px] leading-none font-bold">Criar novo caso</h1>
+        <p className="text-tinta-suave text-[13px]">Vincule um cliente e inicie a análise</p>
       </header>
 
       <form
         onSubmit={aoEnviar}
-        className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-[40px] pt-8 pb-10"
+        className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-7 pt-5 pb-7"
       >
-        <div className="flex w-full max-w-[520px] flex-col gap-2">
-          <label htmlFor={idTitulo} className="text-[13px] font-medium">
+        <div className="flex w-full max-w-[420px] flex-col gap-1.5">
+          <label htmlFor={idTitulo} className="text-[12px] font-medium">
             Nome do caso
           </label>
           <input
@@ -60,8 +60,8 @@ export default function PaginaNovoCaso() {
           />
         </div>
 
-        <div className="flex w-full max-w-[520px] flex-col gap-2">
-          <label htmlFor={idCliente} className="text-[13px] font-medium">
+        <div className="flex w-full max-w-[420px] flex-col gap-1.5">
+          <label htmlFor={idCliente} className="text-[12px] font-medium">
             Cliente
           </label>
           <input
@@ -74,8 +74,8 @@ export default function PaginaNovoCaso() {
           />
         </div>
 
-        <div className="flex w-full max-w-[520px] flex-col gap-2">
-          <label htmlFor={idArea} className="text-[13px] font-medium">
+        <div className="flex w-full max-w-[420px] flex-col gap-1.5">
+          <label htmlFor={idArea} className="text-[12px] font-medium">
             Área jurídica
           </label>
           <input
@@ -91,14 +91,14 @@ export default function PaginaNovoCaso() {
           <button
             type="button"
             onClick={() => router.push("/casos")}
-            className="border-borda bg-campo flex h-11 w-[120px] items-center justify-center rounded-[10px] border text-[13px] font-medium"
+            className="border-borda bg-campo flex h-8 w-[100px] items-center justify-center rounded-[8px] border text-[12px] font-medium"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={enviando}
-            className="bg-acao text-acao-tinta flex h-11 w-[140px] items-center justify-center rounded-[10px] text-[13px] font-semibold disabled:opacity-50"
+            className="bg-acao text-acao-tinta flex h-8 w-[112px] items-center justify-center rounded-[8px] text-[12px] font-semibold disabled:opacity-50"
           >
             Criar caso
           </button>

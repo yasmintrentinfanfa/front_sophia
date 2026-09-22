@@ -73,13 +73,13 @@ export function ModalUpload({ aberto, aoFechar, aoAnexar }: ModalUploadProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={idTitulo}
-        className="bg-campo border-borda w-full max-w-[420px] rounded-[12px] border p-6 shadow-lg"
+        className="bg-campo border-borda w-full max-w-[360px] rounded-[10px] border p-4 shadow-lg"
         onClick={(evento) => evento.stopPropagation()}
       >
-        <h2 id={idTitulo} className="text-[17px] font-semibold">
+        <h2 id={idTitulo} className="text-[15px] font-semibold">
           Carregar arquivo
         </h2>
-        <p className="text-tinta-suave mt-1 text-[13px]">Envie um áudio MP3 ou um vídeo MP4 da entrevista.</p>
+        <p className="text-tinta-suave mt-1 text-[12px]">Envie um áudio MP3 ou um vídeo MP4 da entrevista.</p>
 
         <label
           onDragOver={(evento) => {
@@ -89,7 +89,7 @@ export function ModalUpload({ aberto, aoFechar, aoAnexar }: ModalUploadProps) {
           onDragLeave={() => setArrastando(false)}
           onDrop={aoSoltar}
           className={cn(
-            "border-borda mt-5 flex min-h-[140px] cursor-pointer flex-col items-center justify-center rounded-[10px] border border-dashed px-4 py-6 text-center",
+            "border-borda mt-3 flex min-h-[100px] cursor-pointer flex-col items-center justify-center rounded-[8px] border border-dashed px-3 py-4 text-center",
             arrastando && "border-destaque bg-destaque-suave",
           )}
         >
@@ -101,20 +101,20 @@ export function ModalUpload({ aberto, aoFechar, aoAnexar }: ModalUploadProps) {
             className="sr-only"
           />
           {arquivo ? (
-            <p className="text-[13px] font-medium">{arquivo.name}</p>
+            <p className="text-[12px] font-medium">{arquivo.name}</p>
           ) : (
             <>
-              <p className="text-[13px] font-medium">Arraste o arquivo aqui</p>
-              <p className="text-tinta-suave mt-1 text-[12px]">ou clique para escolher no computador</p>
+              <p className="text-[12px] font-medium">Arraste o arquivo aqui</p>
+              <p className="text-tinta-suave mt-1 text-[11px]">ou clique para escolher no computador</p>
             </>
           )}
         </label>
 
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="mt-3 flex justify-end gap-2">
           <button
             type="button"
             onClick={aoFechar}
-            className="border-borda flex h-10 items-center rounded-[10px] border px-4 text-[13px] font-semibold"
+            className="border-borda flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-semibold"
           >
             Cancelar
           </button>
@@ -124,7 +124,7 @@ export function ModalUpload({ aberto, aoFechar, aoAnexar }: ModalUploadProps) {
             onClick={() => {
               if (arquivo) aoAnexar(arquivo);
             }}
-            className="bg-acao text-acao-tinta flex h-10 items-center rounded-[10px] px-4 text-[13px] font-semibold disabled:opacity-40"
+            className="bg-acao text-acao-tinta flex h-8 items-center rounded-[8px] px-3 text-[12px] font-semibold disabled:opacity-40"
           >
             Anexar
           </button>

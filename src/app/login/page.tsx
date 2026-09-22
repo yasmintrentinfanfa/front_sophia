@@ -5,42 +5,42 @@ import { BotaoTema } from "@/components/tema/botao-tema";
 
 export default function PaginaLogin() {
   return (
-    <div className="flex min-h-dvh flex-col px-12 py-8">
+    <div className="flex min-h-dvh flex-col px-8 py-5">
       <header className="flex h-6 w-full items-center justify-between">
-        <span className="text-sm font-semibold">SOPHIA</span>
-        <div className="flex items-center gap-3">
+        <span className="text-[13px] font-semibold">SOPHIA</span>
+        <div className="flex items-center gap-2">
           <BotaoTema />
-          <p className="text-destaque dark:text-tinta text-right text-xs">
+          <p className="text-destaque dark:text-tinta text-right text-[11px]">
             Termos de uso e Política de privacidade
           </p>
         </div>
       </header>
 
-      <main className="flex w-full flex-1 flex-col items-center justify-center gap-7 py-10">
+      <main className="flex w-full flex-1 flex-col items-center justify-center gap-4 py-6">
         <Image
           src="/logo-sophia.png"
           alt="Sophia"
-          width={166}
-          height={142}
+          width={120}
+          height={102}
           priority
-          className="h-[142px] w-[166px] object-contain dark:hidden"
+          className="h-[102px] w-[120px] object-contain dark:hidden"
         />
         <Image
           src="/logo-sophia-escuro.png"
           alt="Sophia"
-          width={103}
-          height={105}
+          width={80}
+          height={82}
           priority
-          className="hidden h-[105px] w-[103px] rounded-full dark:block"
+          className="hidden h-[82px] w-[80px] rounded-full dark:block"
         />
 
-        <div className="flex w-[440px] flex-col gap-6">
-          <h1 className="text-4xl font-bold">Bem-vindo à Sophia</h1>
-          <p className="text-base">IA que apoia advogados em reuniões com clientes</p>
+        <div className="flex w-[360px] flex-col gap-4">
+          <h1 className="text-2xl font-bold">Bem-vindo à Sophia</h1>
+          <p className="text-sm">IA que apoia advogados em reuniões com clientes</p>
 
           <FormularioLogin />
 
-          <p className="text-destaque dark:text-tinta-suave mt-16 text-[13px]">
+          <p className="text-destaque dark:text-tinta-suave mt-8 w-full -translate-x-3 text-center text-[12px]">
             Plataforma web para advogados e escritórios jurídicos
           </p>
         </div>

@@ -42,21 +42,21 @@ export default function PaginaSessaoAtiva() {
   }, [estado]);
 
   if (carregando) {
-    return <p className="text-tinta-suave px-10 pt-8 text-sm">Carregando caso…</p>;
+    return <p className="text-tinta-suave px-7 pt-6 text-[13px]">Carregando caso…</p>;
   }
 
   if (!caso) {
-    return <p className="text-tinta-suave px-10 pt-8 text-sm">Caso não encontrado.</p>;
+    return <p className="text-tinta-suave px-7 pt-6 text-[13px]">Caso não encontrado.</p>;
   }
 
   const encerrada = estado === "encerrada";
 
   return (
     <>
-      <header className="flex h-20 w-full shrink-0 items-center justify-between gap-4 px-10 pt-5 pb-3">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <h1 className="text-xl leading-none font-bold">Sessão ativa</h1>
-          <p className="text-tinta-suave truncate text-[13px]">{caso.titulo}</p>
+      <header className="flex h-14 w-full shrink-0 items-center justify-between gap-3 px-7 pt-4 pb-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <h1 className="text-lg leading-none font-bold">Sessão ativa</h1>
+          <p className="text-tinta-suave truncate text-[12px]">{caso.titulo}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button
@@ -91,13 +91,13 @@ export default function PaginaSessaoAtiva() {
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 px-10 pt-4 pb-6">
-        <section className="bg-campo border-borda flex min-h-0 w-full flex-1 flex-col gap-3 overflow-y-auto rounded-[14px] border p-5">
-          <h2 className="text-[15px] font-semibold">Transcrição da conversa</h2>
+      <div className="flex min-h-0 flex-1 px-7 pt-3 pb-5">
+        <section className="bg-campo border-borda flex min-h-0 w-full flex-1 flex-col gap-2 overflow-y-auto rounded-[10px] border p-4">
+          <h2 className="text-[13px] font-semibold">Transcrição da conversa</h2>
           {FALAS.map((fala) => (
             <p
               key={`${fala.papel}-${fala.texto}`}
-              className={fala.tipo === "nota" ? "text-destaque text-sm font-medium" : "text-sm font-normal"}
+              className={fala.tipo === "nota" ? "text-destaque text-[13px] font-medium" : "text-[13px] font-normal"}
             >
               {fala.papel}: {fala.texto}
             </p>

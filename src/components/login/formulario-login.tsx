@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const CLASSE_CAMPO =
-  "border-borda focus:border-destaque focus:ring-destaque/20 bg-campo h-[52px] w-full rounded-[10px] border px-4 text-sm outline-none focus:ring-2";
+  "border-borda focus:border-destaque focus:ring-destaque/20 bg-campo h-10 w-full rounded-[8px] border px-3 text-[13px] outline-none focus:ring-2";
 
 export function FormularioLogin() {
   const router = useRouter();
@@ -25,9 +25,9 @@ export function FormularioLogin() {
   }
 
   return (
-    <form onSubmit={aoEnviar} className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <label htmlFor={idEmail} className="text-[13px] font-medium">
+    <form onSubmit={aoEnviar} className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor={idEmail} className="text-[12px] font-medium">
           Email
         </label>
         <input
@@ -40,8 +40,8 @@ export function FormularioLogin() {
         />
       </div>
 
-      <div className="flex flex-col gap-2">
-        <label htmlFor={idSenha} className="text-[13px] font-medium">
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor={idSenha} className="text-[12px] font-medium">
           Senha
         </label>
         <input
@@ -60,13 +60,13 @@ export function FormularioLogin() {
         </div>
         <button
           type="submit"
-          className="bg-acao text-acao-tinta hover:bg-acao/90 flex h-[52px] w-full items-center justify-center rounded-[10px] text-[15px] font-semibold transition-colors"
+          className="bg-acao text-acao-tinta hover:bg-acao/90 flex h-10 w-full items-center justify-center rounded-[8px] text-[13px] font-semibold transition-colors"
         >
           Entrar
         </button>
       </div>
 
-      <p className="flex justify-center gap-1 text-[13px]">
+      <p className="flex justify-center gap-1 text-[12px]">
         <span className="text-tinta-suave">Não tem conta?</span>
         <AcaoFutura rotulo="Criação de conta" className="font-semibold">
           Criar conta
@@ -93,7 +93,7 @@ function AcaoFutura({
           <button
             type="button"
             disabled
-            className={`text-[13px] font-medium disabled:pointer-events-auto ${className ?? ""}`}
+            className={`text-[12px] font-medium disabled:pointer-events-auto ${className ?? ""}`}
           >
             {children}
           </button>

@@ -46,13 +46,13 @@ export function ModalConfiguracoes({ aberto, aoFechar }: ModalConfiguracoesProps
         role="dialog"
         aria-modal="true"
         aria-labelledby={idTitulo}
-        className="bg-campo border-borda w-full max-w-[380px] rounded-[12px] border p-5 shadow-lg"
+        className="bg-campo border-borda w-full max-w-[340px] rounded-[10px] border p-4 shadow-lg"
         onClick={(evento) => evento.stopPropagation()}
       >
-        <h2 id={idTitulo} className="text-[17px] font-semibold">
+        <h2 id={idTitulo} className="text-[15px] font-semibold">
           Configurações
         </h2>
-        <p className="text-tinta-suave mt-1 text-[13px]">Tema, sessão e pagamento</p>
+        <p className="text-tinta-suave mt-1 text-[12px]">Tema, pagamento e sessão</p>
 
         <div className="mt-4 flex flex-col gap-3">
           <div className="border-borda flex items-center justify-between rounded-[10px] border px-3 py-2.5">
@@ -64,19 +64,6 @@ export function ModalConfiguracoes({ aberto, aoFechar }: ModalConfiguracoesProps
               </p>
             </div>
             <BotaoTema className="size-8" />
-          </div>
-
-          <div className="border-borda flex items-center justify-between rounded-[10px] border px-3 py-2.5">
-            <div className="flex flex-col gap-0.5">
-              <p className="text-[13px] font-semibold">Sessão</p>
-              <p className="text-tinta-suave text-[12px]">Voltar para a tela de login</p>
-            </div>
-            <Link
-              href="/login"
-              className="border-borda bg-campo flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-semibold"
-            >
-              Sair
-            </Link>
           </div>
 
           <div className="border-borda flex items-center justify-between gap-3 rounded-[10px] border px-3 py-2.5">
@@ -91,6 +78,19 @@ export function ModalConfiguracoes({ aberto, aoFechar }: ModalConfiguracoesProps
             >
               Alterar
             </button>
+          </div>
+
+          <div className="border-borda flex items-center justify-between rounded-[10px] border px-3 py-2.5">
+            <div className="flex flex-col gap-0.5">
+              <p className="text-[13px] font-semibold">Sessão</p>
+              <p className="text-tinta-suave text-[12px]">Voltar para a tela de login</p>
+            </div>
+            <Link
+              href="/login"
+              className="pressionavel border-borda bg-campo flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-semibold"
+            >
+              Sair
+            </Link>
           </div>
         </div>
 

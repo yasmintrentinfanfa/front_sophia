@@ -19,24 +19,24 @@ export default function PaginaGravacao() {
   const caso = casos.find((item) => item.id === casoId);
 
   if (carregando) {
-    return <p className="text-tinta-suave px-10 pt-8 text-sm">Carregando caso…</p>;
+    return <p className="text-tinta-suave px-7 pt-6 text-[13px]">Carregando caso…</p>;
   }
 
   if (!caso) {
-    return <p className="text-tinta-suave px-10 pt-8 text-sm">Caso não encontrado.</p>;
+    return <p className="text-tinta-suave px-7 pt-6 text-[13px]">Caso não encontrado.</p>;
   }
 
   return (
     <>
-      <header className="flex w-full shrink-0 flex-col gap-[6px] px-[40px] pt-[28px] pb-[12px]">
-        <h1 className="text-[28px] leading-none font-bold">Gravação da entrevista</h1>
-        <p className="text-sm">{caso.titulo}</p>
+      <header className="flex w-full shrink-0 flex-col gap-1 px-7 pt-5 pb-2">
+        <h1 className="text-[22px] leading-none font-bold">Gravação da entrevista</h1>
+        <p className="text-[13px]">{caso.titulo}</p>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-[40px] pt-5 pb-10">
-        <section className="bg-campo border-borda flex w-full flex-col gap-2 rounded-[12px] border px-6 py-5">
-          <h2 className="text-[15px] font-semibold">Consentimento do cliente</h2>
-          <p className="text-tinta-suave text-[13px]">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-7 pt-4 pb-7">
+        <section className="bg-campo border-borda flex w-full flex-col gap-1.5 rounded-[10px] border px-4 py-3">
+          <h2 className="text-[13px] font-semibold">Consentimento do cliente</h2>
+          <p className="text-tinta-suave text-[12px]">
             O cliente foi informado e autorizou a gravação e o processamento dos dados para fins
             jurídicos.
           </p>
@@ -51,7 +51,7 @@ export default function PaginaGravacao() {
             }}
             aria-pressed={fonte === "ao_vivo"}
             className={cn(
-              "bg-campo flex h-10 items-center rounded-[10px] border px-4 text-[13px] font-semibold",
+              "bg-campo flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-semibold",
               fonte === "ao_vivo" ? "border-destaque border-[1.5px]" : "border-borda",
             )}
           >
@@ -65,7 +65,7 @@ export default function PaginaGravacao() {
             }}
             aria-pressed={fonte === "arquivo"}
             className={cn(
-              "bg-campo flex h-10 items-center rounded-[10px] border px-4 text-[13px] font-semibold",
+              "bg-campo flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-semibold",
               fonte === "arquivo" ? "border-destaque border-[1.5px]" : "border-borda",
             )}
           >
@@ -74,7 +74,7 @@ export default function PaginaGravacao() {
         </div>
 
         {arquivo ? (
-          <p className="text-tinta-suave text-[13px]">
+          <p className="text-tinta-suave text-[12px]">
             Arquivo selecionado: <span className="text-tinta font-medium">{arquivo.name}</span>
           </p>
         ) : null}

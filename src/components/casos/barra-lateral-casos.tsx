@@ -43,8 +43,8 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
   return (
     <aside
       className={cn(
-        "bg-barra flex shrink-0 items-start overflow-hidden px-[10px] py-[12px] transition-[width] duration-200 ease-out",
-        expandida ? "w-[300px]" : "w-[68px]",
+        "bg-barra flex shrink-0 items-start overflow-hidden px-2 py-2.5 transition-[width] duration-200 ease-out",
+        expandida ? "w-[248px]" : "w-[56px]",
       )}
     >
       <TrilhaIcones expandida={expandida} aoAlternar={() => setExpandida((atual) => !atual)} />
@@ -52,12 +52,12 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
       {expandida ? (
         <div
           id="painel-lista-casos"
-          className="bg-painel flex h-full min-w-px flex-1 flex-col gap-[10px] rounded-[10px] px-[12px] py-[14px]"
+          className="bg-painel flex h-full min-w-px flex-1 flex-col gap-2 rounded-[8px] px-2.5 py-3"
         >
-          <p className="text-[15px] font-bold">SOPHIA</p>
-          <h2 className="text-[12px] font-semibold">Casos em análise</h2>
+          <p className="text-[13px] font-bold">SOPHIA</p>
+          <h2 className="text-[11px] font-semibold">Casos em análise</h2>
 
-          <div className="border-borda focus-within:border-destaque bg-campo flex h-[32px] w-full items-center gap-[6px] rounded-[8px] border px-[10px]">
+          <div className="border-borda focus-within:border-destaque bg-campo flex h-7 w-full items-center gap-1.5 rounded-[7px] border px-2">
             <span aria-hidden className="text-tinta-suave text-[11px]">
               ⌕
             </span>
@@ -84,7 +84,7 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
                     href={`/casos/${caso.id}/gravacao`}
                     aria-current={caso.id === idEmDestaque ? "page" : undefined}
                     className={cn(
-                      "flex min-h-[36px] w-full items-center rounded-[8px] px-[10px] py-[8px] text-left text-[10px] leading-tight font-medium transition-colors",
+                      "pressionavel flex min-h-8 w-full items-center rounded-[7px] px-2 py-1.5 text-left text-[10px] leading-tight font-medium",
                       caso.id === idEmDestaque
                         ? "border-destaque bg-ativo text-ativo-tinta border-[1.5px]"
                         : "bg-chip text-meta border-borda hover:border-destaque/60 border",
@@ -114,7 +114,7 @@ function TrilhaIcones({
   const [configuracoesAberta, setConfiguracoesAberta] = useState(false);
 
   return (
-    <nav className="bg-trilha flex h-full w-[48px] flex-col items-center gap-[8px] rounded-[10px] px-[4px] pt-[4px] pb-[8px]">
+    <nav className="bg-trilha flex h-full w-10 flex-col items-center gap-1.5 rounded-[8px] px-1 pt-1 pb-2">
       <Tooltip>
         <TooltipTrigger
           render={
@@ -123,7 +123,7 @@ function TrilhaIcones({
               aria-expanded={expandida}
               aria-controls="painel-lista-casos"
               onClick={aoAlternar}
-              className="hover:bg-tinta/5 flex h-[28px] w-full items-center justify-center rounded-[8px]"
+              className="hover:bg-tinta/5 flex h-6 w-full items-center justify-center rounded-[6px]"
             >
               <Hamburguer />
               <span className="sr-only">
@@ -144,7 +144,7 @@ function TrilhaIcones({
               href="/casos/novo"
               aria-current={pathname === "/casos/novo" ? "page" : undefined}
               className={cn(
-                "flex h-[36px] items-center justify-center rounded-[10px] px-[6px]",
+                "pressionavel flex h-8 items-center justify-center rounded-[8px] px-1",
                 pathname === "/casos/novo" && "bg-destaque-suave border-destaque border-[1.5px]",
               )}
             >
@@ -169,7 +169,7 @@ function TrilhaIcones({
                   : undefined
               }
               className={cn(
-                "flex h-[36px] items-center justify-center rounded-[10px] px-[6px]",
+                "pressionavel flex h-8 items-center justify-center rounded-[8px] px-1",
                 (pathname === "/casos" ||
                   pathname.includes("/gravacao") ||
                   pathname.includes("/sessao")) &&
@@ -213,7 +213,7 @@ function TrilhaIcones({
               aria-expanded={configuracoesAberta}
               onClick={() => setConfiguracoesAberta(true)}
               className={cn(
-                "flex h-[36px] items-center justify-center rounded-[10px] px-[6px]",
+                "flex h-8 items-center justify-center rounded-[8px] px-1",
                 configuracoesAberta && "bg-destaque-suave border-destaque border-[1.5px]",
               )}
             >
@@ -230,7 +230,7 @@ function TrilhaIcones({
           render={
             <Link
               href="/login"
-              className="flex h-[36px] items-center justify-center rounded-[10px] px-[6px]"
+              className="pressionavel flex h-8 items-center justify-center rounded-[8px] px-1"
             >
               <IconeSair />
               <span className="sr-only">Sair</span>
@@ -257,7 +257,7 @@ function BotaoTrilha({ rotulo, children }: { rotulo: string; children: ReactNode
           <button
             type="button"
             disabled
-            className="flex h-[36px] items-center justify-center rounded-[10px] px-[6px] disabled:pointer-events-auto"
+            className="flex h-8 items-center justify-center rounded-[8px] px-1 disabled:pointer-events-auto"
           >
             {children}
             <span className="sr-only">{rotulo}</span>
@@ -273,7 +273,7 @@ function ListaEsqueleto() {
   return (
     <ul className="flex flex-col gap-[6px]" aria-hidden>
       {[0, 1, 2].map((indice) => (
-        <li key={indice} className="bg-superficie h-[36px] animate-pulse rounded-[8px]" />
+        <li key={indice} className="bg-superficie h-8 animate-pulse rounded-[7px]" />
       ))}
     </ul>
   );
