@@ -15,6 +15,7 @@ import { BotaoTema } from "@/components/tema/botao-tema";
 import { ModalConfiguracoes } from "@/components/casos/modal-configuracoes";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Caso } from "@/lib/api/types";
+import { rotuloCaso } from "@/lib/casos/rotulo";
 import { normalizar } from "@/lib/texto";
 import { cn } from "@/lib/utils";
 
@@ -90,7 +91,7 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
                         : "bg-chip text-meta border-borda hover:border-destaque/60 border",
                     )}
                   >
-                    <span className="line-clamp-2">{caso.titulo}</span>
+                    <span className="line-clamp-2">{rotuloCaso(caso)}</span>
                   </Link>
                   </li>
                 ))}
