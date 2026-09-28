@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 
 import { ScriptTema } from "@/components/tema/script-tema";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ProvedorNavegacao } from "@/components/fluxo/botao-voltar";
 
 import "./globals.css";
 
@@ -30,7 +31,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <ScriptTema />
       </head>
       <body className="bg-fundo text-tinta flex min-h-full flex-col">
-        <TooltipProvider delay={200}>{children}</TooltipProvider>
+        <TooltipProvider delay={200}>
+          <ProvedorNavegacao>{children}</ProvedorNavegacao>
+        </TooltipProvider>
       </body>
     </html>
   );

@@ -2,6 +2,7 @@
 
 import { useId, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import { ModalClausulas } from "@/components/casos/modal-clausulas";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -75,9 +76,9 @@ export function FormularioLogin() {
 
       <p className="flex justify-center gap-1 text-[12px]">
         <span className="text-tinta-suave">Não tem conta?</span>
-        <AcaoFutura rotulo="Criação de conta" className="font-semibold">
+        <Link href="/criar-conta" className="text-[12px] font-semibold">
           Criar conta
-        </AcaoFutura>
+        </Link>
       </p>
 
       <ModalClausulas

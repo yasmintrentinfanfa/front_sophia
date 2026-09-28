@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { BarraLateralCasos } from "@/components/casos/barra-lateral-casos";
 import { ProvedorListaCasos } from "@/components/casos/contexto-lista-casos";
+import { VoltarNosCasos } from "@/components/fluxo/botao-voltar";
+import type { ConteudoCaso } from "@/lib/api/analise";
 import { api } from "@/lib/api";
 import type { Caso, DadosNovoCaso, PastaCaso } from "@/lib/api/types";
 
@@ -31,6 +33,10 @@ export default function LayoutCasos({ children }: { children: ReactNode }) {
     () => ({
       casos,
       carregando,
+      async finalizarSessao(id: string, transcricao: ConteudoCaso["transcricao"]) {
+        const atualizado = await api.finalizarSessao(id, transcricao);
+        setCasos((lista) => lista.map((item) => item.id === id ? atualizado : item));
+      },
       async criarCaso(dados: DadosNovoCaso) {
         const criado = await api.criarCaso(dados);
         setCasos((lista) => [criado, ...lista.filter((item) => item.id !== criado.id)]);
@@ -52,7 +58,10 @@ export default function LayoutCasos({ children }: { children: ReactNode }) {
     <ProvedorListaCasos value={contexto}>
       <div className="bg-fundo flex h-dvh overflow-hidden">
         <BarraLateralCasos casos={casos} carregando={carregando} />
-        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <VoltarNosCasos />
+          {children}
+        </main>
       </div>
     </ProvedorListaCasos>
   );

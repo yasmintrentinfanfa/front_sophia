@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
 import { ModalConfirmar } from "@/components/casos/modal-confirmar";
+import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
+import type { ConteudoCaso } from "@/lib/api/analise";
 import { cn } from "@/lib/utils";
 
 type EstadoGravacao = "gravando" | "pausada" | "encerrada";
@@ -30,13 +32,42 @@ const ROTULO_ESTADO: Record<EstadoGravacao, string> = {
 };
 
 export default function PaginaSessaoAtiva() {
+  const router = useRouter();
   const { casoId } = useParams<{ casoId: string }>();
-  const { casos, carregando } = useListaCasos();
+  const { casos, carregando, finalizarSessao } = useListaCasos();
   const [segundos, setSegundos] = useState(0);
   const [estado, setEstado] = useState<EstadoGravacao>("gravando");
   const [confirmarAnalise, setConfirmarAnalise] = useState(false);
+  const [confirmarSaida, setConfirmarSaida] = useState(false);
+  const [processando, setProcessando] = useState(false);
+  const [erro, setErro] = useState("");
+  const envioEmCurso = useRef(false);
   const estadoAntesDoFim = useRef<EstadoGravacao>("gravando");
   const caso = casos.find((item) => item.id === casoId);
+
+  async function encerrarSessao() {
+    if (envioEmCurso.current) return;
+    envioEmCurso.current = true;
+    setProcessando(true);
+    setErro("");
+    const transcricao: ConteudoCaso["transcricao"] = FALAS.map((fala, indice) => ({
+      id: `${casoId}-fala-${indice + 1}`,
+      tempo: formatarCronometro(segundos),
+      texto: fala.texto,
+      papel: fala.tipo === "nota" ? "nota" : indice === 0 ? "advogado" : "cliente",
+    }));
+    try {
+      await finalizarSessao(casoId, transcricao);
+      setEstado("encerrada");
+      setConfirmarAnalise(false);
+      router.replace(`/casos/${casoId}/analise`);
+    } catch {
+      setErro("Nao foi possivel gerar a analise. Tente novamente; a transcricao continua nesta tela.");
+    } finally {
+      envioEmCurso.current = false;
+      setProcessando(false);
+    }
+  }
 
   useEffect(() => {
     if (estado !== "gravando") return;
@@ -49,19 +80,28 @@ export default function PaginaSessaoAtiva() {
   }
 
   if (!caso) {
-    return <p className="text-tinta-suave px-7 pt-6 text-[13px]">Caso não encontrado.</p>;
+    return <div className="px-7 pt-6"><BotaoVoltar destino="/casos" /><p className="text-tinta-suave mt-3 text-[13px]">Caso não encontrado.</p></div>;
   }
 
   const encerrada = estado === "encerrada";
 
   return (
     <>
-      <header className="flex h-14 w-full shrink-0 items-center justify-between gap-3 px-7 pt-4 pb-2">
+      <header className="flex min-h-14 w-full shrink-0 flex-wrap items-center justify-between gap-3 px-7 pt-4 pb-2 max-[700px]:px-4">
+        <BotaoVoltar
+          destino={`/casos/${casoId}/gravacao`}
+          desabilitado={processando}
+          aoVoltar={() => {
+            estadoAntesDoFim.current = estado;
+            setEstado("pausada");
+            setConfirmarSaida(true);
+          }}
+        />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <h1 className="text-lg leading-none font-bold">Sessão ativa</h1>
           <p className="text-tinta-suave truncate text-[12px]">{caso.titulo}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             disabled={encerrada}
@@ -77,6 +117,7 @@ export default function PaginaSessaoAtiva() {
             onClick={() => {
               estadoAntesDoFim.current = estado;
               setEstado("pausada");
+              setErro("");
               setConfirmarAnalise(true);
             }}
             className="pressionavel bg-acao text-acao-tinta flex h-8 items-center rounded-[8px] px-3 text-[12px] font-semibold disabled:opacity-50"
@@ -116,15 +157,26 @@ export default function PaginaSessaoAtiva() {
         aberto={confirmarAnalise}
         titulo="Gerar análise de IA"
         descricao="Finalizar a gravação e gerar a análise preliminar deste caso?"
-        confirmar="Gerar análise"
+        confirmar={processando ? "Gerando analise..." : "Gerar análise"}
+        processando={processando}
+        erro={erro}
         aoFechar={() => {
+          if (envioEmCurso.current) return;
           setConfirmarAnalise(false);
           setEstado(estadoAntesDoFim.current);
         }}
-        aoConfirmar={() => {
-          setConfirmarAnalise(false);
-          setEstado("encerrada");
+        aoConfirmar={() => void encerrarSessao()}
+      />
+      <ModalConfirmar
+        aberto={confirmarSaida}
+        titulo="Voltar para a gravacao?"
+        descricao="A sessao atual sera interrompida sem gerar uma analise."
+        confirmar="Voltar para a gravacao"
+        aoFechar={() => {
+          setConfirmarSaida(false);
+          setEstado(estadoAntesDoFim.current);
         }}
+        aoConfirmar={() => router.replace(`/casos/${casoId}/gravacao`)}
       />
     </>
   );

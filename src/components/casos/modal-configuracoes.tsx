@@ -76,12 +76,12 @@ export function ModalConfiguracoes({ aberto, aoFechar }: ModalConfiguracoesProps
               <p className="text-[12px]">Plano mensal · R$ xx</p>
               <p className="text-tinta-suave text-[12px]">Cartão de crédito •••• 4242</p>
             </div>
-            <button
-              type="button"
+            <Link
+              href="/pagamento"
               className="border-borda bg-campo flex h-8 shrink-0 items-center rounded-[8px] border px-3 text-[12px] font-semibold"
             >
               Alterar
-            </button>
+            </Link>
           </div>
 
           <div className="border-borda flex items-center justify-between rounded-[10px] border px-3 py-2.5">

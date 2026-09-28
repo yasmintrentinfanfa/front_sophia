@@ -9,6 +9,7 @@ import type { Caso, SophiaApi } from "@/lib/api/types";
 import { pastaDoCaso } from "@/lib/casos/rotulo";
 
 import { CASOS } from "./dados";
+import { criarMockFluxo } from "./fluxo";
 
 function esperar(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -30,6 +31,7 @@ let casos = structuredClone(CASOS).map((caso) => ({
 }));
 
 export const mockApi: SophiaApi = {
+  ...criarMockFluxo((id) => casos.find((caso) => caso.id === id)),
   async listarCasos() {
     await esperar(220);
     casos = casos.map((caso) => ({ ...caso, pasta: pastaDoCaso(caso) }));

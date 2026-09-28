@@ -10,6 +10,8 @@ interface ModalConfirmarProps {
   confirmar: string;
   aoFechar: () => void;
   aoConfirmar: () => void;
+  processando?: boolean;
+  erro?: string;
 }
 
 export function ModalConfirmar({
@@ -19,6 +21,8 @@ export function ModalConfirmar({
   confirmar,
   aoFechar,
   aoConfirmar,
+  processando = false,
+  erro,
 }: ModalConfirmarProps) {
   const idTitulo = useId();
   const [montado, setMontado] = useState(false);
@@ -48,7 +52,7 @@ export function ModalConfirmar({
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={aoFechar}
+      onClick={() => { if (!processando) aoFechar(); }}
     >
       <div
         role="dialog"
@@ -61,9 +65,11 @@ export function ModalConfirmar({
           {titulo}
         </h2>
         <p className="text-tinta-suave mt-1 text-[12px]">{descricao}</p>
+        {erro ? <p role="alert" className="mt-2 text-[12px] text-red-600 dark:text-red-400">{erro}</p> : null}
         <div className="mt-4 flex justify-end gap-2">
           <button
             type="button"
+            disabled={processando}
             onClick={aoFechar}
             className="pressionavel border-borda flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-semibold"
           >
@@ -71,6 +77,7 @@ export function ModalConfirmar({
           </button>
           <button
             type="button"
+            disabled={processando}
             onClick={aoConfirmar}
             className="pressionavel bg-acao text-acao-tinta flex h-8 items-center rounded-[8px] px-3 text-[12px] font-semibold"
           >

@@ -1,7 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { destinoDoCaso } from "@/lib/casos/destino";
+
+import { useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   Hamburguer,
@@ -18,16 +21,34 @@ import type { Caso } from "@/lib/api/types";
 import { pastaDoCaso, rotuloCaso } from "@/lib/casos/rotulo";
 import { normalizar } from "@/lib/texto";
 import { cn } from "@/lib/utils";
+import styles from "@/components/fluxo/telas.module.css";
 
 interface BarraLateralCasosProps {
   casos: Caso[];
   carregando?: boolean;
 }
 
+function observarTelaPequena(notificar: () => void) {
+  const consulta = window.matchMedia("(max-width: 700px)");
+  consulta.addEventListener("change", notificar);
+  return () => consulta.removeEventListener("change", notificar);
+}
+
+const lerTelaPequena = () => window.matchMedia("(max-width: 700px)").matches;
+const telaServidor = () => false;
+
 export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCasosProps) {
   const pathname = usePathname();
+  const prototipo = /\/(analise|chat|repositorio)$/.test(pathname);
   const [busca, setBusca] = useState("");
   const [expandida, setExpandida] = useState(true);
+  const [menuMobileAberto, setMenuMobileAberto] = useState(false);
+  const telaPequena = useSyncExternalStore(
+    observarTelaPequena,
+    lerTelaPequena,
+    telaServidor,
+  );
+  const painelExpandido = prototipo && telaPequena ? menuMobileAberto : expandida;
   const segmento = pathname.match(/^\/casos\/([^/]+)/)?.[1] ?? null;
   const rotaDePainel = segmento === "novo" || segmento === "arquivo";
   const idDaRota = segmento && !rotaDePainel ? segmento : null;
@@ -48,20 +69,32 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
 
   return (
     <aside
+      data-expandida={painelExpandido}
       className={cn(
         "bg-barra flex shrink-0 items-start overflow-hidden px-2 py-2.5 transition-[width] duration-200 ease-out",
         expandida ? "w-[248px]" : "w-[56px]",
+        prototipo && styles.barra,
       )}
     >
-      <TrilhaIcones expandida={expandida} aoAlternar={() => setExpandida((atual) => !atual)} />
+      <TrilhaIcones
+        expandida={painelExpandido}
+        aoAlternar={() => {
+          if (prototipo && telaPequena) setMenuMobileAberto((atual) => !atual);
+          else setExpandida((atual) => !atual);
+        }}
+        casoId={idDaRota ?? casosAtivos[0]?.id}
+        prototipo={prototipo}
+      />
 
-      {expandida ? (
+      {expandida || prototipo ? (
         <div
           id="painel-lista-casos"
           className="bg-painel flex h-full min-w-px flex-1 flex-col gap-2 rounded-[8px] px-2.5 py-3"
         >
           <p className="text-[13px] font-bold">SOPHIA</p>
-          <h2 className="text-[11px] font-semibold">Casos em análise</h2>
+          <h2 className="text-[11px] font-semibold">
+            {prototipo ? "Casos em Analise" : "Casos em análise"}
+          </h2>
 
           <div className="border-borda focus-within:border-destaque bg-campo flex h-7 w-full items-center gap-1.5 rounded-[7px] border px-2">
             <span aria-hidden className="text-tinta-suave text-[11px]">
@@ -71,7 +104,7 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
               type="search"
               value={busca}
               onChange={(evento) => setBusca(evento.target.value)}
-              placeholder="Buscar"
+              placeholder={prototipo ? "Search" : "Buscar"}
               aria-label="Buscar caso ou cliente"
               className="text-tinta-suave placeholder:text-tinta-suave min-w-0 flex-1 bg-transparent text-[11px] outline-none"
             />
@@ -87,7 +120,8 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
                 {casosFiltrados.map((caso) => (
                   <li key={caso.id}>
                   <Link
-                    href={`/casos/${caso.id}/gravacao`}
+                    href={prototipo ? `/casos/${caso.id}/${pathname.split("/").at(-1)}` : destinoDoCaso(caso)}
+                    onClick={() => setMenuMobileAberto(false)}
                     aria-current={caso.id === idEmDestaque ? "page" : undefined}
                     className={cn(
                       "pressionavel flex min-h-8 w-full items-center rounded-[7px] px-2 py-1.5 text-left text-[10px] leading-tight font-medium",
@@ -112,9 +146,13 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
 function TrilhaIcones({
   expandida,
   aoAlternar,
+  casoId,
+  prototipo,
 }: {
   expandida: boolean;
   aoAlternar: () => void;
+  casoId?: string;
+  prototipo: boolean;
 }) {
   const pathname = usePathname();
   const [configuracoesAberta, setConfiguracoesAberta] = useState(false);
@@ -170,7 +208,9 @@ function TrilhaIcones({
               aria-current={
                 pathname === "/casos" ||
                 pathname.includes("/gravacao") ||
-                pathname.includes("/sessao")
+                pathname.includes("/sessao") ||
+                pathname.includes("/analise") ||
+                pathname.includes("/chat")
                   ? "page"
                   : undefined
               }
@@ -178,7 +218,9 @@ function TrilhaIcones({
                 "pressionavel flex h-8 items-center justify-center rounded-[8px] px-1",
                 (pathname === "/casos" ||
                   pathname.includes("/gravacao") ||
-                  pathname.includes("/sessao")) &&
+                  pathname.includes("/sessao") ||
+                  pathname.includes("/analise") ||
+                  pathname.includes("/chat")) &&
                   "bg-destaque-suave border-destaque border-[1.5px]",
               )}
             >
@@ -193,18 +235,22 @@ function TrilhaIcones({
       <Tooltip>
         <TooltipTrigger
           render={
-            <button
-              type="button"
-              disabled
-              aria-disabled="true"
-              className="flex h-8 items-center justify-center rounded-[8px] px-1 opacity-70 disabled:pointer-events-auto"
+            <Link
+              href={casoId ? `/casos/${casoId}/repositorio` : "/casos/novo"}
+              aria-current={pathname.endsWith("/repositorio") ? "page" : undefined}
+              className={cn(
+                "flex h-8 items-center justify-center rounded-[8px] px-1",
+                prototipo
+                  ? pathname.endsWith("/repositorio") && "bg-destaque-suave border-destaque border-[1.5px]"
+                  : "opacity-70",
+              )}
             >
               <IconeRepositorio />
               <span className="sr-only">Repositório</span>
-            </button>
+            </Link>
           }
         />
-        <TooltipContent side="right">Repositório · em breve</TooltipContent>
+        <TooltipContent side="right">Repositório</TooltipContent>
       </Tooltip>
 
       <span className="flex-1" />
@@ -212,7 +258,7 @@ function TrilhaIcones({
       <Tooltip>
         <TooltipTrigger
           render={
-            <span className="flex justify-center">
+            <span data-extra className="flex justify-center">
               <BotaoTema />
             </span>
           }
@@ -236,7 +282,14 @@ function TrilhaIcones({
                 configuracoesAberta && "bg-destaque-suave border-destaque border-[1.5px]",
               )}
             >
-              <IconeConfiguracoes />
+              {prototipo ? (
+                <>
+                  <Image src="/icone-configuracoes.svg" alt="" width={20} height={20} className="dark:hidden" />
+                  <Image src="/icone-configuracoes-escuro.svg" alt="" width={20} height={20} className="hidden dark:block" />
+                </>
+              ) : (
+                <IconeConfiguracoes />
+              )}
               <span className="sr-only">Configurações</span>
             </button>
           }
@@ -248,6 +301,7 @@ function TrilhaIcones({
         <TooltipTrigger
           render={
             <Link
+              data-extra
               href="/login"
               className="pressionavel flex h-8 items-center justify-center rounded-[8px] px-1"
             >

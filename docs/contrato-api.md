@@ -6,7 +6,17 @@ mockado, e trocar para HTTP não exige mudança nos componentes.
 
 ## Implementado no front
 
-Só a parte necessária para as telas de login e de casos.
+A API simulada cobre casos, análise preliminar, mensagens do chat e conteúdo do
+repositório. Os tipos atuais estão em `src/lib/api/types.ts` e
+`src/lib/api/analise.ts`. Cadastro e pagamento reproduzem o fluxo do protótipo;
+não há autenticação externa nem cobrança, e senhas e dados de cartão não são
+persistidos.
+
+O adapter mantém os dados em memória até recarregar a página. O caso
+`rescisao-silva` contém os textos de demonstração do Figma; outros casos começam
+com seus próprios estados vazios. As referências do protótipo não são fontes
+jurídicas verificadas. Os detalhes de cada insight deixam essa condição explícita;
+análises reais sem URL verificável também exibem `nao verificado` no cartão.
 
 ```ts
 type StatusCaso = "gravacao_pendente" | "em_analise" | "concluido";
@@ -24,11 +34,10 @@ interface SophiaApi {
 }
 ```
 
-## Modelado, ainda não implementado
+## Modelos da análise
 
-Este trecho foi derivado do documento de contexto do produto e vale como contrato
-para a tela de análise (frame "06 - Análise IA" do protótipo). Foi removido do
-código por não estar em uso, mas as decisões abaixo devem ser preservadas.
+Este trecho foi derivado do documento de contexto do produto e orienta a
+integração da tela de análise (frame "06 - Análise IA" do protótipo).
 
 ### Rastreabilidade das fontes
 
@@ -104,11 +113,29 @@ type ResultadoSanitizacao =
   | { status: "suspeito"; trechosRemovidos: number; descricao: string };
 ```
 
-### Operações restantes
+### Operações do fluxo
 
 ```ts
-obterCaso(casoId): Promise<CasoDetalhado>;             // + transcrição, documentos, análise
+obterCaso(casoId): Promise<ConteudoCaso>;              // transcrição, documentos, análise e histórico
+finalizarSessao(casoId, transcricao): Promise<Caso>;   // salva a transcrição, solicita análise e atualiza o status
 solicitarAnalise(casoId, instrucao?): Promise<AnalisePreliminar>;
 listarMensagens(casoId): Promise<MensagemChat[]>;
 enviarMensagem(casoId, conteudo): Promise<MensagemChat[]>; // [mensagem do advogado, resposta]
 ```
+
+Essas operações estão implementadas em `src/lib/api/mock/fluxo.ts` e são expostas
+pelo mesmo objeto `api` das telas existentes. A reanálise incrementa a versão e
+acrescenta um evento ao histórico; conversas são isoladas por `casoId`. Respostas
+novas identificam o modo de demonstração, sem simular uma consulta jurídica real.
+
+Ao confirmar o fim da gravação, a sessão aguarda `finalizarSessao`, atualiza a
+lista e substitui a rota da sessão pela análise. Falhas mantêm a transcrição na
+tela e permitem tentar novamente. O mock recebe as falas demonstrativas exibidas
+na sessão (incluindo anotações com `papel: "nota"`); não captura áudio, não faz
+transcrição real e não consulta o STF. Casos novos não recebem jurisprudência
+fictícia: a análise informa que a integração está pendente. Os dados continuam em
+memória e são perdidos ao recarregar a página.
+
+A lista e a barra lateral abrem a gravação para casos `gravacao_pendente` e a
+análise para os demais. Os botões de voltar usam a navegação interna da aba ou
+uma rota de retorno quando a tela foi aberta diretamente por URL.

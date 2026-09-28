@@ -9,6 +9,7 @@ import { IconeLixeira, IconeRepositorio, IconeRestaurar } from "@/components/cas
 import type { Caso, PastaCaso } from "@/lib/api/types";
 import { pastaDoCaso, rotuloCaso } from "@/lib/casos/rotulo";
 import { STATUS_CASO } from "@/lib/casos/status";
+import { destinoDoCaso } from "@/lib/casos/destino";
 import { formatarDataCurta } from "@/lib/formato";
 
 const TEXTOS: Record<PastaCaso, { titulo: string; subtitulo: string; vazio: string }> = {
@@ -119,7 +120,7 @@ function CartaoCaso({
 }) {
   return (
     <div className="bg-superficie border-borda flex h-[64px] w-full items-center gap-2 rounded-[10px] border px-4 py-3">
-      <Link href={`/casos/${caso.id}/gravacao`} className="pressionavel flex min-w-0 flex-1 flex-col gap-1">
+      <Link href={destinoDoCaso(caso)} className="pressionavel flex min-w-0 flex-1 flex-col gap-1">
         <h2 className="truncate text-[13px] font-semibold">{caso.titulo}</h2>
         <p className="text-tinta-suave truncate text-[12px]">Cliente: {caso.cliente}</p>
       </Link>
