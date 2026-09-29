@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
+import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
 import { ModalUpload } from "@/components/gravacao/modal-upload";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +30,10 @@ export default function PaginaGravacao() {
   return (
     <>
       <header className="flex w-full shrink-0 flex-col gap-1 px-7 pt-5 pb-2">
-        <h1 className="text-[22px] leading-none font-bold">Gravação da entrevista</h1>
+        <div className="flex items-center gap-2">
+          <BotaoVoltar destino="/casos" />
+          <h1 className="text-[22px] leading-none font-bold">Gravação da entrevista</h1>
+        </div>
         <p className="text-[13px]">{caso.titulo}</p>
       </header>
 

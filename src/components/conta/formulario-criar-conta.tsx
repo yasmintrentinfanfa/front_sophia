@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 
 import { CampoConta } from "./campo-conta";
 import { ModalFluxo } from "@/components/fluxo/modal-fluxo";
-import styles from "@/components/fluxo/telas.module.css";
 
 export function FormularioCriarConta() {
   const router = useRouter();
@@ -40,12 +39,12 @@ export function FormularioCriarConta() {
     >
       <h1 className="text-[24px] leading-[29px] font-bold">Criar conta</h1>
       <p className="text-tinta-suave text-[14px] leading-[17px]">
-        Comece a usar a Sophia no seu escritorio
+        Comece a usar a Sophia no seu escritório
       </p>
       <button
         type="button"
         onClick={() => setGoogleAberto(true)}
-        className="bg-campo border-borda flex h-11 items-center justify-center gap-[10px] rounded-[10px] border px-4 text-[14px] font-medium"
+        className="pressionavel bg-campo border-borda flex h-10 items-center justify-center gap-2 rounded-[8px] border px-3 text-[13px] font-medium"
       >
         <span
           aria-hidden
@@ -55,7 +54,7 @@ export function FormularioCriarConta() {
         </span>
         Continuar com Google
       </button>
-      <div className="flex h-5 items-center gap-3 text-[12px] text-[var(--texto-discreto)]">
+      <div className="text-tinta-suave flex h-5 items-center gap-3 text-[12px]">
         <span className="bg-borda h-px w-[150px] max-w-[35%]" />
         ou
         <span className="bg-borda h-px w-[150px] max-w-[35%]" />
@@ -94,12 +93,12 @@ export function FormularioCriarConta() {
       />
       <button
         type="submit"
-        className={`${styles.acao} bg-acao text-acao-tinta h-11 rounded-[10px] text-[14px] font-semibold`}
+        className="pressionavel bg-acao text-acao-tinta flex h-10 items-center justify-center rounded-[8px] text-[13px] font-semibold"
       >
         Criar conta
       </button>
       <p className="flex min-h-[100px] flex-wrap items-start gap-1 text-[13px] leading-4">
-        <span className="text-tinta-suave">Ja tem uma conta?</span>
+        <span className="text-tinta-suave">Já tem uma conta?</span>
         <Link href="/login" className="pressionavel font-semibold">
           Entrar
         </Link>
@@ -108,7 +107,7 @@ export function FormularioCriarConta() {
         aberto={googleAberto}
         aoFechar={() => setGoogleAberto(false)}
         titulo="Continuar com Google"
-        descricao="O acesso com Google ainda nao esta disponivel. Voce pode continuar com o cadastro por email."
+        descricao="O acesso com Google ainda não está disponível. Você pode continuar com o cadastro por email."
       />
     </form>
   );

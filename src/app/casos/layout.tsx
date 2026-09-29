@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { BarraLateralCasos } from "@/components/casos/barra-lateral-casos";
 import { ProvedorListaCasos } from "@/components/casos/contexto-lista-casos";
-import { VoltarNosCasos } from "@/components/fluxo/botao-voltar";
 import type { ConteudoCaso } from "@/lib/api/analise";
 import { api } from "@/lib/api";
 import type { Caso, DadosNovoCaso, PastaCaso } from "@/lib/api/types";
@@ -58,10 +57,7 @@ export default function LayoutCasos({ children }: { children: ReactNode }) {
     <ProvedorListaCasos value={contexto}>
       <div className="bg-fundo flex h-dvh overflow-hidden">
         <BarraLateralCasos casos={casos} carregando={carregando} />
-        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <VoltarNosCasos />
-          {children}
-        </main>
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
       </div>
     </ProvedorListaCasos>
   );

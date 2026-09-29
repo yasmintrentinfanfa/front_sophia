@@ -62,7 +62,7 @@ export default function PaginaSessaoAtiva() {
       setConfirmarAnalise(false);
       router.replace(`/casos/${casoId}/analise`);
     } catch {
-      setErro("Nao foi possivel gerar a analise. Tente novamente; a transcricao continua nesta tela.");
+      setErro("Não foi possível gerar a análise. Tente novamente; a transcrição continua nesta tela.");
     } finally {
       envioEmCurso.current = false;
       setProcessando(false);
@@ -157,7 +157,7 @@ export default function PaginaSessaoAtiva() {
         aberto={confirmarAnalise}
         titulo="Gerar análise de IA"
         descricao="Finalizar a gravação e gerar a análise preliminar deste caso?"
-        confirmar={processando ? "Gerando analise..." : "Gerar análise"}
+        confirmar={processando ? "Gerando análise…" : "Gerar análise"}
         processando={processando}
         erro={erro}
         aoFechar={() => {
@@ -169,9 +169,9 @@ export default function PaginaSessaoAtiva() {
       />
       <ModalConfirmar
         aberto={confirmarSaida}
-        titulo="Voltar para a gravacao?"
-        descricao="A sessao atual sera interrompida sem gerar uma analise."
-        confirmar="Voltar para a gravacao"
+        titulo="Voltar para a gravação?"
+        descricao="A sessão atual será interrompida sem gerar uma análise."
+        confirmar="Voltar para a gravação"
         aoFechar={() => {
           setConfirmarSaida(false);
           setEstado(estadoAntesDoFim.current);

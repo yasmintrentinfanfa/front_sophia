@@ -26,11 +26,23 @@ const transcricao = [
 test("finalizar salva as falas, gera analise e permite reabrir pela lista", async () => {
   const { caso, api } = preparar();
   assert.equal(destinoDoCaso(caso), "/casos/novo-caso/gravacao");
+  assert.equal(
+    destinoDoCaso(caso, "/casos/outro/repositorio"),
+    "/casos/novo-caso/repositorio",
+  );
+  assert.equal(
+    destinoDoCaso(caso, "/casos/outro/repositorio/analise"),
+    "/casos/novo-caso/repositorio/analise",
+  );
+  assert.equal(
+    destinoDoCaso(caso, "/casos/outro/repositorio/chat"),
+    "/casos/novo-caso/repositorio/chat",
+  );
   const atualizado = await api.finalizarSessao(caso.id, transcricao);
   const dados = await api.obterCaso(caso.id);
   assert.deepEqual(dados.transcricao, transcricao);
   assert.equal(atualizado.status, "em_analise");
-  assert.equal(destinoDoCaso(caso), "/casos/novo-caso/analise");
+  assert.equal(destinoDoCaso(caso), "/casos/novo-caso/gravacao");
   assert.equal(dados.analise.versao, 1);
   assert.equal(dados.versoesAnalise.length, 1);
   assert.equal(dados.analise.demonstracao, true);

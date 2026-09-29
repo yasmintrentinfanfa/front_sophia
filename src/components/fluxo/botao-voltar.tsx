@@ -6,6 +6,22 @@ import { ArrowLeft } from "lucide-react";
 
 const ContextoVoltar = createContext<((destino: string) => void) | null>(null);
 
+/** Lista, um caso ou o fluxo de conta — a seta não atravessa esses contextos. */
+function moduloDoCaminho(caminho: string) {
+  if (
+    caminho === "/login" ||
+    caminho.startsWith("/criar-conta") ||
+    caminho.startsWith("/pagamento")
+  ) {
+    return "conta";
+  }
+  const id = caminho.match(/^\/casos\/([^/]+)/)?.[1];
+  if (id && id !== "novo" && id !== "arquivo") {
+    return caminho.includes("/repositorio") ? `repositorio:${id}` : `caso:${id}`;
+  }
+  return "casos";
+}
+
 export function ProvedorNavegacao({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -14,23 +30,28 @@ export function ProvedorNavegacao({ children }: { children: ReactNode }) {
   useEffect(() => {
     const historico = caminhos.current;
     if (historico.at(-1) === pathname) return;
-    // Encerrar ou sair da sessao substitui sua entrada no navegador.
+    // Encerrar a sessão não deve ficar no meio do voltar.
     if (historico.at(-1)?.endsWith("/sessao") && /\/(analise|gravacao)$/.test(pathname)) {
       historico.pop();
     }
-    const anterior = historico.lastIndexOf(pathname);
-    if (anterior >= 0) historico.splice(anterior + 1);
-    else historico.push(pathname);
+    const moduloAtual = moduloDoCaminho(pathname);
+    const moduloAnterior = historico.at(-1) ? moduloDoCaminho(historico.at(-1)!) : null;
+    if (moduloAnterior && moduloAnterior !== moduloAtual) {
+      caminhos.current = [pathname];
+      return;
+    }
+    if (historico.at(-1) !== pathname) historico.push(pathname);
   }, [pathname]);
 
   function voltar(destino: string) {
-    if (caminhos.current.length > 1) {
-      caminhos.current.pop();
-      router.back();
-    } else {
-      caminhos.current = [];
-      router.replace(destino);
+    const historico = caminhos.current;
+    const moduloAtual = moduloDoCaminho(pathname);
+    if (historico.at(-1) === pathname) historico.pop();
+    while (historico.length && moduloDoCaminho(historico.at(-1)!) !== moduloAtual) {
+      historico.pop();
     }
+    const anterior = historico.at(-1);
+    router.replace(anterior ?? destino);
   }
 
   return <ContextoVoltar value={voltar}>{children}</ContextoVoltar>;
@@ -50,22 +71,9 @@ export function BotaoVoltar({ destino, aoVoltar, desabilitado = false }: {
       title="Voltar"
       disabled={desabilitado}
       onClick={aoVoltar ?? (() => voltar ? voltar(destino) : router.replace(destino))}
-      className="pressionavel border-borda text-tinta-suave hover:bg-tinta/5 flex size-8 shrink-0 items-center justify-center rounded-[6px] border disabled:opacity-50"
+      className="pressionavel text-tinta-suave hover:bg-tinta/5 flex size-6 shrink-0 items-center justify-center rounded-[6px] disabled:opacity-50"
     >
-      <ArrowLeft size={18} aria-hidden="true" />
+      <ArrowLeft size={14} aria-hidden="true" />
     </button>
-  );
-}
-
-export function VoltarNosCasos() {
-  const pathname = usePathname();
-  if (["/casos", "/casos/arquivo"].includes(pathname) || pathname.endsWith("/sessao")) return null;
-  const destino = /\/(chat|repositorio)$/.test(pathname)
-    ? pathname.replace(/\/(chat|repositorio)$/, "/analise")
-    : "/casos";
-  return (
-    <div className="shrink-0 px-7 pt-3 max-[700px]:px-4">
-      <BotaoVoltar destino={destino} />
-    </div>
   );
 }

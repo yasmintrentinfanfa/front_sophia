@@ -22,7 +22,7 @@ export function CampoConta({
       <input
         {...props}
         id={id}
-        className="bg-campo border-borda focus:border-destaque focus:ring-destaque/20 h-[42px] w-full min-w-0 rounded-[10px] border px-[14px] text-[13px] outline-none focus:ring-2"
+        className="bg-campo border-borda focus:border-destaque focus:ring-destaque/20 h-10 w-full min-w-0 rounded-[8px] border px-3 text-[13px] outline-none focus:ring-2"
       />
     </div>
   );

@@ -1,10 +1,7 @@
 "use client";
 
-import { destinoDoCaso } from "@/lib/casos/destino";
-
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   Hamburguer,
@@ -18,37 +15,27 @@ import { BotaoTema } from "@/components/tema/botao-tema";
 import { ModalConfiguracoes } from "@/components/casos/modal-configuracoes";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Caso } from "@/lib/api/types";
+import { destinoDoCaso } from "@/lib/casos/destino";
 import { pastaDoCaso, rotuloCaso } from "@/lib/casos/rotulo";
 import { normalizar } from "@/lib/texto";
 import { cn } from "@/lib/utils";
-import styles from "@/components/fluxo/telas.module.css";
 
 interface BarraLateralCasosProps {
   casos: Caso[];
   carregando?: boolean;
 }
 
-function observarTelaPequena(notificar: () => void) {
-  const consulta = window.matchMedia("(max-width: 700px)");
-  consulta.addEventListener("change", notificar);
-  return () => consulta.removeEventListener("change", notificar);
+function classeTrilha(ativo: boolean) {
+  return cn(
+    "pressionavel flex h-8 items-center justify-center rounded-[8px] px-1",
+    ativo && "bg-destaque-suave border-destaque border-[1.5px]",
+  );
 }
-
-const lerTelaPequena = () => window.matchMedia("(max-width: 700px)").matches;
-const telaServidor = () => false;
 
 export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCasosProps) {
   const pathname = usePathname();
-  const prototipo = /\/(analise|chat|repositorio)$/.test(pathname);
   const [busca, setBusca] = useState("");
   const [expandida, setExpandida] = useState(true);
-  const [menuMobileAberto, setMenuMobileAberto] = useState(false);
-  const telaPequena = useSyncExternalStore(
-    observarTelaPequena,
-    lerTelaPequena,
-    telaServidor,
-  );
-  const painelExpandido = prototipo && telaPequena ? menuMobileAberto : expandida;
   const segmento = pathname.match(/^\/casos\/([^/]+)/)?.[1] ?? null;
   const rotaDePainel = segmento === "novo" || segmento === "arquivo";
   const idDaRota = segmento && !rotaDePainel ? segmento : null;
@@ -64,37 +51,28 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
     return casosAtivos.filter((caso) => normalizar(`${caso.titulo} ${caso.cliente}`).includes(termo));
   }, [busca, casosAtivos]);
 
-  /** Na lista, o primeiro caso; dentro de um caso, o da rota. Em painéis, nenhum. */
-  const idEmDestaque = idDaRota ?? (rotaDePainel ? null : casosFiltrados[0]?.id);
+  const idEmDestaque = idDaRota;
 
   return (
     <aside
-      data-expandida={painelExpandido}
       className={cn(
         "bg-barra flex shrink-0 items-start overflow-hidden px-2 py-2.5 transition-[width] duration-200 ease-out",
         expandida ? "w-[248px]" : "w-[56px]",
-        prototipo && styles.barra,
       )}
     >
       <TrilhaIcones
-        expandida={painelExpandido}
-        aoAlternar={() => {
-          if (prototipo && telaPequena) setMenuMobileAberto((atual) => !atual);
-          else setExpandida((atual) => !atual);
-        }}
+        expandida={expandida}
+        aoAlternar={() => setExpandida((atual) => !atual)}
         casoId={idDaRota ?? casosAtivos[0]?.id}
-        prototipo={prototipo}
       />
 
-      {expandida || prototipo ? (
+      {expandida ? (
         <div
           id="painel-lista-casos"
           className="bg-painel flex h-full min-w-px flex-1 flex-col gap-2 rounded-[8px] px-2.5 py-3"
         >
           <p className="text-[13px] font-bold">SOPHIA</p>
-          <h2 className="text-[11px] font-semibold">
-            {prototipo ? "Casos em Analise" : "Casos em análise"}
-          </h2>
+          <h2 className="text-[11px] font-semibold">Casos em análise</h2>
 
           <div className="border-borda focus-within:border-destaque bg-campo flex h-7 w-full items-center gap-1.5 rounded-[7px] border px-2">
             <span aria-hidden className="text-tinta-suave text-[11px]">
@@ -104,7 +82,7 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
               type="search"
               value={busca}
               onChange={(evento) => setBusca(evento.target.value)}
-              placeholder={prototipo ? "Search" : "Buscar"}
+              placeholder="Buscar"
               aria-label="Buscar caso ou cliente"
               className="text-tinta-suave placeholder:text-tinta-suave min-w-0 flex-1 bg-transparent text-[11px] outline-none"
             />
@@ -119,19 +97,18 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
               <ul className="flex w-full flex-col gap-[6px]">
                 {casosFiltrados.map((caso) => (
                   <li key={caso.id}>
-                  <Link
-                    href={prototipo ? `/casos/${caso.id}/${pathname.split("/").at(-1)}` : destinoDoCaso(caso)}
-                    onClick={() => setMenuMobileAberto(false)}
-                    aria-current={caso.id === idEmDestaque ? "page" : undefined}
-                    className={cn(
-                      "pressionavel flex min-h-8 w-full items-center rounded-[7px] px-2 py-1.5 text-left text-[10px] leading-tight font-medium",
-                      caso.id === idEmDestaque
-                        ? "border-destaque bg-ativo text-ativo-tinta border-[1.5px]"
-                        : "bg-chip text-meta border-borda hover:border-destaque/60 border",
-                    )}
-                  >
-                    <span className="line-clamp-2">{rotuloCaso(caso)}</span>
-                  </Link>
+                    <Link
+                      href={destinoDoCaso(caso, pathname)}
+                      aria-current={caso.id === idEmDestaque ? "page" : undefined}
+                      className={cn(
+                        "pressionavel flex min-h-8 w-full items-center rounded-[7px] px-2 py-1.5 text-left text-[10px] leading-tight font-medium",
+                        caso.id === idEmDestaque
+                          ? "border-destaque bg-ativo text-ativo-tinta border-[1.5px]"
+                          : "bg-chip text-meta border-borda hover:border-destaque/60 border",
+                      )}
+                    >
+                      <span className="line-clamp-2">{rotuloCaso(caso)}</span>
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -147,15 +124,20 @@ function TrilhaIcones({
   expandida,
   aoAlternar,
   casoId,
-  prototipo,
 }: {
   expandida: boolean;
   aoAlternar: () => void;
   casoId?: string;
-  prototipo: boolean;
 }) {
   const pathname = usePathname();
   const [configuracoesAberta, setConfiguracoesAberta] = useState(false);
+  const emRepositorio = pathname.includes("/repositorio");
+  const emCasos =
+    !emRepositorio &&
+    (pathname === "/casos" ||
+      pathname.includes("/gravacao") ||
+      pathname.includes("/sessao") ||
+      pathname.includes("/analise"));
 
   return (
     <nav className="bg-trilha flex h-full w-10 flex-col items-center gap-1.5 rounded-[8px] px-1 pt-1 pb-2">
@@ -187,10 +169,7 @@ function TrilhaIcones({
             <Link
               href="/casos/novo"
               aria-current={pathname === "/casos/novo" ? "page" : undefined}
-              className={cn(
-                "pressionavel flex h-8 items-center justify-center rounded-[8px] px-1",
-                pathname === "/casos/novo" && "bg-destaque-suave border-destaque border-[1.5px]",
-              )}
+              className={classeTrilha(pathname === "/casos/novo")}
             >
               <IconeNovoCaso />
               <span className="sr-only">Novo caso</span>
@@ -203,27 +182,7 @@ function TrilhaIcones({
       <Tooltip>
         <TooltipTrigger
           render={
-            <Link
-              href="/casos"
-              aria-current={
-                pathname === "/casos" ||
-                pathname.includes("/gravacao") ||
-                pathname.includes("/sessao") ||
-                pathname.includes("/analise") ||
-                pathname.includes("/chat")
-                  ? "page"
-                  : undefined
-              }
-              className={cn(
-                "pressionavel flex h-8 items-center justify-center rounded-[8px] px-1",
-                (pathname === "/casos" ||
-                  pathname.includes("/gravacao") ||
-                  pathname.includes("/sessao") ||
-                  pathname.includes("/analise") ||
-                  pathname.includes("/chat")) &&
-                  "bg-destaque-suave border-destaque border-[1.5px]",
-              )}
-            >
+            <Link href="/casos" aria-current={emCasos ? "page" : undefined} className={classeTrilha(emCasos)}>
               <IconeCasos />
               <span className="sr-only">Casos em análise</span>
             </Link>
@@ -236,14 +195,9 @@ function TrilhaIcones({
         <TooltipTrigger
           render={
             <Link
-              href={casoId ? `/casos/${casoId}/repositorio` : "/casos/novo"}
-              aria-current={pathname.endsWith("/repositorio") ? "page" : undefined}
-              className={cn(
-                "flex h-8 items-center justify-center rounded-[8px] px-1",
-                prototipo
-                  ? pathname.endsWith("/repositorio") && "bg-destaque-suave border-destaque border-[1.5px]"
-                  : "opacity-70",
-              )}
+              href={casoId ? `/casos/${casoId}/repositorio` : "/casos"}
+              aria-current={emRepositorio ? "page" : undefined}
+              className={classeTrilha(emRepositorio)}
             >
               <IconeRepositorio />
               <span className="sr-only">Repositório</span>
@@ -258,7 +212,7 @@ function TrilhaIcones({
       <Tooltip>
         <TooltipTrigger
           render={
-            <span data-extra className="flex justify-center">
+            <span className="flex justify-center">
               <BotaoTema />
             </span>
           }
@@ -277,19 +231,9 @@ function TrilhaIcones({
               aria-haspopup="dialog"
               aria-expanded={configuracoesAberta}
               onClick={() => setConfiguracoesAberta(true)}
-              className={cn(
-                "flex h-8 items-center justify-center rounded-[8px] px-1",
-                configuracoesAberta && "bg-destaque-suave border-destaque border-[1.5px]",
-              )}
+              className={classeTrilha(configuracoesAberta)}
             >
-              {prototipo ? (
-                <>
-                  <Image src="/icone-configuracoes.svg" alt="" width={20} height={20} className="dark:hidden" />
-                  <Image src="/icone-configuracoes-escuro.svg" alt="" width={20} height={20} className="hidden dark:block" />
-                </>
-              ) : (
-                <IconeConfiguracoes />
-              )}
+              <IconeConfiguracoes />
               <span className="sr-only">Configurações</span>
             </button>
           }
@@ -300,11 +244,7 @@ function TrilhaIcones({
       <Tooltip>
         <TooltipTrigger
           render={
-            <Link
-              data-extra
-              href="/login"
-              className="pressionavel flex h-8 items-center justify-center rounded-[8px] px-1"
-            >
+            <Link href="/login" className="pressionavel flex h-8 items-center justify-center rounded-[8px] px-1">
               <IconeSair />
               <span className="sr-only">Sair</span>
             </Link>

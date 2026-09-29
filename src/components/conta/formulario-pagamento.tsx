@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import { CampoConta } from "./campo-conta";
 import { ModalFluxo } from "@/components/fluxo/modal-fluxo";
 import { cn } from "@/lib/utils";
-import styles from "@/components/fluxo/telas.module.css";
 
 export function FormularioPagamento() {
   const router = useRouter();
@@ -48,7 +47,7 @@ export function FormularioPagamento() {
         className="grid grid-cols-2 items-start gap-3 max-[400px]:grid-cols-1"
       >
         {[
-          { id: "mensal", titulo: "Mensal", periodo: "por mes" },
+          { id: "mensal", titulo: "Mensal", periodo: "por mês" },
           { id: "anual", titulo: "Anual", periodo: "por ano · economize xx%" },
         ].map((item) => (
           <label
@@ -56,7 +55,7 @@ export function FormularioPagamento() {
             className={cn(
               "relative flex cursor-pointer flex-col gap-[6px] rounded-xl border px-4 py-[14px] has-focus-visible:ring-2 has-focus-visible:ring-destaque",
               plano === item.id
-                ? "border-destaque h-[103px] border-[1.5px] bg-[var(--fundo-selecionado)]"
+                ? "border-destaque bg-destaque-suave h-[103px] border-[1.5px]"
                 : "bg-campo border-borda h-[101px]",
             )}
           >
@@ -95,15 +94,15 @@ export function FormularioPagamento() {
         className="flex flex-wrap gap-2"
       >
         {[
-          { id: "credito", titulo: "Cartao de credito" },
-          { id: "debito", titulo: "Cartao de debito" },
+          { id: "credito", titulo: "Cartão de crédito" },
+          { id: "debito", titulo: "Cartão de débito" },
         ].map((item) => (
           <label
             key={item.id}
             className={cn(
-              "cursor-pointer rounded-[8px] border px-3 py-2 text-[12px] leading-[15px] font-medium has-focus-visible:ring-2 has-focus-visible:ring-destaque",
+              "flex h-8 cursor-pointer items-center rounded-[8px] border px-3 text-[12px] font-medium has-focus-visible:ring-2 has-focus-visible:ring-destaque",
               metodo === item.id
-                ? "border-destaque bg-[var(--fundo-selecionado)]"
+                ? "border-destaque bg-destaque-suave"
                 : "bg-campo border-borda",
             )}
           >
@@ -121,14 +120,14 @@ export function FormularioPagamento() {
       </fieldset>
       <CampoConta
         compacto
-        rotulo="Nome no cartao"
+        rotulo="Nome no cartão"
         name="titular"
         autoComplete="cc-name"
         required
       />
       <CampoConta
         compacto
-        rotulo="Numero do cartao"
+        rotulo="Número do cartão"
         name="numero"
         autoComplete="cc-number"
         inputMode="numeric"
@@ -180,13 +179,13 @@ export function FormularioPagamento() {
           maxLength={4}
         />
       </div>
-      <p className="text-[11px] leading-[13px] text-[var(--texto-discreto)] min-[700px]:whitespace-nowrap">
-        Os valores serao confirmados antes da cobranca. Cobranca recorrente
+      <p className="text-tinta-suave text-[11px] leading-[13px] min-[700px]:whitespace-nowrap">
+        Os valores serão confirmados antes da cobrança. Cobrança recorrente
         conforme o plano escolhido.
       </p>
       <button
         type="submit"
-        className={`${styles.acao} bg-acao text-acao-tinta h-[46px] rounded-[10px] text-[14px] font-semibold`}
+        className="pressionavel bg-acao text-acao-tinta flex h-10 items-center justify-center rounded-[8px] text-[13px] font-semibold"
       >
         Assinar plano
       </button>
@@ -199,13 +198,13 @@ export function FormularioPagamento() {
       <ModalFluxo
         aberto={confirmacao}
         aoFechar={() => setConfirmacao(false)}
-        titulo="Pagamento de demonstracao"
-        descricao="Nenhuma cobranca foi realizada. A assinatura estara disponivel quando o pagamento for integrado."
+        titulo="Pagamento de demonstração"
+        descricao="Nenhuma cobrança foi realizada. A assinatura estará disponível quando o pagamento for integrado."
       >
         <button
           type="button"
           onClick={() => router.push("/casos")}
-          className={`${styles.acao} bg-acao text-acao-tinta mt-4 h-10 w-full rounded-[8px] text-[13px] font-semibold`}
+          className="pressionavel bg-acao text-acao-tinta mt-4 flex h-10 w-full items-center justify-center rounded-[8px] text-[13px] font-semibold"
         >
           Continuar para os casos
         </button>

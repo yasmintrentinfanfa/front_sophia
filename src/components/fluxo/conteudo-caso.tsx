@@ -7,7 +7,6 @@ import { useParams } from "next/navigation";
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
 import { api } from "@/lib/api";
 import type { ConteudoCaso as DadosCaso } from "@/lib/api/analise";
-import styles from "./telas.module.css";
 
 export function ConteudoCaso({
   children,
@@ -44,7 +43,7 @@ function CarregarConteudo({
         if (ativo) setDados(dados);
       })
       .catch(() => {
-        if (ativo) setErro("Nao foi possivel carregar o caso.");
+        if (ativo) setErro("Não foi possível carregar o caso.");
       });
     return () => {
       ativo = false;
@@ -52,12 +51,10 @@ function CarregarConteudo({
   }, [carregando, existe, casoId, tentativa]);
 
   return (
-    <div
-      className={`${styles.tela} flex min-h-0 flex-1 flex-col overflow-y-auto`}
-    >
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
       {!carregando && !existe ? (
         <div className="p-8 text-[13px]">
-          <p>Caso nao encontrado.</p>
+          <p>Caso não encontrado.</p>
           <Link
             className="text-destaque mt-3 inline-block underline"
             href="/casos"
@@ -83,7 +80,7 @@ function CarregarConteudo({
         children(dados)
       ) : (
         <p role="status" className="text-tinta-suave p-8 text-[13px]">
-          Carregando caso...
+          Carregando caso…
         </p>
       )}
     </div>
