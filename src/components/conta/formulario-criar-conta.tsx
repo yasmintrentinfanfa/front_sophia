@@ -1,16 +1,14 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useRef, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { CampoConta } from "./campo-conta";
-import { ModalFluxo } from "@/components/fluxo/modal-fluxo";
 
 export function FormularioCriarConta() {
   const router = useRouter();
   const formulario = useRef<HTMLFormElement>(null);
-  const [googleAberto, setGoogleAberto] = useState(false);
 
   function validarSenhas() {
     const campos = formulario.current?.elements;
@@ -41,24 +39,6 @@ export function FormularioCriarConta() {
       <p className="text-tinta-suave text-[14px] leading-[17px]">
         Comece a usar a Sophia no seu escritório
       </p>
-      <button
-        type="button"
-        onClick={() => setGoogleAberto(true)}
-        className="pressionavel bg-campo border-borda flex h-10 items-center justify-center gap-2 rounded-[8px] border px-3 text-[13px] font-medium"
-      >
-        <span
-          aria-hidden
-          className="flex h-5 w-[10px] items-center justify-center rounded-[10px] bg-[#f2f2f5] text-[12px] font-bold text-[#4285f5] dark:bg-[#404047] dark:text-[#b2bff2]"
-        >
-          G
-        </span>
-        Continuar com Google
-      </button>
-      <div className="text-tinta-suave flex h-5 items-center gap-3 text-[12px]">
-        <span className="bg-borda h-px w-[150px] max-w-[35%]" />
-        ou
-        <span className="bg-borda h-px w-[150px] max-w-[35%]" />
-      </div>
       <CampoConta
         rotulo="Nome completo"
         name="nome"
@@ -103,12 +83,6 @@ export function FormularioCriarConta() {
           Entrar
         </Link>
       </p>
-      <ModalFluxo
-        aberto={googleAberto}
-        aoFechar={() => setGoogleAberto(false)}
-        titulo="Continuar com Google"
-        descricao="O acesso com Google ainda não está disponível. Você pode continuar com o cadastro por email."
-      />
     </form>
   );
 }
