@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
@@ -88,6 +89,14 @@ export default function PaginaSessaoAtiva() {
               {ROTULO_ESTADO[estado]}  {formatarCronometro(segundos)}
             </span>
           </p>
+          {encerrada ? (
+            <Link
+              href={`/casos/${caso.id}/analise`}
+              className="bg-acao text-acao-tinta flex h-8 items-center rounded-[8px] px-3 text-[12px] font-semibold"
+            >
+              Ver análise
+            </Link>
+          ) : null}
         </div>
       </header>
 

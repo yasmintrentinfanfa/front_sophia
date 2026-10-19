@@ -53,7 +53,11 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
         expandida ? "w-[248px]" : "w-[56px]",
       )}
     >
-      <TrilhaIcones expandida={expandida} aoAlternar={() => setExpandida((atual) => !atual)} />
+      <TrilhaIcones
+        expandida={expandida}
+        aoAlternar={() => setExpandida((atual) => !atual)}
+        idCasoAtivo={idEmDestaque}
+      />
 
       {expandida ? (
         <div
@@ -112,9 +116,11 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
 function TrilhaIcones({
   expandida,
   aoAlternar,
+  idCasoAtivo,
 }: {
   expandida: boolean;
   aoAlternar: () => void;
+  idCasoAtivo?: string | null;
 }) {
   const pathname = usePathname();
   const [configuracoesAberta, setConfiguracoesAberta] = useState(false);
@@ -170,7 +176,9 @@ function TrilhaIcones({
               aria-current={
                 pathname === "/casos" ||
                 pathname.includes("/gravacao") ||
-                pathname.includes("/sessao")
+                pathname.includes("/sessao") ||
+                pathname.includes("/analise") ||
+                pathname.includes("/chat")
                   ? "page"
                   : undefined
               }
@@ -178,7 +186,9 @@ function TrilhaIcones({
                 "pressionavel flex h-8 items-center justify-center rounded-[8px] px-1",
                 (pathname === "/casos" ||
                   pathname.includes("/gravacao") ||
-                  pathname.includes("/sessao")) &&
+                  pathname.includes("/sessao") ||
+                  pathname.includes("/analise") ||
+                  pathname.includes("/chat")) &&
                   "bg-destaque-suave border-destaque border-[1.5px]",
               )}
             >
@@ -193,18 +203,34 @@ function TrilhaIcones({
       <Tooltip>
         <TooltipTrigger
           render={
-            <button
-              type="button"
-              disabled
-              aria-disabled="true"
-              className="flex h-8 items-center justify-center rounded-[8px] px-1 opacity-70 disabled:pointer-events-auto"
-            >
-              <IconeRepositorio />
-              <span className="sr-only">Repositório</span>
-            </button>
+            idCasoAtivo ? (
+              <Link
+                href={`/casos/${idCasoAtivo}/repositorio`}
+                aria-current={pathname.includes("/repositorio") ? "page" : undefined}
+                className={cn(
+                  "pressionavel flex h-8 items-center justify-center rounded-[8px] px-1",
+                  pathname.includes("/repositorio") && "bg-destaque-suave border-destaque border-[1.5px]",
+                )}
+              >
+                <IconeRepositorio />
+                <span className="sr-only">Repositório do caso</span>
+              </Link>
+            ) : (
+              <button
+                type="button"
+                disabled
+                aria-disabled="true"
+                className="flex h-8 items-center justify-center rounded-[8px] px-1 opacity-70 disabled:pointer-events-auto"
+              >
+                <IconeRepositorio />
+                <span className="sr-only">Repositório</span>
+              </button>
+            )
           }
         />
-        <TooltipContent side="right">Repositório · em breve</TooltipContent>
+        <TooltipContent side="right">
+          {idCasoAtivo ? "Repositório do caso" : "Repositório · selecione um caso"}
+        </TooltipContent>
       </Tooltip>
 
       <span className="flex-1" />
