@@ -4,6 +4,7 @@ import { useId, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
+import { SeletorAreaJuridica } from "@/components/casos/seletor-area-juridica";
 
 const CLASSE_CAMPO =
   "border-borda focus:border-destaque focus:ring-destaque/20 bg-campo placeholder:text-destaque placeholder:text-[11px] h-10 w-full rounded-[8px] border px-3 text-[13px] outline-none focus:ring-2";
@@ -27,7 +28,7 @@ export default function PaginaNovoCaso() {
       const caso = await criarCaso({
         titulo: titulo.trim(),
         cliente: cliente.trim(),
-        area: area.trim() || undefined,
+        area: area || undefined,
       });
       router.push(`/casos/${caso.id}/gravacao`);
     } finally {
@@ -78,13 +79,7 @@ export default function PaginaNovoCaso() {
           <label htmlFor={idArea} className="text-[12px] font-medium">
             Área jurídica
           </label>
-          <input
-            id={idArea}
-            value={area}
-            onChange={(evento) => setArea(evento.target.value)}
-            placeholder="Ex: Civil, Trabalhista, Empresarial"
-            className={CLASSE_CAMPO}
-          />
+          <SeletorAreaJuridica id={idArea} valor={area} aoMudar={setArea} />
         </div>
 
         <div className="flex gap-3">

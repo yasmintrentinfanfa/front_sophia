@@ -19,7 +19,7 @@ export interface Caso {
   titulo: string;
   /** Nome do cliente atendido, exibido como "Cliente: …". */
   cliente: string;
-  /** Campo do formulário "Área jurídica" no protótipo. */
+  /** Id de uma área do catálogo em `areas-juridicas`. */
   area?: string;
   status: StatusCaso;
   pasta: PastaCaso;
