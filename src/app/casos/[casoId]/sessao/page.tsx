@@ -7,23 +7,10 @@ import { useListaCasos } from "@/components/casos/contexto-lista-casos";
 import { ModalConfirmar } from "@/components/casos/modal-confirmar";
 import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
 import type { ConteudoCaso } from "@/lib/api/analise";
+import { processarEntrevista } from "@/lib/transcricao/fluxo";
 import { cn } from "@/lib/utils";
 
 type EstadoGravacao = "gravando" | "pausada" | "encerrada";
-
-const FALAS = [
-  { papel: "Advogado", texto: "Pode descrever os fatos da rescisão?", tipo: "fala" as const },
-  {
-    papel: "Cliente",
-    texto: "Assinei o contrato em janeiro e a empresa atrasou pagamentos…",
-    tipo: "fala" as const,
-  },
-  {
-    papel: "Anotação",
-    texto: "verificar cláusula de multa e prazo de aviso prévio.",
-    tipo: "nota" as const,
-  },
-];
 
 const ROTULO_ESTADO: Record<EstadoGravacao, string> = {
   gravando: "Gravando",
@@ -41,28 +28,108 @@ export default function PaginaSessaoAtiva() {
   const [confirmarSaida, setConfirmarSaida] = useState(false);
   const [processando, setProcessando] = useState(false);
   const [erro, setErro] = useState("");
+  const [texto, setTexto] = useState("");
   const envioEmCurso = useRef(false);
   const estadoAntesDoFim = useRef<EstadoGravacao>("gravando");
+  const gravador = useRef<MediaRecorder | null>(null);
+  const pedacos = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
   const caso = casos.find((item) => item.id === casoId);
+
+  function soltarMicrofone() {
+    streamRef.current?.getTracks().forEach((trilha) => trilha.stop());
+    streamRef.current = null;
+  }
+
+  useEffect(() => {
+    let cancelado = false;
+
+    async function ligar() {
+      try {
+        const media = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            autoGainControl: false,
+            echoCancellation: false,
+            noiseSuppression: false,
+          },
+        });
+        if (cancelado) {
+          media.getTracks().forEach((trilha) => trilha.stop());
+          return;
+        }
+        streamRef.current = media;
+        pedacos.current = [];
+        const tipo = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+          ? "audio/webm;codecs=opus"
+          : undefined;
+        const rec = new MediaRecorder(media, tipo ? { mimeType: tipo } : undefined);
+        rec.ondataavailable = (evento) => {
+          if (evento.data.size > 0) pedacos.current.push(evento.data);
+        };
+        rec.start();
+        gravador.current = rec;
+      } catch {
+        if (!cancelado) {
+          setErro("Não foi possível acessar o microfone. Use http://localhost e permita o áudio.");
+          setEstado("pausada");
+        }
+      }
+    }
+
+    void ligar();
+    return () => {
+      cancelado = true;
+      if (gravador.current?.state === "recording" || gravador.current?.state === "paused") {
+        gravador.current.stop();
+      }
+      soltarMicrofone();
+    };
+  }, []);
+
+  async function blobDaGravacao() {
+    const rec = gravador.current;
+    if (!rec || rec.state === "inactive") {
+      return new Blob(pedacos.current, { type: rec?.mimeType || "audio/webm" });
+    }
+    return new Promise<Blob>((resolver) => {
+      rec.onstop = () => {
+        resolver(new Blob(pedacos.current, { type: rec.mimeType || "audio/webm" }));
+        soltarMicrofone();
+      };
+      rec.stop();
+    });
+  }
 
   async function encerrarSessao() {
     if (envioEmCurso.current) return;
     envioEmCurso.current = true;
     setProcessando(true);
     setErro("");
-    const transcricao: ConteudoCaso["transcricao"] = FALAS.map((fala, indice) => ({
-      id: `${casoId}-fala-${indice + 1}`,
-      tempo: formatarCronometro(segundos),
-      texto: fala.texto,
-      papel: fala.tipo === "nota" ? "nota" : indice === 0 ? "advogado" : "cliente",
-    }));
     try {
+      const audio = await blobDaGravacao();
+      if (!audio.size) {
+        throw new Error("A gravação está vazia.");
+      }
+      const transcrito = await processarEntrevista(casoId, audio, "gravacao.webm");
+      setTexto(transcrito);
+      const transcricao: ConteudoCaso["transcricao"] = [
+        {
+          id: `${casoId}-transcricao`,
+          tempo: formatarCronometro(segundos),
+          texto: transcrito,
+          papel: "cliente",
+        },
+      ];
       await finalizarSessao(casoId, transcricao);
       setEstado("encerrada");
       setConfirmarAnalise(false);
       router.replace(`/casos/${casoId}/analise`);
-    } catch {
-      setErro("Não foi possível gerar a análise. Tente novamente; a transcrição continua nesta tela.");
+    } catch (falha) {
+      setErro(
+        falha instanceof Error
+          ? falha.message
+          : "Não foi possível transcrever. Tente novamente; a gravação continua nesta tela.",
+      );
     } finally {
       envioEmCurso.current = false;
       setProcessando(false);
@@ -80,7 +147,12 @@ export default function PaginaSessaoAtiva() {
   }
 
   if (!caso) {
-    return <div className="px-7 pt-6"><BotaoVoltar destino="/casos" /><p className="text-tinta-suave mt-3 text-[13px]">Caso não encontrado.</p></div>;
+    return (
+      <div className="px-7 pt-6">
+        <BotaoVoltar destino="/casos" />
+        <p className="text-tinta-suave mt-3 text-[13px]">Caso não encontrado.</p>
+      </div>
+    );
   }
 
   const encerrada = estado === "encerrada";
@@ -94,6 +166,7 @@ export default function PaginaSessaoAtiva() {
           aoVoltar={() => {
             estadoAntesDoFim.current = estado;
             setEstado("pausada");
+            gravador.current?.state === "recording" && gravador.current.pause();
             setConfirmarSaida(true);
           }}
         />
@@ -104,19 +177,27 @@ export default function PaginaSessaoAtiva() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            disabled={encerrada}
+            disabled={encerrada || processando}
             aria-pressed={estado === "pausada"}
-            onClick={() => setEstado((atual) => (atual === "gravando" ? "pausada" : "gravando"))}
+            onClick={() => {
+              setEstado((atual) => {
+                const proximo = atual === "gravando" ? "pausada" : "gravando";
+                if (proximo === "pausada") gravador.current?.pause();
+                else if (gravador.current?.state === "paused") gravador.current.resume();
+                return proximo;
+              });
+            }}
             className="pressionavel border-borda bg-campo flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-semibold disabled:opacity-50"
           >
             {estado === "pausada" ? "Retomar" : "Pausar"}
           </button>
           <button
             type="button"
-            disabled={encerrada}
+            disabled={encerrada || processando}
             onClick={() => {
               estadoAntesDoFim.current = estado;
               setEstado("pausada");
+              if (gravador.current?.state === "recording") gravador.current.pause();
               setErro("");
               setConfirmarAnalise(true);
             }}
@@ -142,28 +223,35 @@ export default function PaginaSessaoAtiva() {
       <div className="flex min-h-0 flex-1 px-7 pt-3 pb-5">
         <section className="bg-campo border-borda flex min-h-0 w-full flex-1 flex-col gap-2 overflow-y-auto rounded-[10px] border p-4">
           <h2 className="text-[13px] font-semibold">Transcrição da conversa</h2>
-          {FALAS.map((fala) => (
-            <p
-              key={`${fala.papel}-${fala.texto}`}
-              className={fala.tipo === "nota" ? "text-destaque text-[13px] font-medium" : "text-[13px] font-normal"}
-            >
-              {fala.papel}: {fala.texto}
+          {processando ? (
+            <p className="text-tinta-suave text-[13px]">
+              Transcrevendo a entrevista inteira. Isso pode levar alguns minutos na primeira vez.
             </p>
-          ))}
+          ) : texto ? (
+            <p className="text-[13px] leading-5 whitespace-pre-wrap">{texto}</p>
+          ) : (
+            <p className="text-tinta-suave text-[13px]">
+              A transcrição aparece depois de finalizar. Grave a entrevista inteira, como no fluxo do
+              backend: o áudio só é enviado ao parar.
+            </p>
+          )}
         </section>
       </div>
 
       <ModalConfirmar
         aberto={confirmarAnalise}
         titulo="Gerar análise de IA"
-        descricao="Finalizar a gravação e gerar a análise preliminar deste caso?"
-        confirmar={processando ? "Gerando análise…" : "Gerar análise"}
+        descricao="Finalizar a gravação, transcrever e gerar a análise preliminar deste caso?"
+        confirmar={processando ? "Transcrevendo…" : "Gerar análise"}
         processando={processando}
         erro={erro}
         aoFechar={() => {
           if (envioEmCurso.current) return;
           setConfirmarAnalise(false);
           setEstado(estadoAntesDoFim.current);
+          if (estadoAntesDoFim.current === "gravando" && gravador.current?.state === "paused") {
+            gravador.current.resume();
+          }
         }}
         aoConfirmar={() => void encerrarSessao()}
       />
@@ -175,8 +263,14 @@ export default function PaginaSessaoAtiva() {
         aoFechar={() => {
           setConfirmarSaida(false);
           setEstado(estadoAntesDoFim.current);
+          if (estadoAntesDoFim.current === "gravando" && gravador.current?.state === "paused") {
+            gravador.current.resume();
+          }
         }}
-        aoConfirmar={() => router.replace(`/casos/${casoId}/gravacao`)}
+        aoConfirmar={() => {
+          soltarMicrofone();
+          router.replace(`/casos/${casoId}/gravacao`);
+        }}
       />
     </>
   );

@@ -39,26 +39,51 @@ app.add_middleware(
 MONGODB_URI = os.getenv("MONGODB_URI")
 mongo_client = AsyncIOMotorClient(MONGODB_URI) if MONGODB_URI else None
 mongo_db = mongo_client["sophia-data"] if mongo_client else None
-transcript_collection = mongo_db["transcript"] if mongo_db is not None else None
 users_collection = mongo_db["users"] if mongo_db is not None else None
+case_collection = mongo_db["case"] if mongo_db is not None else None
 USERS_FILE = PASTA_BACK / "data" / "users.json"
 FUSO = timezone(timedelta(hours=-3))
 
 
 def agora_iso() -> str:
+    # Horário de Brasília em formato limpo (ex.: 2026-10-20T17:25:00).
     return datetime.now(FUSO).strftime("%Y-%m-%dT%H:%M:%S")
 
 MODEL_SIZE = "small"
 _whisper = None
 OVERLAP_SECONDS = 1.0
-SALVAR_AUDIO_DEBUG = True
+SALVAR_AUDIO_DEBUG = False
 PASTA_DEBUG = str(PASTA_BACK / "debug_audio")
+
+
+def _garantir_compat_av() -> None:
+    """Versões novas do PyAV (av>=16) removeram o argumento ``metadata_errors``
+    de ``av.open``, mas o faster-whisper ainda o envia ao decodificar o áudio.
+    Envolvemos ``av.open`` para descartar esse argumento quando ele não existir,
+    evitando o erro 500 na transcrição."""
+    import av
+
+    if getattr(av.open, "_sophia_compat", False):
+        return
+
+    _open_original = av.open
+
+    def open_compat(*args, **kwargs):
+        try:
+            return _open_original(*args, **kwargs)
+        except TypeError:
+            kwargs.pop("metadata_errors", None)
+            return _open_original(*args, **kwargs)
+
+    open_compat._sophia_compat = True
+    av.open = open_compat
 
 
 def obter_whisper():
     """Carrega o modelo só quando alguém transcreve — o cadastro não depende disso."""
     global _whisper
     if _whisper is None:
+        _garantir_compat_av()
         from faster_whisper import WhisperModel
 
         _whisper = WhisperModel(MODEL_SIZE, device="cpu", compute_type="int8")
@@ -197,6 +222,11 @@ class CadastroRequest(BaseModel):
     senha: str
 
 
+class EntrarRequest(BaseModel):
+    email: str
+    senha: str
+
+
 @app.post("/revisar-transcricao")
 async def revisar_transcricao(payload: RevisarTextoRequest):
     if not payload.texto.strip():
@@ -235,6 +265,14 @@ async def revisar_transcricao(payload: RevisarTextoRequest):
     dados = resposta.json()
     texto_revisado = dados["choices"][0]["message"]["content"].strip()
     return {"texto_revisado": texto_revisado}
+
+
+def usuario_publico(documento: dict) -> dict:
+    return {
+        "_id": documento["_id"],
+        "name": documento.get("name") or "",
+        "email": documento.get("email") or "",
+    }
 
 
 def _ler_users_arquivo() -> list[dict]:
@@ -296,13 +334,61 @@ async def cadastro(payload: CadastroRequest):
     return {"usuario": {"_id": user_id, "name": nome, "email": email}}
 
 
+@app.post("/entrar")
+async def entrar(payload: EntrarRequest):
+    email = payload.email.strip().lower()
+    senha = payload.senha
+    if not email or not senha:
+        return JSONResponse({"erro": "Informe email e senha."}, status_code=400)
+
+    if users_collection is not None:
+        documento = await users_collection.find_one({"email": email})
+    else:
+        documento = next((u for u in _ler_users_arquivo() if u.get("email") == email), None)
+
+    if not documento:
+        return JSONResponse({"erro": "Email ou senha inválidos."}, status_code=401)
+
+    hash_salvo = (documento.get("password_hash") or "").encode("utf-8")
+    if not hash_salvo or not bcrypt.checkpw(senha.encode("utf-8"), hash_salvo):
+        return JSONResponse({"erro": "Email ou senha inválidos."}, status_code=401)
+
+    return {"usuario": usuario_publico(documento)}
+
+
+@app.get("/caso")
+async def obter_caso(user_id: str = "", caso_id: str = ""):
+    user_id = user_id.strip()
+    caso_id = caso_id.strip()
+    if not user_id or not caso_id:
+        return JSONResponse({"erro": "Informe user_id e caso_id."}, status_code=400)
+    if case_collection is None:
+        return JSONResponse({"erro": "MongoDB não configurado."}, status_code=503)
+
+    documento = await case_collection.find_one({"user_id": user_id, "caso_id": caso_id})
+    if not documento:
+        return JSONResponse({"erro": "Caso não encontrado."}, status_code=404)
+
+    documento["_id"] = str(documento["_id"])
+    return documento
+
+
 @app.post("/salvar-transcricao")
 async def salvar_transcricao(payload: dict):
+    """Atualiza ou cria o documento na collection case deste usuário e deste caso."""
     texto = (payload.get("texto") or "").strip()
+    user_id = (payload.get("user_id") or "").strip()
+    caso_id = (payload.get("caso_id") or "").strip()
     if not texto:
         return {"erro": "Texto vazio, nada para salvar."}
+    if not user_id or not caso_id:
+        return JSONResponse(
+            {"erro": "Informe user_id e caso_id para vincular a transcrição."},
+            status_code=400,
+        )
 
     agora = time.strftime("%Y-%m-%d_%H-%M-%S")
+    momento = agora_iso()
     pasta_txt = PASTA_BACK / "transcricoes"
     os.makedirs(pasta_txt, exist_ok=True)
     nome_arquivo_txt = str(pasta_txt / f"transcricao_{agora}.txt")
@@ -311,20 +397,29 @@ async def salvar_transcricao(payload: dict):
 
     resultado = {"arquivo_txt": nome_arquivo_txt}
 
-    if transcript_collection is not None:
+    if case_collection is not None:
         try:
-            documento = {
-                "text": texto,
-                "created_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
-            }
-            user_id = (payload.get("user_id") or "").strip()
-            caso_id = (payload.get("caso_id") or "").strip()
-            if user_id:
-                documento["user_id"] = user_id
-            if caso_id:
-                documento["caso_id"] = caso_id
-            insercao = await transcript_collection.insert_one(documento)
-            resultado["mongo_id"] = str(insercao.inserted_id)
+            await case_collection.create_index([("user_id", 1), ("caso_id", 1)], unique=True)
+            await case_collection.create_index([("user_id", 1), ("created_at", -1)])
+            await case_collection.update_one(
+                {"user_id": user_id, "caso_id": caso_id},
+                {
+                    "$set": {
+                        "user_id": user_id,
+                        "caso_id": caso_id,
+                        "transcript": {"text": texto, "created_at": momento},
+                        "updated_at": momento,
+                    },
+                    "$setOnInsert": {
+                        "created_at": momento,
+                        "documents": [],
+                    },
+                },
+                upsert=True,
+            )
+            salvo = await case_collection.find_one({"user_id": user_id, "caso_id": caso_id})
+            if salvo:
+                resultado["case_id"] = str(salvo["_id"])
         except Exception as exc:  # noqa: BLE001
             resultado["erro_mongo"] = str(exc)
     else:

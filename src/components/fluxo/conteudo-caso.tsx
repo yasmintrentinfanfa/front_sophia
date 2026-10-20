@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
 import { api } from "@/lib/api";
 import type { ConteudoCaso as DadosCaso } from "@/lib/api/analise";
+import { obterTranscricaoDoCaso } from "@/lib/transcricao/fluxo";
 
 export function ConteudoCaso({
   children,
@@ -39,8 +40,19 @@ function CarregarConteudo({
     let ativo = true;
     api
       .obterCaso(casoId)
-      .then((dados) => {
-        if (ativo) setDados(dados);
+      .then(async (carregado) => {
+        const texto = await obterTranscricaoDoCaso(casoId);
+        if (texto) {
+          carregado.transcricao = [
+            {
+              id: `${casoId}-transcricao`,
+              tempo: "00:00",
+              texto,
+              papel: "cliente",
+            },
+          ];
+        }
+        if (ativo) setDados(carregado);
       })
       .catch(() => {
         if (ativo) setErro("Não foi possível carregar o caso.");

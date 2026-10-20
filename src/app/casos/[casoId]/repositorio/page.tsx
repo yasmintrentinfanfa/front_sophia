@@ -146,6 +146,7 @@ function Repositorio({ dados }: { dados: DadosCaso }) {
                   {new Intl.DateTimeFormat("pt-BR", {
                     dateStyle: "short",
                     timeStyle: "short",
+                    timeZone: "America/Sao_Paulo",
                   }).format(new Date(evento.data))}
                 </time>
               </div>
