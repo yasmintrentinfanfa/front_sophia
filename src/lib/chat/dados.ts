@@ -5,7 +5,7 @@ export interface MensagemChat {
 }
 
 /** Chips de atalho para caminhos já mapeados no fluxograma da análise. */
-export const CHIPS_FLUXO = ["Tema 975 STF", "Dano moral", "Perícia técnica"];
+export const CHIPS_FLUXO = ["Cláusula penal", "Perdas e danos", "Tentativa de acordo"];
 
 /** Troca inicial, igual ao frame "07 - Chat" do protótipo. */
 export const MENSAGENS_INICIAIS: MensagemChat[] = [
@@ -25,7 +25,7 @@ const RESPOSTAS_PADRAO = [
   "Localizei julgados recentes com citação da fonte. Quer que eu inclua no rascunho da peça?",
   "Posso resumir o relato do cliente ou levantar os documentos que ainda faltam — o que prefere?",
   "Essa linha aparece como jurisprudência minoritária, ainda em análise. Quer que eu aprofunde a busca?",
-  "Encontrei um tema de repercussão geral relacionado. Vou adicionar ao fluxograma do caso.",
+  "Por ser disputa contratual entre particulares, não há tema do STF aplicável. Quer que eu foque em precedentes do STJ?",
 ];
 
 /** Resposta determinística (sem IA real) só para a demonstração funcionar offline. */

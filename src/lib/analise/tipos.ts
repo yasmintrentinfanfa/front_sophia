@@ -11,9 +11,9 @@ export type NivelRelevancia = "alta" | "media" | "baixa";
 export type PosicaoJurisprudencial = "majoritaria" | "minoritaria" | "em_analise";
 
 export interface Fonte {
-  /** "STF", "STJ", "TRF4"… */
-  tribunal: string;
-  /** "art. 475 CC", "Tema 975", "REsp 1.363.423/RS"… */
+  /** Tribunal ("STF", "STJ", "TJRS"…) ou diploma legal ("Código Civil"). */
+  origem: string;
+  /** "art. 475", "Tema 975", "REsp 1.234.567/SP"… */
   identificador: string;
   data?: string;
 }

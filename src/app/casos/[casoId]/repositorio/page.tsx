@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useState } from "react";
 
 import { ColunasAnalise } from "@/components/casos/colunas-analise";
-import { useListaCasos } from "@/components/casos/contexto-lista-casos";
+import { useCasoAtual } from "@/components/casos/contexto-caso-atual";
 import { ModalPecaProcessual } from "@/components/casos/modal-peca-processual";
 import { INSIGHTS } from "@/lib/analise/dados";
 import { listarPecas, ROTULO_TIPO_PECA, type PecaGerada } from "@/lib/pecas";
@@ -38,24 +37,11 @@ const ROTULO_STATUS_DOCUMENTO = {
 };
 
 export default function PaginaRepositorio() {
-  const { casoId } = useParams<{ casoId: string }>();
-  const { casos, carregando } = useListaCasos();
+  const caso = useCasoAtual();
   const [aba, setAba] = useState<Aba>("transcricao");
   const [modalPecaAberto, setModalPecaAberto] = useState(false);
-  const [pecas, setPecas] = useState<PecaGerada[]>([]);
-  const caso = casos.find((item) => item.id === casoId);
-
-  useEffect(() => {
-    if (caso) setPecas(listarPecas(caso.id));
-  }, [caso]);
-
-  if (carregando) {
-    return <p className="text-tinta-suave px-7 pt-6 text-[13px]">Carregando caso…</p>;
-  }
-
-  if (!caso) {
-    return <p className="text-tinta-suave px-7 pt-6 text-[13px]">Caso não encontrado.</p>;
-  }
+  // O layout do caso só renderiza a página no cliente, depois de carregar a lista.
+  const [pecas, setPecas] = useState<PecaGerada[]>(() => listarPecas(caso.id));
 
   return (
     <>

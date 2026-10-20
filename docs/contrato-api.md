@@ -39,7 +39,7 @@ item nem inventa a referência.
 
 ```ts
 interface Fonte {
-  tribunal: string;       // "STF", "STJ", "TJRS"
+  origem: string;         // tribunal ("STF", "STJ", "TJRS") ou lei ("Código Civil")
   identificador: string;  // "Tema 975", "REsp 1.234.567/SP"
   data: string;           // ISO 8601
   url?: string;

@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
 
-import { useListaCasos } from "@/components/casos/contexto-lista-casos";
+import { useCasoAtual } from "@/components/casos/contexto-caso-atual";
 import { cn } from "@/lib/utils";
 
 type EstadoGravacao = "gravando" | "pausada" | "encerrada";
@@ -30,25 +29,15 @@ const ROTULO_ESTADO: Record<EstadoGravacao, string> = {
 };
 
 export default function PaginaSessaoAtiva() {
-  const { casoId } = useParams<{ casoId: string }>();
-  const { casos, carregando } = useListaCasos();
+  const caso = useCasoAtual();
   const [segundos, setSegundos] = useState(0);
   const [estado, setEstado] = useState<EstadoGravacao>("gravando");
-  const caso = casos.find((item) => item.id === casoId);
 
   useEffect(() => {
     if (estado !== "gravando") return;
     const id = window.setInterval(() => setSegundos((atual) => atual + 1), 1000);
     return () => window.clearInterval(id);
   }, [estado]);
-
-  if (carregando) {
-    return <p className="text-tinta-suave px-7 pt-6 text-[13px]">Carregando caso…</p>;
-  }
-
-  if (!caso) {
-    return <p className="text-tinta-suave px-7 pt-6 text-[13px]">Caso não encontrado.</p>;
-  }
 
   const encerrada = estado === "encerrada";
 

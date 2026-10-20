@@ -1,29 +1,18 @@
 "use client";
 
 import { useId, useRef, useState, type FormEvent } from "react";
-import { useParams } from "next/navigation";
 
-import { useListaCasos } from "@/components/casos/contexto-lista-casos";
+import { useCasoAtual } from "@/components/casos/contexto-caso-atual";
 import { CHIPS_FLUXO, MENSAGENS_INICIAIS, respostaSimulada, type MensagemChat } from "@/lib/chat/dados";
 import { cn } from "@/lib/utils";
 
 export default function PaginaChat() {
-  const { casoId } = useParams<{ casoId: string }>();
-  const { casos, carregando } = useListaCasos();
+  const caso = useCasoAtual();
   const idCampo = useId();
   const entrada = useRef<HTMLInputElement>(null);
   const [mensagens, setMensagens] = useState<MensagemChat[]>(MENSAGENS_INICIAIS);
   const [texto, setTexto] = useState("");
   const [pensando, setPensando] = useState(false);
-  const caso = casos.find((item) => item.id === casoId);
-
-  if (carregando) {
-    return <p className="text-tinta-suave px-7 pt-6 text-[13px]">Carregando caso…</p>;
-  }
-
-  if (!caso) {
-    return <p className="text-tinta-suave px-7 pt-6 text-[13px]">Caso não encontrado.</p>;
-  }
 
   function enviar(conteudo: string) {
     const pergunta = conteudo.trim();

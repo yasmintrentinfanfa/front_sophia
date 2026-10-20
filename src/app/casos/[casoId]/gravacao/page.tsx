@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 
-import { useListaCasos } from "@/components/casos/contexto-lista-casos";
+import { useCasoAtual } from "@/components/casos/contexto-caso-atual";
 import { ModalUpload } from "@/components/gravacao/modal-upload";
 import { cn } from "@/lib/utils";
 
@@ -11,20 +11,10 @@ type FonteAudio = "ao_vivo" | "arquivo";
 
 export default function PaginaGravacao() {
   const router = useRouter();
-  const { casoId } = useParams<{ casoId: string }>();
-  const { casos, carregando } = useListaCasos();
+  const caso = useCasoAtual();
   const [fonte, setFonte] = useState<FonteAudio>("ao_vivo");
   const [modalAberto, setModalAberto] = useState(false);
   const [arquivo, setArquivo] = useState<File | null>(null);
-  const caso = casos.find((item) => item.id === casoId);
-
-  if (carregando) {
-    return <p className="text-tinta-suave px-7 pt-6 text-[13px]">Carregando caso…</p>;
-  }
-
-  if (!caso) {
-    return <p className="text-tinta-suave px-7 pt-6 text-[13px]">Caso não encontrado.</p>;
-  }
 
   return (
     <>

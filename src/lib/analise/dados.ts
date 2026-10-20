@@ -1,144 +1,119 @@
 import type { Insight } from "./tipos";
 
 /**
- * Análise de demonstração, igual ao conteúdo do frame "06 - Análise IA" do
- * protótipo Figma. Usada enquanto o pipeline de IA (transcrição → insights)
- * não existe — mesmo padrão do `FALAS` estático na tela de sessão ativa.
+ * Análise de demonstração do caso "Rescisão contratual — João Silva", coerente
+ * com a transcrição de exemplo da sessão ativa e do repositório. Usada enquanto
+ * o pipeline de IA (transcrição → insights) não existe.
+ *
+ * Segue as regras da Seção 7 do documento de contexto:
+ * - disputa contratual entre particulares não tem questão constitucional, então
+ *   não há tema do STF (a coluna aparece vazia de propósito);
+ * - artigos de lei são reais; identificadores de precedentes são marcados como
+ *   exemplo para nunca parecerem uma citação verdadeira;
+ * - pelo menos um item chega sem fonte, para exibir o selo "Fonte não verificada".
  */
 export const RESUMO_ANALISE =
-  "Cliente relata vínculo omitido no relato inicial, com pontos de contribuição/obrigação não reconhecidos. Documentos juntados incluem comprovantes e extratos. A IA identificou teses e jurisprudência aplicáveis ao pedido.";
+  "Cliente relata contrato assinado em janeiro com a empresa, que passou a atrasar pagamentos de forma reiterada. Houve tentativa de acordo, sem sucesso. Documentos juntados: contrato assinado, comprovantes de pagamento e troca de e-mails. Pontos a confirmar: cláusula de multa e prazo de aviso prévio. Disputa contratual entre particulares, sem questão constitucional — por isso não há tema de repercussão geral do STF.";
 
 export const INSIGHTS: Insight[] = [
   {
-    id: "tese-rescisao",
+    id: "tese-resolucao",
     categoria: "tese",
-    titulo: "Rescisão por inadimplência",
-    detalhe: "Fundamento no art. 475 do CC, com base em atraso reiterado de obrigações contratuais.",
+    titulo: "Resolução do contrato por inadimplemento",
+    detalhe: "A parte lesada pode pedir a resolução do contrato diante do atraso reiterado nos pagamentos.",
     relevancia: "alta",
-    fontes: [{ tribunal: "CC", identificador: "art. 475" }],
+    fontes: [{ origem: "Código Civil", identificador: "art. 475" }],
   },
   {
-    id: "tese-dano-material",
+    id: "tese-perdas-danos",
     categoria: "tese",
-    titulo: "Dano material comprovável",
-    detalhe: "Pagamentos em atraso e perdas financeiras documentadas sustentam pedido indenizatório.",
+    titulo: "Perdas e danos pelo inadimplemento",
+    detalhe: "Devedor responde por perdas e danos, juros e atualização monetária das parcelas em atraso.",
     relevancia: "alta",
-    fontes: [{ tribunal: "STJ", identificador: "REsp 1.363.423" }],
-  },
-  {
-    id: "tese-acordo",
-    categoria: "tese",
-    titulo: "Acordo extrajudicial prévio",
-    detalhe: "Sugerido registrar tentativas de negociação antes do ajuizamento.",
-    relevancia: "media",
-    fontes: [{ tribunal: "CC", identificador: "art. 840" }],
+    fontes: [{ origem: "Código Civil", identificador: "art. 389" }],
   },
   {
     id: "tese-clausula-penal",
     categoria: "tese",
-    titulo: "Cláusula penal aplicável",
-    detalhe: "Possível cobrança de multa contratual por descumprimento.",
+    titulo: "Cobrança da cláusula penal",
+    detalhe: "Aplicável se o contrato prever multa; o valor não pode exceder o da obrigação principal.",
     relevancia: "media",
-    fontes: [{ tribunal: "CC", identificador: "art. 412" }],
+    fontes: [{ origem: "Código Civil", identificador: "arts. 408 e 412" }],
   },
   {
-    id: "tema-1065",
-    categoria: "tema_superior",
-    titulo: "Tema 1065 do STF",
-    detalhe: "Discute efeitos de vínculos não anotados e prova documental.",
-    relevancia: "alta",
-    fontes: [{ tribunal: "STF", identificador: "Tema 1065", data: "2021" }],
+    id: "tese-acordo",
+    categoria: "tese",
+    titulo: "Acordo extrajudicial (transação)",
+    detalhe: "Registrar a tentativa de negociação; um acordo pode encerrar o litígio por concessões mútuas.",
+    relevancia: "media",
+    fontes: [{ origem: "Código Civil", identificador: "art. 840" }],
   },
   {
-    id: "tema-975",
-    categoria: "tema_superior",
-    titulo: "Tema 975 do STF",
-    detalhe: "Trata de reconhecimento de períodos contributivos e impacto no benefício.",
-    relevancia: "alta",
-    fontes: [{ tribunal: "STF", identificador: "Tema 975" }],
-  },
-  {
-    id: "juris-resp",
+    id: "juris-reducao-multa",
     categoria: "jurisprudencia",
-    titulo: "STJ — REsp 1.363.423/RS",
-    detalhe: "Consolidou entendimento sobre dano material em relações contratuais.",
+    titulo: "Redução de multa manifestamente excessiva",
+    detalhe: "Entendimento de que o juiz deve reduzir a cláusula penal excessiva (CC, art. 413). Precedente de demonstração.",
     posicaoJurisprudencial: "majoritaria",
-    fontes: [{ tribunal: "STJ", identificador: "REsp 1.363.423/RS", data: "2018-03-15" }],
+    fontes: [{ origem: "STJ", identificador: "REsp (exemplo de demonstração)" }],
   },
   {
-    id: "juris-trf4",
+    id: "juris-cumulacao",
     categoria: "jurisprudencia",
-    titulo: "TRF4 — AC 5001234",
-    detalhe: "Reconheceu período mediante prova testemunhal e documental.",
-    posicaoJurisprudencial: "majoritaria",
-    fontes: [{ tribunal: "TRF4", identificador: "AC 5001234", data: "2022-08-02" }],
-  },
-  {
-    id: "juris-agint",
-    categoria: "jurisprudencia",
-    titulo: "STJ — AgInt no AREsp",
-    detalhe: "Admitiu prova indireta para demonstrar vínculo omitido.",
-    posicaoJurisprudencial: "majoritaria",
-    fontes: [{ tribunal: "STJ", identificador: "AgInt no AREsp", data: "2020-11-11" }],
-  },
-  {
-    id: "juris-trf3",
-    categoria: "jurisprudencia",
-    titulo: "TRF3 — Apelação",
-    detalhe: "Valorou documentos e recibos como prova suficiente.",
-    posicaoJurisprudencial: "majoritaria",
-    fontes: [{ tribunal: "TRF3", identificador: "Apelação", data: "2019-05-09" }],
-  },
-  {
-    id: "pergunta-anotacao",
-    categoria: "pergunta",
-    titulo: "Havia anotação formal?",
-    detalhe: "Comprovar vínculo omitido no cadastro.",
+    titulo: "Cumulação de multa com perdas e danos",
+    detalhe: "A IA não encontrou fonte verificável para este ponto. Confirme antes de usar na peça.",
+    posicaoJurisprudencial: "em_analise",
     fontes: [],
   },
   {
-    id: "pergunta-periodos",
+    id: "pergunta-multa",
     categoria: "pergunta",
-    titulo: "Quais períodos de pagamento?",
-    detalhe: "Mapear contribuições não reconhecidas.",
+    titulo: "O contrato prevê cláusula de multa?",
+    detalhe: "Define se a cobrança da cláusula penal é cabível e qual o limite.",
     fontes: [],
   },
   {
-    id: "pergunta-testemunhas",
+    id: "pergunta-parcelas",
     categoria: "pergunta",
-    titulo: "Existem testemunhas do fato?",
-    detalhe: "Fortalecer prova do vínculo de fato.",
+    titulo: "Quais parcelas estão em atraso?",
+    detalhe: "Mapear datas e valores a partir dos comprovantes.",
+    fontes: [],
+  },
+  {
+    id: "pergunta-notificacao",
+    categoria: "pergunta",
+    titulo: "A empresa foi notificada formalmente?",
+    detalhe: "Ajuda a comprovar a mora e a tentativa de solução.",
     fontes: [],
   },
   {
     id: "pergunta-acordo",
     categoria: "pergunta",
-    titulo: "Houve tentativa de acordo?",
-    detalhe: "Documentar fase pré-processual.",
+    titulo: "A tentativa de acordo ficou registrada?",
+    detalhe: "E-mails ou mensagens documentam a fase pré-processual.",
     fontes: [],
   },
   {
     id: "necessidade-documento",
     categoria: "necessidade",
     titulo: "Documento faltante",
-    detalhe: "Extrato atualizado e comprovantes de depósito.",
+    detalhe: "Cópia integral do contrato com eventuais aditivos.",
     probabilidade: "alta",
-    fontes: [],
-  },
-  {
-    id: "necessidade-pericia",
-    categoria: "necessidade",
-    titulo: "Perícia",
-    detalhe: "Eventual perícia contábil sobre os períodos.",
-    probabilidade: "media",
     fontes: [],
   },
   {
     id: "necessidade-acordo",
     categoria: "necessidade",
     titulo: "Possibilidade de acordo",
-    detalhe: "Negociação prévia pode reduzir o litígio.",
-    probabilidade: "alta",
+    detalhe: "Já houve negociação; vale avaliar nova proposta antes do ajuizamento.",
+    probabilidade: "media",
+    fontes: [],
+  },
+  {
+    id: "necessidade-pericia",
+    categoria: "necessidade",
+    titulo: "Perícia",
+    detalhe: "Perícia contábil só se houver divergência sobre os valores devidos.",
+    probabilidade: "baixa",
     fontes: [],
   },
 ];

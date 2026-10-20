@@ -5,9 +5,20 @@ import {
   ROTULO_PROBABILIDADE,
   ROTULO_RELEVANCIA,
 } from "@/lib/analise/tipos";
-import { cn } from "@/lib/utils";
 
 const ORDEM_COLUNAS: CategoriaInsight[] = ["tese", "tema_superior", "jurisprudencia", "pergunta", "necessidade"];
+
+/**
+ * Coluna vazia é informação, não erro: em disputa entre particulares, por exemplo,
+ * não existe tema do STF, e a IA não deve preencher a coluna "para não ficar vazia".
+ */
+const VAZIO_CATEGORIA: Record<CategoriaInsight, string> = {
+  tese: "Nenhuma tese identificada até agora.",
+  tema_superior: "Nenhum tema aplicável. Sem questão constitucional, não há repercussão geral do STF.",
+  jurisprudencia: "Nenhuma jurisprudência com fonte verificável.",
+  pergunta: "Nenhuma pergunta pendente.",
+  necessidade: "Nenhuma necessidade adicional.",
+};
 
 interface ColunasAnaliseProps {
   insights: Insight[];
@@ -18,17 +29,22 @@ export function ColunasAnalise({ insights }: ColunasAnaliseProps) {
     <div className="grid grid-cols-1 gap-5 md:grid-cols-3 xl:grid-cols-5">
       {ORDEM_COLUNAS.map((categoria) => {
         const itens = insights.filter((insight) => insight.categoria === categoria);
-        if (itens.length === 0) return null;
         return (
           <div key={categoria} className="flex flex-col gap-2.5">
             <h3 className="text-[12px] font-semibold">
               {ROTULO_CATEGORIA[categoria]} ({itens.length})
             </h3>
-            <div className="flex flex-col gap-2">
-              {itens.map((insight) => (
-                <CardInsight key={insight.id} insight={insight} />
-              ))}
-            </div>
+            {itens.length === 0 ? (
+              <p className="border-borda text-tinta-suave rounded-[10px] border border-dashed p-2.5 text-[11px] leading-snug">
+                {VAZIO_CATEGORIA[categoria]}
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {itens.map((insight) => (
+                  <CardInsight key={insight.id} insight={insight} />
+                ))}
+              </div>
+            )}
           </div>
         );
       })}
@@ -60,15 +76,13 @@ function CardInsight({ insight }: { insight: Insight }) {
         {exigeFonte ? (
           fonte ? (
             <span className="font-medium">
-              {fonte.tribunal} {fonte.identificador}
+              {fonte.origem} {fonte.identificador}
               {fonte.data ? ` · ${fonte.data}` : ""}
             </span>
           ) : (
-            <span className={cn("font-medium", "text-destructive")}>Fonte não verificada</span>
+            <span className="text-destructive font-medium">Fonte não verificada</span>
           )
-        ) : (
-          <span>não verificado</span>
-        )}
+        ) : null}
       </div>
     </article>
   );

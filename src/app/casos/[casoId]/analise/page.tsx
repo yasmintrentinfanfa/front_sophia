@@ -2,28 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
 
 import { ColunasAnalise } from "@/components/casos/colunas-analise";
 import { ModalConfigurarIA } from "@/components/casos/modal-configurar-ia";
 import { ModalPecaProcessual } from "@/components/casos/modal-peca-processual";
-import { useListaCasos } from "@/components/casos/contexto-lista-casos";
+import { useCasoAtual } from "@/components/casos/contexto-caso-atual";
 import { INSIGHTS, RESUMO_ANALISE } from "@/lib/analise/dados";
 
 export default function PaginaAnaliseIA() {
-  const { casoId } = useParams<{ casoId: string }>();
-  const { casos, carregando } = useListaCasos();
+  const caso = useCasoAtual();
   const [modalConfigAberto, setModalConfigAberto] = useState(false);
   const [modalPecaAberto, setModalPecaAberto] = useState(false);
-  const caso = casos.find((item) => item.id === casoId);
-
-  if (carregando) {
-    return <p className="text-tinta-suave px-7 pt-6 text-[13px]">Carregando caso…</p>;
-  }
-
-  if (!caso) {
-    return <p className="text-tinta-suave px-7 pt-6 text-[13px]">Caso não encontrado.</p>;
-  }
 
   return (
     <>
