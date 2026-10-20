@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   aplicarDestaque,
@@ -19,12 +19,9 @@ const AMOSTRA: Record<CorDestaque, string> = {
   roxo: "bg-[#5a3d82]",
 };
 
+/** Só é renderizado dentro do modal de configurações, que nunca passa pelo servidor. */
 export function SeletorDestaque() {
-  const [cor, setCor] = useState<CorDestaque>("verde");
-
-  useEffect(() => {
-    setCor(lerDestaqueSalvo());
-  }, []);
+  const [cor, setCor] = useState<CorDestaque>(lerDestaqueSalvo);
 
   function escolher(proxima: CorDestaque) {
     setCor(proxima);

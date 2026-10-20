@@ -12,6 +12,7 @@ export function urlDoBack(caminho = "") {
 export function opcoesCookieUsuario() {
   return {
     httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
     sameSite: "lax" as const,
     path: "/",
     maxAge: 60 * 60 * 24 * 30,

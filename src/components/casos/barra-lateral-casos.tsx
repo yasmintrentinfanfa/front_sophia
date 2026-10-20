@@ -34,7 +34,6 @@ function classeTrilha(ativo: boolean) {
 
 export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCasosProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const [busca, setBusca] = useState("");
   const [expandida, setExpandida] = useState(true);
   const segmento = pathname.match(/^\/casos\/([^/]+)/)?.[1] ?? null;
@@ -131,6 +130,7 @@ function TrilhaIcones({
   casoId?: string;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [configuracoesAberta, setConfiguracoesAberta] = useState(false);
   const emRepositorio = pathname.includes("/repositorio");
   const emCasos =

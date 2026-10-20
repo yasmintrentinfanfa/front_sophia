@@ -41,7 +41,9 @@ mongo_client = AsyncIOMotorClient(MONGODB_URI) if MONGODB_URI else None
 mongo_db = mongo_client["sophia-data"] if mongo_client else None
 users_collection = mongo_db["users"] if mongo_db is not None else None
 case_collection = mongo_db["case"] if mongo_db is not None else None
+assinaturas_collection = mongo_db["assinaturas"] if mongo_db is not None else None
 USERS_FILE = PASTA_BACK / "data" / "users.json"
+ASSINATURAS_FILE = PASTA_BACK / "data" / "assinaturas.json"
 FUSO = timezone(timedelta(hours=-3))
 
 
@@ -227,6 +229,23 @@ class EntrarRequest(BaseModel):
     senha: str
 
 
+class CartaoAssinatura(BaseModel):
+    brand: str = ""
+    last4: str = ""
+
+
+class AssinaturaRequest(BaseModel):
+    # user_id vem do cookie assinado, lido pela rota /api/assinatura do Next.
+    user_id: str
+    plan_id: str
+    card: CartaoAssinatura
+
+
+# Valores em centavos. O preço é sempre calculado aqui, nunca aceito do front.
+PRECO_PLATAFORMA = 15000
+PRECO_PLANOS = {"basico": 10000, "intermediario": 25000, "pro": 60000}
+
+
 @app.post("/revisar-transcricao")
 async def revisar_transcricao(payload: RevisarTextoRequest):
     if not payload.texto.strip():
@@ -272,6 +291,9 @@ def usuario_publico(documento: dict) -> dict:
         "_id": documento["_id"],
         "name": documento.get("name") or "",
         "email": documento.get("email") or "",
+        # Contas sem o campo ainda não pagaram a assinatura.
+        "account_status": documento.get("account_status") or "pagamento_pendente",
+        "created_at": documento.get("created_at") or "",
     }
 
 
@@ -354,6 +376,80 @@ async def entrar(payload: EntrarRequest):
         return JSONResponse({"erro": "Email ou senha inválidos."}, status_code=401)
 
     return {"usuario": usuario_publico(documento)}
+
+
+async def _buscar_usuario(user_id: str) -> dict | None:
+    if users_collection is not None:
+        return await users_collection.find_one({"_id": user_id})
+    return next((u for u in _ler_users_arquivo() if u.get("_id") == user_id), None)
+
+
+@app.get("/usuario/{user_id}")
+async def obter_usuario(user_id: str):
+    """Dados públicos do usuário da sessão (o Next só chama com o id do cookie assinado)."""
+    documento = await _buscar_usuario(user_id.strip())
+    if not documento:
+        return JSONResponse({"erro": "Usuário não encontrado."}, status_code=404)
+    return {"usuario": usuario_publico(documento)}
+
+
+@app.post("/assinatura")
+async def assinar(payload: AssinaturaRequest):
+    """Registra a assinatura do usuário e libera a conta (account_status = ativa)."""
+    user_id = payload.user_id.strip()
+    plano = payload.plan_id.strip()
+    if plano not in PRECO_PLANOS:
+        return JSONResponse({"erro": "Plano inválido."}, status_code=400)
+    if not await _buscar_usuario(user_id):
+        return JSONResponse({"erro": "Usuário não encontrado."}, status_code=404)
+
+    agora = agora_iso()
+    documento = {
+        "_id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "plan_id": plano,
+        "status": "ativa",
+        "platform_amount": PRECO_PLATAFORMA,
+        "plan_amount": PRECO_PLANOS[plano],
+        "monthly_amount": PRECO_PLATAFORMA + PRECO_PLANOS[plano],
+        # Só dados de exibição: número e CVV nunca chegam aqui.
+        "card": {"brand": payload.card.brand, "last4": payload.card.last4[-4:]},
+        "created_at": agora,
+    }
+    try:
+        if users_collection is not None and assinaturas_collection is not None:
+            await assinaturas_collection.create_index("user_id")
+            await assinaturas_collection.insert_one(documento)
+            await users_collection.update_one(
+                {"_id": user_id},
+                {"$set": {"account_status": "ativa", "updated_at": agora}},
+            )
+        else:
+            lista = (
+                json.loads(ASSINATURAS_FILE.read_text(encoding="utf-8"))
+                if ASSINATURAS_FILE.exists()
+                else []
+            )
+            lista.append(documento)
+            ASSINATURAS_FILE.parent.mkdir(parents=True, exist_ok=True)
+            ASSINATURAS_FILE.write_text(
+                json.dumps(lista, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
+            usuarios = _ler_users_arquivo()
+            for usuario in usuarios:
+                if usuario.get("_id") == user_id:
+                    usuario["account_status"] = "ativa"
+                    usuario["updated_at"] = agora
+            _gravar_users_arquivo(usuarios)
+    except Exception as exc:  # noqa: BLE001
+        return JSONResponse({"erro": str(exc)}, status_code=500)
+
+    return {
+        "assinatura": {
+            **documento,
+            "card": {**documento["card"], "expiry": ""},
+        }
+    }
 
 
 @app.get("/caso")

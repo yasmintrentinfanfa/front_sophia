@@ -11,7 +11,8 @@ function moduloDoCaminho(caminho: string) {
   if (
     caminho === "/login" ||
     caminho.startsWith("/criar-conta") ||
-    caminho.startsWith("/pagamento")
+    caminho.startsWith("/pagamento") ||
+    caminho.startsWith("/assinatura")
   ) {
     return "conta";
   }

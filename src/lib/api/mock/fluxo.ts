@@ -2,16 +2,24 @@ import type { Caso } from "../types";
 import type { AnalisePreliminar, ConteudoCaso, MensagemChat } from "../analise";
 import { INSIGHTS, MENSAGENS, RESUMO } from "./detalhes";
 
-export function criarMockFluxo(
-  encontrarCaso: (id: string) => Caso | undefined,
-) {
+interface DependenciasFluxo {
+  /** Só devolve casos do dono da sessão. */
+  encontrarCaso: (id: string) => Caso | undefined;
+  /** Persiste o caso alterado (status, data) na lista do dono. */
+  salvarCaso: (caso: Caso) => void;
+  /** Id do dono da sessão: análise e chat ficam separados por usuário mesmo quando os ids de caso coincidem. */
+  escopo: () => string;
+}
+
+export function criarMockFluxo({ encontrarCaso, salvarCaso, escopo }: DependenciasFluxo) {
   const conteudos = new Map<string, ConteudoCaso>();
   const conversas = new Map<string, MensagemChat[]>();
+  const chave = (casoId: string) => `${escopo()}:${casoId}`;
 
   function obterConteudo(casoId: string) {
     const caso = encontrarCaso(casoId);
     if (!caso) throw new Error("Caso nao encontrado.");
-    const existente = conteudos.get(casoId);
+    const existente = conteudos.get(chave(casoId));
     if (existente) return existente;
     const exemplo = casoId === "rescisao-silva";
     const conteudo: ConteudoCaso = {
@@ -86,18 +94,18 @@ export function criarMockFluxo(
     if (conteudo.analise) {
       conteudo.versoesAnalise.push(structuredClone(conteudo.analise));
     }
-    conteudos.set(casoId, conteudo);
+    conteudos.set(chave(casoId), conteudo);
     return conteudo;
   }
 
   function obterMensagens(casoId: string) {
     obterConteudo(casoId);
-    if (!conversas.has(casoId))
+    if (!conversas.has(chave(casoId)))
       conversas.set(
-        casoId,
+        chave(casoId),
         casoId === "rescisao-silva" ? structuredClone(MENSAGENS) : [],
       );
-    return conversas.get(casoId)!;
+    return conversas.get(chave(casoId))!;
   }
 
   return {
@@ -108,9 +116,12 @@ export function criarMockFluxo(
       const conteudo = obterConteudo(casoId);
       conteudo.transcricao = structuredClone(transcricao);
       await this.solicitarAnalise(casoId);
-      const caso = encontrarCaso(casoId)!;
-      caso.status = "em_analise";
-      caso.atualizadoEm = new Date().toISOString();
+      const caso: Caso = {
+        ...encontrarCaso(casoId)!,
+        status: "em_analise",
+        atualizadoEm: new Date().toISOString(),
+      };
+      salvarCaso(caso);
       return structuredClone(caso);
     },
     async obterCaso(casoId: string): Promise<ConteudoCaso> {

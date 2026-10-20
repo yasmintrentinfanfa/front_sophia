@@ -16,7 +16,12 @@ const { destinoDoCaso } = require("../src/lib/casos/destino.ts");
 
 function preparar(id = "novo-caso") {
   const caso = { id, titulo: "Caso de teste", cliente: "Teste", status: "gravacao_pendente", pasta: "ativo", atualizadoEm: "2026-01-01" };
-  return { caso, api: criarMockFluxo((atual) => atual === id ? caso : undefined) };
+  const api = criarMockFluxo({
+    encontrarCaso: (atual) => atual === id ? caso : undefined,
+    salvarCaso: (novo) => Object.assign(caso, novo),
+    escopo: () => "usuario-teste",
+  });
+  return { caso, api };
 }
 const transcricao = [
   { id: "fala-1", tempo: "00:12", papel: "cliente", texto: "Relato da entrevista" },

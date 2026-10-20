@@ -48,7 +48,7 @@ item nem inventa a referência.
 
 ```ts
 interface Fonte {
-  tribunal: string;       // "STF", "STJ", "TJRS"
+  origem: string;         // tribunal ("STF", "STJ", "TJRS") ou lei ("Código Civil")
   identificador: string;  // "Tema 975", "REsp 1.234.567/SP"
   data: string;           // ISO 8601
   url?: string;
@@ -139,3 +139,103 @@ memória e são perdidos ao recarregar a página.
 A lista e a barra lateral abrem a gravação para casos `gravacao_pendente` e a
 análise para os demais. Os botões de voltar usam a navegação interna da aba ou
 uma rota de retorno quando a tela foi aberta diretamente por URL.
+
+## Conta, sessão e assinatura
+
+Cadastro, login e assinatura passam por rotas do próprio Next (`src/app/api`), que
+falam com o backend Python (`backend/main.py`, porta 8000) e cuidam do cookie de
+sessão. O navegador nunca fala direto com o backend nem envia `user_id`.
+
+### Fluxo
+
+1. `/criar-conta` → `POST /api/auth/criar-conta` → backend `POST /cadastro`. O usuário
+   nasce sem `account_status` (= pagamento pendente) e a sessão já é aberta.
+2. `/assinatura` (plataforma R$ 150 + plano Básico/Intermediário/Pro) →
+   `/assinatura/pagamento`: o cartão é tokenizado **no navegador** pelo gateway
+   (`src/lib/pagamento`, hoje mockado) e o front manda só o token.
+3. `POST /api/assinatura` lê o dono do cookie e chama o backend `POST /assinatura`,
+   que recalcula o preço pelo `plan_id`, grava em `assinaturas` e passa o usuário
+   para `account_status: "ativa"`.
+4. No login (`POST /api/auth/entrar`), quem ainda não pagou vai para `/assinatura`;
+   quem pagou vai para `/casos` (`rotaInicial` em `src/lib/conta.ts`).
+5. `/casos` só abre com sessão e conta ativa (`GET /api/auth/eu` →
+   backend `GET /usuario/{id}`); sem sessão vai para `/login`.
+
+### Rotas do Next
+
+| Método | Rota | Corpo | Resposta |
+|---|---|---|---|
+| POST | `/api/auth/criar-conta` | `{ nome, email, senha }` | `{ usuario }` + cookie · `400` dados/e-mail em uso |
+| POST | `/api/auth/entrar` | `{ email, senha }` | `{ usuario }` (com `account_status`) + cookie · `401` |
+| POST | `/api/auth/sair` | — | `{ ok: true }`, apaga o cookie |
+| GET | `/api/auth/eu` | — | `{ usuario }` · `401` sem sessão ou cookie adulterado |
+| POST | `/api/assinatura` | `{ plan_id, card_token, holder }` | `{ assinatura }` · `402` recusado · `401` |
+
+Erros vêm como `{ "erro": "texto para o usuário" }`, no padrão do backend. Os
+formatos (`UsuarioApi`, `AssinaturaApi`…) estão em `src/lib/api/http/mapeadores.ts`.
+
+### Cookie de sessão assinado
+
+O cookie `sophia_user_id` guarda `<userId>.<HMAC-SHA256>` (`src/lib/servidor/cookie-assinado.ts`),
+não mais o UUID puro. Antes, bastava editar o cookie com o UUID de outra pessoa para
+entrar na conta dela; agora qualquer alteração invalida a sessão. O segredo vem de
+`SESSION_SECRET` (obrigatória em produção, ver `.env.example`). Cookies antigos, sem
+assinatura, deixam de valer: quem estava logado precisa entrar de novo.
+
+### Coleção `assinaturas` (MongoDB)
+
+```js
+{
+  _id: "uuid",
+  user_id: "uuid do users",          // vínculo assinatura ↔ usuário
+  plan_id: "intermediario",
+  status: "ativa",
+  platform_amount: 15000,             // centavos, calculados no backend
+  plan_amount: 25000,
+  monthly_amount: 40000,
+  card: { brand: "visa", last4: "4242" },  // só exibição; número e CVV nunca chegam aqui
+  created_at: "2026-10-20T17:25:00"
+}
+```
+
+Quando o gateway real entrar: guardar o id do cliente/método de pagamento do
+gateway, nunca o token de uso único, e atualizar o status mensal por webhook.
+
+## Isolamento por usuário (obrigatório no backend)
+
+Cada usuário só pode ver e alterar os próprios casos. O front já se comporta
+assim — nunca envia `user_id`, só mostra o que a API devolve e trata caso alheio
+como inexistente —, mas **a garantia de verdade é do backend**.
+
+Regras:
+
+1. **O `user_id` sai sempre da sessão.** Nas rotas do Next ele vem do cookie
+   assinado (`idDoUsuarioNaSessao`); nunca da URL, do corpo ou de query string.
+2. **Toda consulta a `case` filtra pelo dono** — o backend já faz
+   `find_one({ "user_id": ..., "caso_id": ... })` em `/caso` e `/salvar-transcricao`.
+3. **Caso de outro usuário responde `404`, igual a caso inexistente**, para não
+   revelar que aquele id existe.
+4. **`transcript` herda o dono do caso.** Os documentos antigos dessa coleção não
+   têm `case_id` nem `user_id`; transcrições novas ficam dentro de `case`, que tem dono.
+
+**Atenção — o backend confia no `user_id` que recebe.** As rotas `/caso`,
+`/salvar-transcricao`, `/usuario/{id}` e `/assinatura` aceitam o `user_id` como
+parâmetro, e o CORS está liberado para qualquer origem. Isso só é seguro enquanto
+a porta 8000 **não** estiver exposta à internet e apenas o servidor Next a chamar.
+Em produção: deixar o backend em rede interna ou exigir um token compartilhado
+entre Next e backend (ex.: header `X-Sophia-Interno`).
+
+### Ajustes pendentes no banco atual
+
+| Coleção | Ajuste |
+|---|---|
+| `users` | `account_status` passa a ser gravado pela assinatura; contas antigas sem o campo são tratadas como pagamento pendente. Um documento (`testefront@teste.com`) está sem `name`. |
+| `case` | Faltam os campos de listagem (`title`, `client_name`, `status`, `folder`) para a lista de casos sair do mock. O `user_id` do caso de teste (`a3f1c2e4-…-000000000001`) não existe em `users`. |
+| `transcript` | Documentos sem dono e com nomes de campo misturados (`texto`/`criado_em` × `text`/`created_at`). |
+
+### Testes
+
+`npm test` roda os testes do front (Vitest): isolamento de casos entre dois
+usuários, cookie forjado/adulterado e as rotas de conta. A API real deve cobrir os
+mesmos cenários com dois usuários A e B: B não lista, não abre, não altera e não
+exclui caso de A (`404`), e nada funciona sem sessão (`401`).
