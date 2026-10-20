@@ -1,22 +1,40 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 
 import { BarraLateralCasos } from "@/components/casos/barra-lateral-casos";
 import { ProvedorListaCasos } from "@/components/casos/contexto-lista-casos";
 import { api } from "@/lib/api";
 import type { Caso, DadosNovoCaso, PastaCaso } from "@/lib/api/types";
+import { redirecionamentoDosCasos } from "@/lib/conta";
 
+/**
+ * Confere a sessão antes de qualquer dado: a lista vem só com os casos do dono
+ * da sessão (o backend filtra por `user_id`), e um id de caso alheio na URL cai
+ * em "Caso não encontrado" no layout do caso.
+ */
 export default function LayoutCasos({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  const [liberado, setLiberado] = useState(false);
   const [casos, setCasos] = useState<Caso[]>([]);
   const [carregando, setCarregando] = useState(true);
 
   useEffect(() => {
     let ativo = true;
     api
-      .listarCasos()
-      .then((lista) => {
-        if (ativo) setCasos(lista);
+      .obterUsuarioAtual()
+      .then((usuario) => {
+        if (!ativo) return;
+        const destino = redirecionamentoDosCasos(usuario);
+        if (destino) {
+          router.replace(destino);
+          return;
+        }
+        setLiberado(true);
+        return api.listarCasos().then((lista) => {
+          if (ativo) setCasos(lista);
+        });
       })
       .finally(() => {
         if (ativo) setCarregando(false);
@@ -25,7 +43,7 @@ export default function LayoutCasos({ children }: { children: ReactNode }) {
     return () => {
       ativo = false;
     };
-  }, []);
+  }, [router]);
 
   const contexto = useMemo(
     () => ({
@@ -47,6 +65,10 @@ export default function LayoutCasos({ children }: { children: ReactNode }) {
     }),
     [carregando, casos],
   );
+
+  if (!liberado) {
+    return <p className="text-tinta-suave px-7 pt-6 text-[13px]">Verificando sua sessão…</p>;
+  }
 
   return (
     <ProvedorListaCasos value={contexto}>

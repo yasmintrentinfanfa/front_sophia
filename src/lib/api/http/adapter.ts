@@ -4,16 +4,31 @@
  *
  * A sessão viaja num cookie httpOnly definido pelo backend no cadastro/login,
  * por isso toda requisição vai com `credentials: "include"` e nenhuma envia o id
- * do usuário.
+ * do usuário. É o backend que restringe cada consulta aos casos do dono da sessão.
  */
 
 import type { SophiaApi } from "@/lib/api/types";
-import { mockApi } from "@/lib/api/mock/adapter";
+
+import {
+  assinaturaDaApi,
+  assinaturaParaApi,
+  cadastroParaApi,
+  casoDaApi,
+  entrarParaApi,
+  novoCasoParaApi,
+  ofertaDaApi,
+  usuarioDaApi,
+  type AssinaturaApi,
+  type CasoApi,
+  type OfertaApi,
+  type UsuarioApi,
+} from "./mapeadores";
 
 /** Mensagens para quando o backend não manda `{ mensagem }` no corpo do erro. */
 const MENSAGEM_POR_STATUS: Record<number, string> = {
-  401: "E-mail ou senha incorretos.",
+  401: "Sua sessão expirou. Entre novamente.",
   402: "Pagamento recusado pelo emissor do cartão. Tente outro cartão.",
+  404: "Caso não encontrado.",
   409: "Já existe uma conta com este e-mail.",
 };
 
@@ -54,28 +69,54 @@ export function criarHttpApi(baseUrl: string): SophiaApi {
     return (await resposta.json()) as T;
   }
 
-  const enviar = (corpo: unknown): RequestInit => ({ method: "POST", body: JSON.stringify(corpo) });
+  const comCorpo = (method: string, corpo: unknown): RequestInit => ({ method, body: JSON.stringify(corpo) });
+  const caminhoCaso = (id: string) => `/casos/${encodeURIComponent(id)}`;
 
   return {
-    // Casos ainda não têm rota no backend; seguem no mock até lá.
-    listarCasos: mockApi.listarCasos,
-    criarCaso: mockApi.criarCaso,
-    moverCaso: mockApi.moverCaso,
-    excluirCaso: mockApi.excluirCaso,
+    async listarCasos() {
+      const lista = await requisitar<CasoApi[]>("/casos");
+      return lista.map(casoDaApi);
+    },
+    async criarCaso(dados) {
+      return casoDaApi(await requisitar<CasoApi>("/casos", comCorpo("POST", novoCasoParaApi(dados))));
+    },
+    async moverCaso(id, pasta) {
+      return casoDaApi(await requisitar<CasoApi>(caminhoCaso(id), comCorpo("PATCH", { folder: pasta })));
+    },
+    async excluirCaso(id) {
+      await requisitar<void>(caminhoCaso(id), { method: "DELETE" });
+    },
 
-    criarConta: (dados) => requisitar("/auth/cadastro", enviar(dados)),
-    entrar: (dados) => requisitar("/auth/entrar", enviar(dados)),
-    sair: () => requisitar("/auth/sair", { method: "POST" }),
+    async criarConta(dados) {
+      return usuarioDaApi(await requisitar<UsuarioApi>("/auth/cadastro", comCorpo("POST", cadastroParaApi(dados))));
+    },
+    async entrar(dados) {
+      try {
+        return usuarioDaApi(await requisitar<UsuarioApi>("/auth/entrar", comCorpo("POST", entrarParaApi(dados))));
+      } catch (erro) {
+        if (erro instanceof ErroApi && erro.status === 401) {
+          throw new ErroApi("E-mail ou senha incorretos.", 401);
+        }
+        throw erro;
+      }
+    },
+    async sair() {
+      await requisitar<void>("/auth/sair", { method: "POST" });
+    },
     async obterUsuarioAtual() {
       try {
-        return await requisitar("/auth/eu");
+        return usuarioDaApi(await requisitar<UsuarioApi>("/auth/eu"));
       } catch (erro) {
         if (erro instanceof ErroApi && erro.status === 401) return null;
         throw erro;
       }
     },
 
-    obterOfertaAssinatura: () => requisitar("/assinatura/oferta"),
-    assinar: (dados) => requisitar("/assinatura", enviar(dados)),
+    async obterOfertaAssinatura() {
+      return ofertaDaApi(await requisitar<OfertaApi>("/assinatura/oferta"));
+    },
+    async assinar(dados) {
+      return assinaturaDaApi(await requisitar<AssinaturaApi>("/assinatura", comCorpo("POST", assinaturaParaApi(dados))));
+    },
   };
 }

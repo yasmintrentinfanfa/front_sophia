@@ -3,6 +3,10 @@
  *
  * Para ligar o front na API de verdade basta escrever outro objeto que satisfaça
  * `SophiaApi` e trocá-lo em `src/lib/api/index.ts` — nenhum componente muda.
+ *
+ * Reproduz a regra de isolamento do backend: cada caso pertence a um usuário e
+ * toda operação só enxerga os casos do dono da sessão. Caso de outro usuário se
+ * comporta exatamente como caso inexistente.
  */
 
 import type { Assinatura, BandeiraCartao, Caso, SophiaApi, Usuario } from "@/lib/api/types";
@@ -10,7 +14,9 @@ import { pastaDoCaso } from "@/lib/casos/rotulo";
 
 import { CASOS, OFERTA_ASSINATURA } from "./dados";
 
+/** Latência simulada da rede; desligada nos testes para não deixá-los lentos. */
 function esperar(ms: number) {
+  if (process.env.NODE_ENV === "test") return Promise.resolve();
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
@@ -21,32 +27,42 @@ function slug(texto: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
-  return base || `caso-${Date.now()}`;
+  return base || "caso";
 }
 
 /*
- * Contas e sessão simuladas no sessionStorage, para o fluxo cadastro → assinatura
- * sobreviver a um recarregamento da página. Senha não é guardada nem conferida.
+ * Contas, sessão e casos simulados no sessionStorage, para o fluxo sobreviver a um
+ * recarregamento da página. Senha não é guardada nem conferida.
  */
 const CHAVE_USUARIOS = "sophia-mock-usuarios";
 const CHAVE_SESSAO = "sophia-mock-sessao";
+const CHAVE_CASOS = "sophia-mock-casos";
 
-function lerUsuarios(): Usuario[] {
+function ler<T>(chave: string, padrao: T): T {
   try {
-    const lista = JSON.parse(sessionStorage.getItem(CHAVE_USUARIOS) ?? "[]") as Usuario[];
-    return Array.isArray(lista) ? lista : [];
+    const bruto = sessionStorage.getItem(chave);
+    return bruto ? (JSON.parse(bruto) as T) : padrao;
   } catch {
-    return [];
+    return padrao;
   }
 }
 
-function salvarUsuario(usuario: Usuario) {
+function gravar(chave: string, valor: unknown) {
   try {
-    const outros = lerUsuarios().filter((item) => item.id !== usuario.id);
-    sessionStorage.setItem(CHAVE_USUARIOS, JSON.stringify([...outros, usuario]));
+    sessionStorage.setItem(chave, JSON.stringify(valor));
   } catch {
     /* private mode */
   }
+}
+
+function lerUsuarios(): Usuario[] {
+  const lista = ler<Usuario[]>(CHAVE_USUARIOS, []);
+  return Array.isArray(lista) ? lista : [];
+}
+
+function salvarUsuario(usuario: Usuario) {
+  const outros = lerUsuarios().filter((item) => item.id !== usuario.id);
+  gravar(CHAVE_USUARIOS, [...outros, usuario]);
 }
 
 function abrirSessao(usuario: Usuario | null) {
@@ -67,26 +83,43 @@ function usuarioDaSessao() {
   }
 }
 
-let casos = structuredClone(CASOS).map((caso) => ({
-  ...caso,
-  pasta: pastaDoCaso(caso),
-}));
+/** Casos indexados pelo id do dono, como o filtro `{ user_id }` no MongoDB. */
+type CasosPorUsuario = Record<string, Caso[]>;
+
+/** Equivale ao 401 do backend: sem sessão, nenhuma operação de caso acontece. */
+function donoDaSessao() {
+  const usuario = usuarioDaSessao();
+  if (!usuario) throw new Error("Sua sessão expirou. Entre novamente.");
+  return usuario.id;
+}
+
+function casosDe(usuarioId: string): Caso[] {
+  return ler<CasosPorUsuario>(CHAVE_CASOS, {})[usuarioId] ?? [];
+}
+
+function salvarCasosDe(usuarioId: string, lista: Caso[]) {
+  gravar(CHAVE_CASOS, { ...ler<CasosPorUsuario>(CHAVE_CASOS, {}), [usuarioId]: lista });
+}
+
+/** Equivale ao `find_one({ _id, user_id })`: caso alheio e caso inexistente dão o mesmo erro. */
+function casoDoDono(usuarioId: string, id: string) {
+  const caso = casosDe(usuarioId).find((item) => item.id === id);
+  if (!caso) throw new Error("Caso não encontrado.");
+  return caso;
+}
 
 export const mockApi: SophiaApi = {
   async listarCasos() {
     await esperar(220);
-    casos = casos.map((caso) => ({ ...caso, pasta: pastaDoCaso(caso) }));
-    return structuredClone(casos);
+    const dono = donoDaSessao();
+    return structuredClone(casosDe(dono).map((caso) => ({ ...caso, pasta: pastaDoCaso(caso) })));
   },
 
   async criarCaso(dados) {
     await esperar(180);
-    let id = slug(dados.titulo);
-    if (casos.some((caso) => caso.id === id)) {
-      id = `${id}-${Date.now()}`;
-    }
+    const dono = donoDaSessao();
     const criado: Caso = {
-      id,
+      id: `${slug(dados.titulo)}-${Date.now().toString(36)}`,
       titulo: dados.titulo.trim(),
       cliente: dados.cliente.trim(),
       area: dados.area?.trim() || undefined,
@@ -94,22 +127,23 @@ export const mockApi: SophiaApi = {
       pasta: "ativo",
       atualizadoEm: new Date().toISOString(),
     };
-    casos = [criado, ...casos];
+    salvarCasosDe(dono, [criado, ...casosDe(dono)]);
     return structuredClone(criado);
   },
 
   async moverCaso(id, pasta) {
     await esperar(120);
-    const atual = casos.find((caso) => caso.id === id);
-    if (!atual) throw new Error("Caso não encontrado");
-    const atualizado = { ...atual, pasta, atualizadoEm: new Date().toISOString() };
-    casos = casos.map((caso) => (caso.id === id ? atualizado : caso));
+    const dono = donoDaSessao();
+    const atualizado = { ...casoDoDono(dono, id), pasta, atualizadoEm: new Date().toISOString() };
+    salvarCasosDe(dono, casosDe(dono).map((caso) => (caso.id === id ? atualizado : caso)));
     return structuredClone(atualizado);
   },
 
   async excluirCaso(id) {
     await esperar(120);
-    casos = casos.filter((caso) => caso.id !== id);
+    const dono = donoDaSessao();
+    casoDoDono(dono, id);
+    salvarCasosDe(dono, casosDe(dono).filter((caso) => caso.id !== id));
   },
 
   async criarConta(dados) {
@@ -119,7 +153,7 @@ export const mockApi: SophiaApi = {
       throw new Error("Já existe uma conta com este e-mail.");
     }
     const usuario: Usuario = {
-      id: `usuario-${Date.now()}`,
+      id: `usuario-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
       nome: dados.nome.trim(),
       email,
       statusConta: "pagamento_pendente",
@@ -133,17 +167,24 @@ export const mockApi: SophiaApi = {
   async entrar(dados) {
     await esperar(300);
     const email = dados.email.trim().toLowerCase();
-    // E-mail desconhecido entra como conta ativa de demonstração, como o login fazia antes.
-    const usuario: Usuario = lerUsuarios().find((item) => item.email === email) ?? {
-      id: `usuario-demo-${email || "anonimo"}`,
+    const existente = lerUsuarios().find((item) => item.email === email);
+    if (existente) {
+      abrirSessao(existente);
+      return structuredClone(existente);
+    }
+
+    // E-mail desconhecido entra como conta ativa de demonstração, já com os casos do protótipo.
+    const demo: Usuario = {
+      id: `usuario-demo-${slug(email)}`,
       nome: "Advogado(a) de demonstração",
       email,
       statusConta: "ativa",
       criadoEm: new Date().toISOString(),
     };
-    salvarUsuario(usuario);
-    abrirSessao(usuario);
-    return structuredClone(usuario);
+    salvarUsuario(demo);
+    salvarCasosDe(demo.id, structuredClone(CASOS));
+    abrirSessao(demo);
+    return structuredClone(demo);
   },
 
   async sair() {

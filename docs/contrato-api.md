@@ -117,7 +117,12 @@ enviarMensagem(casoId, conteudo): Promise<MensagemChat[]>; // [mensagem do advog
 
 O front já chama estas rotas pelo adapter HTTP (`src/lib/api/http/adapter.ts`).
 Para ligar, defina `NEXT_PUBLIC_API_URL` (ver `.env.example`); sem ela tudo roda
-no mock. Casos continuam no mock mesmo com a variável definida, até terem rota.
+no mock.
+
+**Formato:** a API fala snake_case em inglês, igual às coleções do MongoDB
+(`user_id`, `created_at`…). O adapter traduz para o modelo do front em
+`src/lib/api/http/mapeadores.ts` — se um nome de campo mudar no backend, é só
+ajustar ali.
 
 ### Fluxo
 
@@ -142,8 +147,13 @@ no mock. Casos continuam no mock mesmo com a variável definida, até terem rota
 | GET | `/auth/eu` | — | `200 Usuario` · `401` sem sessão |
 | GET | `/assinatura/oferta` | — | `200 OfertaAssinatura` |
 | POST | `/assinatura` | `DadosAssinatura` | `201 Assinatura` · `402` pagamento recusado · `401` sem sessão |
+| GET | `/casos` | — | `200 CasoApi[]` só do dono da sessão · `401` |
+| POST | `/casos` | `{ title, client_name, legal_area }` | `201 CasoApi` · `401` |
+| PATCH | `/casos/:id` | `{ folder: "ativo" | "arquivo" }` | `200 CasoApi` · `404` se não for do dono |
+| DELETE | `/casos/:id` | — | `204` · `404` se não for do dono |
 
-Os tipos estão em `src/lib/api/types.ts`. Erros devem vir como
+Os corpos e respostas exatos (`UsuarioApi`, `CasoApi`, `OfertaApi`,
+`AssinaturaApi`) estão em `src/lib/api/http/mapeadores.ts`. Erros devem vir como
 `{ "mensagem": "texto para o usuário" }`; sem isso o front usa uma mensagem
 padrão pelo status.
 
@@ -200,3 +210,49 @@ gateway na cobrança; só guarde no Mongo se houver necessidade (LGPD).
 
 O status da cobrança mensal deve ser atualizado por **webhook** do gateway
 (pagamento aprovado, recusado, cartão expirado), não pelo front.
+
+## Isolamento por usuário (obrigatório no backend)
+
+Cada usuário só pode ver e alterar os próprios casos. O front já se comporta
+assim — nunca envia `user_id`, só mostra o que a API devolve e trata caso
+alheio como inexistente —, mas **a garantia de verdade é do backend**: qualquer
+pessoa pode chamar a API direto, sem passar pelo front.
+
+Regras:
+
+1. **O `user_id` sai sempre da sessão**, nunca da URL, do corpo ou de query string.
+   Se o corpo trouxer `user_id`, ignore.
+2. **Toda consulta a `case` filtra pelo dono:**
+   - listar: `find({ "user_id": sessao.user_id })`
+   - abrir/alterar/excluir: `find_one({ "_id": id, "user_id": sessao.user_id })`
+   - criar: `insert_one({ ..., "user_id": sessao.user_id })`
+3. **Caso de outro usuário responde `404`, igual a caso inexistente** — nunca `403`,
+   para não revelar que aquele id existe.
+4. **`transcript` herda o dono do caso.** Hoje os documentos dessa coleção não têm
+   `case_id` nem `user_id` (ver abaixo), então não há como saber de quem é cada
+   transcrição. Acesso a transcrição deve passar pelo caso:
+   `find({ "case_id": id, "user_id": sessao.user_id })`.
+5. Índice `{ user_id: 1, updated_at: -1 }` em `case` deixa a listagem por dono rápida.
+
+### Ajustes necessários no banco atual
+
+Comparando com as coleções `users`, `case` e `transcript` de `sophia-data`:
+
+| Coleção | Situação hoje | Ajuste |
+|---|---|---|
+| `users` | `_id` (UUID), `name`, `email`, `password_hash`, `created_at` | Adicionar `account_status` (`"pagamento_pendente"` | `"ativa"`) e `terms_accepted`. Um documento (`testefront@teste.com`) está sem `name`. Sem `account_status`, o front trata a conta como pagamento pendente. |
+| `case` | `_id`, `user_id`, `transcript` (objeto), `documents`, `created_at`, `updated_at` | Já tem `user_id` ✔. Faltam os campos que a tela usa: `title`, `client_name`, `legal_area`, `status`, `folder`. O `user_id` do caso de teste (`a3f1c2e4-…-000000000001`) não corresponde a nenhum usuário de `users`. |
+| `transcript` | `text`/`texto`, `created_at`/`criado_em` | **Sem dono**: adicionar `case_id` e `user_id`. Padronizar os nomes de campo (um documento usa `texto`/`criado_em`, os outros `text`/`created_at`). |
+
+### Testes que o backend deve ter
+
+Os mesmos cenários de `src/lib/api/mock/adapter.test.ts`, contra a API real com
+dois usuários (A e B), cada um com um caso:
+
+- `GET /casos` logado como B não traz o caso de A.
+- `PATCH /casos/<id de A>` e `DELETE /casos/<id de A>` logado como B → `404`, e o
+  caso de A continua intacto.
+- `PATCH /casos/<id inexistente>` → mesmo `404` e mesma mensagem do caso alheio.
+- `POST /casos` com `user_id` de A no corpo, logado como B → o caso é criado para B.
+- Qualquer rota de `/casos` sem cookie de sessão → `401`.
+- Transcrição do caso de A não é acessível por B.
