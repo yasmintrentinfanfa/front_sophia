@@ -5,10 +5,10 @@
  * `SophiaApi` e trocá-lo em `src/lib/api/index.ts` — nenhum componente muda.
  */
 
-import type { Caso, SophiaApi } from "@/lib/api/types";
+import type { Assinatura, BandeiraCartao, Caso, SophiaApi } from "@/lib/api/types";
 import { pastaDoCaso } from "@/lib/casos/rotulo";
 
-import { CASOS } from "./dados";
+import { CASOS, OFERTA_ASSINATURA } from "./dados";
 
 function esperar(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -67,5 +67,32 @@ export const mockApi: SophiaApi = {
   async excluirCaso(id) {
     await esperar(120);
     casos = casos.filter((caso) => caso.id !== id);
+  },
+
+  async obterOfertaAssinatura() {
+    await esperar(200);
+    return structuredClone(OFERTA_ASSINATURA);
+  },
+
+  async assinar(dados) {
+    await esperar(700);
+    const plano = OFERTA_ASSINATURA.planos.find((item) => item.id === dados.planoId);
+    if (!plano) throw new Error("Plano não encontrado.");
+
+    // O backend real consulta o cartão no gateway pelo token; o mock o lê do próprio token.
+    const [, , bandeira, final] = dados.tokenCartao.split("_");
+    if (final === "0002") {
+      throw new Error("Pagamento recusado pelo emissor do cartão. Tente outro cartão.");
+    }
+
+    const assinatura: Assinatura = {
+      id: `assinatura-${Date.now()}`,
+      planoId: plano.id,
+      status: "ativa",
+      valorMensal: OFERTA_ASSINATURA.plataforma.precoMensal + plano.precoMensal,
+      cartao: { bandeira: bandeira as BandeiraCartao, final, validade: "" },
+      criadaEm: new Date().toISOString(),
+    };
+    return structuredClone(assinatura);
   },
 };

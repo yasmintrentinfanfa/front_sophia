@@ -4,8 +4,6 @@ import { useId, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-import { BotaoGoogle } from "@/components/criar-conta/botao-google";
-
 const CLASSE_CAMPO =
   "border-borda focus:border-destaque focus:ring-destaque/20 bg-campo h-10 w-full rounded-[8px] border px-3 text-[13px] outline-none focus:ring-2";
 
@@ -15,18 +13,20 @@ export function FormularioCriarConta() {
   const idEmail = useId();
   const idSenha = useId();
   const idConfirmarSenha = useId();
+  const idTermos = useId();
 
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [aceitouTermos, setAceitouTermos] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
   /**
    * Ainda não há autenticação: o backend está sendo construído em paralelo
    * (mesma nota da tela de login). O cadastro valida os campos no cliente e
-   * leva direto ao painel de casos.
+   * segue para a assinatura; só depois do pagamento o usuário chega aos casos.
    */
   function aoEnviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
@@ -40,21 +40,17 @@ export function FormularioCriarConta() {
       setErro("As senhas não coincidem.");
       return;
     }
+    if (!aceitouTermos) {
+      setErro("Para continuar, aceite os Termos de uso e a Política de privacidade.");
+      return;
+    }
 
     setEnviando(true);
-    router.push("/casos");
+    router.push("/assinatura");
   }
 
   return (
     <form onSubmit={aoEnviar} className="flex flex-col gap-4">
-      <BotaoGoogle />
-
-      <div className="flex items-center gap-3">
-        <span className="bg-borda h-px flex-1" aria-hidden />
-        <span className="text-tinta-suave text-[12px]">ou</span>
-        <span className="bg-borda h-px flex-1" aria-hidden />
-      </div>
-
       <div className="flex flex-col gap-1.5">
         <label htmlFor={idNome} className="text-[12px] font-medium">
           Nome completo
@@ -114,6 +110,20 @@ export function FormularioCriarConta() {
         />
       </div>
 
+      <div className="flex items-start gap-2">
+        <input
+          id={idTermos}
+          type="checkbox"
+          checked={aceitouTermos}
+          onChange={(evento) => setAceitouTermos(evento.target.checked)}
+          className="accent-destaque mt-0.5 size-4 shrink-0 cursor-pointer"
+        />
+        <label htmlFor={idTermos} className="text-tinta-suave cursor-pointer text-[12px] leading-snug">
+          Li e aceito os <span className="text-tinta font-semibold">Termos de uso</span> e a{" "}
+          <span className="text-tinta font-semibold">Política de privacidade</span> da Sophia.
+        </label>
+      </div>
+
       {erro ? <p className="text-destructive text-[12px]">{erro}</p> : null}
 
       <button
@@ -121,7 +131,7 @@ export function FormularioCriarConta() {
         disabled={enviando}
         className="bg-acao text-acao-tinta flex h-10 w-full items-center justify-center rounded-[8px] text-[13px] font-semibold transition-colors disabled:opacity-60"
       >
-        {enviando ? "Criando conta…" : "Criar conta"}
+        {enviando ? "Criando conta…" : "Criar conta e continuar"}
       </button>
 
       <p className="flex justify-center gap-1 text-[12px]">

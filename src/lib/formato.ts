@@ -15,3 +15,10 @@ export function formatarDataCurta(iso: string, agora = new Date()) {
   if (diferencaEmDias === 1) return "Ontem";
   return dataCurta.format(data);
 }
+
+const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+/** Valores da API chegam em centavos: 15000 → "R$ 150,00". */
+export function formatarMoeda(centavos: number) {
+  return moeda.format(centavos / 100);
+}
