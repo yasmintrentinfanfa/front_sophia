@@ -11,9 +11,14 @@ import { SeletorDestaque } from "@/components/tema/seletor-destaque";
 interface ModalConfiguracoesProps {
   aberto: boolean;
   aoFechar: () => void;
+  aoPedirSaida: () => void;
 }
 
-export function ModalConfiguracoes({ aberto, aoFechar }: ModalConfiguracoesProps) {
+export function ModalConfiguracoes({
+  aberto,
+  aoFechar,
+  aoPedirSaida,
+}: ModalConfiguracoesProps) {
   const idTitulo = useId();
   const [montado, setMontado] = useState(false);
 
@@ -89,12 +94,13 @@ export function ModalConfiguracoes({ aberto, aoFechar }: ModalConfiguracoesProps
               <p className="text-[13px] font-semibold">Sessão</p>
               <p className="text-tinta-suave text-[12px]">Voltar para a tela de login</p>
             </div>
-            <Link
-              href="/login"
+            <button
+              type="button"
+              onClick={aoPedirSaida}
               className="pressionavel border-borda bg-campo flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-semibold"
             >
               Sair
-            </Link>
+            </button>
           </div>
         </div>
 

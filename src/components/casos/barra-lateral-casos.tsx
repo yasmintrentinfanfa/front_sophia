@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   Hamburguer,
   IconeCasos,
@@ -13,6 +13,7 @@ import {
 } from "@/components/casos/icones-trilha";
 import { BotaoTema } from "@/components/tema/botao-tema";
 import { ModalConfiguracoes } from "@/components/casos/modal-configuracoes";
+import { ModalConfirmar } from "@/components/casos/modal-confirmar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Caso } from "@/lib/api/types";
 import { destinoDoCaso } from "@/lib/casos/destino";
@@ -34,7 +35,6 @@ function classeTrilha(ativo: boolean) {
 
 export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCasosProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const [busca, setBusca] = useState("");
   const [expandida, setExpandida] = useState(true);
   const segmento = pathname.match(/^\/casos\/([^/]+)/)?.[1] ?? null;
@@ -132,6 +132,12 @@ function TrilhaIcones({
 }) {
   const pathname = usePathname();
   const [configuracoesAberta, setConfiguracoesAberta] = useState(false);
+  const [confirmarSaida, setConfirmarSaida] = useState(false);
+
+  function pedirSaida() {
+    setConfiguracoesAberta(false);
+    setConfirmarSaida(true);
+  }
   const emRepositorio = pathname.includes("/repositorio");
   const emCasos =
     !emRepositorio &&
@@ -247,11 +253,8 @@ function TrilhaIcones({
           render={
             <button
               type="button"
+              onClick={() => setConfirmarSaida(true)}
               className="pressionavel flex h-8 items-center justify-center rounded-[8px] px-1"
-              onClick={async () => {
-                await fetch("/api/auth/sair", { method: "POST" });
-                router.push("/login");
-              }}
             >
               <IconeSair />
               <span className="sr-only">Sair</span>
@@ -264,6 +267,17 @@ function TrilhaIcones({
       <ModalConfiguracoes
         aberto={configuracoesAberta}
         aoFechar={() => setConfiguracoesAberta(false)}
+        aoPedirSaida={pedirSaida}
+      />
+      <ModalConfirmar
+        aberto={confirmarSaida}
+        titulo="Sair da conta"
+        descricao="Deseja mesmo sair? Você voltará para a tela de login."
+        confirmar="Sair"
+        aoFechar={() => setConfirmarSaida(false)}
+        aoConfirmar={() => {
+          window.location.assign("/sair");
+        }}
       />
     </nav>
   );
