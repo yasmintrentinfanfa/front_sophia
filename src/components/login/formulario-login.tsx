@@ -18,18 +18,38 @@ export function FormularioLogin() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [clausulasAbertas, setClausulasAbertas] = useState(false);
+  const [erro, setErro] = useState("");
+  const [enviando, setEnviando] = useState(false);
 
-  /**
-   * Ainda não há autenticação: o backend está sendo construído em paralelo.
-   * Por ora o envio apenas leva ao painel de casos, após o aceite na primeira vez.
-   */
-  function aoEnviar(evento: FormEvent<HTMLFormElement>) {
-    evento.preventDefault();
-    if (leuAceiteClausulas()) {
-      router.push("/casos");
-      return;
+  async function entrar() {
+    const res = await fetch("/api/auth/entrar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, senha }),
+    });
+    const dados = (await res.json().catch(() => ({}))) as { erro?: string };
+    if (!res.ok) {
+      throw new Error(dados.erro ?? "Não foi possível entrar.");
     }
-    setClausulasAbertas(true);
+  }
+
+  async function aoEnviar(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    if (enviando) return;
+    setEnviando(true);
+    setErro("");
+    try {
+      await entrar();
+      if (leuAceiteClausulas()) {
+        router.push("/casos");
+        return;
+      }
+      setClausulasAbertas(true);
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : "Não foi possível entrar.");
+    } finally {
+      setEnviando(false);
+    }
   }
 
   return (
@@ -42,6 +62,7 @@ export function FormularioLogin() {
           id={idEmail}
           type="email"
           autoComplete="email"
+          required
           value={email}
           onChange={(evento) => setEmail(evento.target.value)}
           className={CLASSE_CAMPO}
@@ -56,6 +77,7 @@ export function FormularioLogin() {
           id={idSenha}
           type="password"
           autoComplete="current-password"
+          required
           value={senha}
           onChange={(evento) => setSenha(evento.target.value)}
           className={CLASSE_CAMPO}
@@ -66,11 +88,17 @@ export function FormularioLogin() {
         <div className="flex justify-end">
           <AcaoFutura rotulo="Recuperação de senha">Esqueci minha senha</AcaoFutura>
         </div>
+        {erro ? (
+          <p role="alert" className="text-[12px]">
+            {erro}
+          </p>
+        ) : null}
         <button
           type="submit"
-          className="bg-acao text-acao-tinta hover:bg-acao/90 flex h-10 w-full items-center justify-center rounded-[8px] text-[13px] font-semibold transition-colors"
+          disabled={enviando}
+          className="bg-acao text-acao-tinta hover:bg-acao/90 flex h-10 w-full items-center justify-center rounded-[8px] text-[13px] font-semibold transition-colors disabled:opacity-60"
         >
-          Entrar
+          {enviando ? "Entrando…" : "Entrar"}
         </button>
       </div>
 

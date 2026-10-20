@@ -6,6 +6,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
 import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
 import { ModalUpload } from "@/components/gravacao/modal-upload";
+import type { ConteudoCaso } from "@/lib/api/analise";
+import { processarEntrevista } from "@/lib/transcricao/fluxo";
 import { cn } from "@/lib/utils";
 
 type FonteAudio = "ao_vivo" | "arquivo";
@@ -13,11 +15,35 @@ type FonteAudio = "ao_vivo" | "arquivo";
 export default function PaginaGravacao() {
   const router = useRouter();
   const { casoId } = useParams<{ casoId: string }>();
-  const { casos, carregando } = useListaCasos();
+  const { casos, carregando, finalizarSessao } = useListaCasos();
   const [fonte, setFonte] = useState<FonteAudio>("ao_vivo");
   const [modalAberto, setModalAberto] = useState(false);
   const [arquivo, setArquivo] = useState<File | null>(null);
+  const [processando, setProcessando] = useState(false);
+  const [erro, setErro] = useState("");
   const caso = casos.find((item) => item.id === casoId);
+
+  async function transcreverArquivo(escolhido: File) {
+    setProcessando(true);
+    setErro("");
+    try {
+      const texto = await processarEntrevista(casoId, escolhido, escolhido.name);
+      const transcricao: ConteudoCaso["transcricao"] = [
+        {
+          id: `${casoId}-transcricao`,
+          tempo: "00:00",
+          texto,
+          papel: "cliente",
+        },
+      ];
+      await finalizarSessao(casoId, transcricao);
+      router.replace(`/casos/${casoId}/analise`);
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : "Não foi possível transcrever o arquivo.");
+    } finally {
+      setProcessando(false);
+    }
+  }
 
   if (carregando) {
     return <p className="text-tinta-suave px-7 pt-6 text-[13px]">Carregando caso…</p>;
@@ -49,13 +75,14 @@ export default function PaginaGravacao() {
         <div className="flex gap-3">
           <button
             type="button"
+            disabled={processando}
             onClick={() => {
               setFonte("ao_vivo");
               router.push(`/casos/${caso.id}/sessao`);
             }}
             aria-pressed={fonte === "ao_vivo"}
             className={cn(
-              "bg-campo flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-semibold",
+              "bg-campo flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-semibold disabled:opacity-50",
               fonte === "ao_vivo" ? "border-destaque border-[1.5px]" : "border-borda",
             )}
           >
@@ -63,13 +90,14 @@ export default function PaginaGravacao() {
           </button>
           <button
             type="button"
+            disabled={processando}
             onClick={() => {
               setFonte("arquivo");
               setModalAberto(true);
             }}
             aria-pressed={fonte === "arquivo"}
             className={cn(
-              "bg-campo flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-semibold",
+              "bg-campo flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-semibold disabled:opacity-50",
               fonte === "arquivo" ? "border-destaque border-[1.5px]" : "border-borda",
             )}
           >
@@ -82,6 +110,14 @@ export default function PaginaGravacao() {
             Arquivo selecionado: <span className="text-tinta font-medium">{arquivo.name}</span>
           </p>
         ) : null}
+        {processando ? (
+          <p className="text-[13px]">Transcrevendo o arquivo. Isso pode levar alguns minutos.</p>
+        ) : null}
+        {erro ? (
+          <p role="alert" className="text-[12px]">
+            {erro}
+          </p>
+        ) : null}
       </div>
 
       <ModalUpload
@@ -90,6 +126,7 @@ export default function PaginaGravacao() {
         aoAnexar={(escolhido) => {
           setArquivo(escolhido);
           setModalAberto(false);
+          void transcreverArquivo(escolhido);
         }}
       />
     </>

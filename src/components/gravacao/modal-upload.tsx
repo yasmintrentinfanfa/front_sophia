@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
 
-const TIPOS = "audio/mpeg,audio/mp4,video/mp4,.mp3,.mp4";
+const TIPOS = "audio/mpeg,audio/mp4,audio/webm,video/mp4,.mp3,.mp4,.webm";
 
 interface ModalUploadProps {
   aberto: boolean;
@@ -48,7 +48,7 @@ export function ModalUpload({ aberto, aoFechar, aoAnexar }: ModalUploadProps) {
     const escolhido = lista?.[0];
     if (!escolhido) return;
     const nome = escolhido.name.toLowerCase();
-    if (!nome.endsWith(".mp3") && !nome.endsWith(".mp4")) return;
+    if (!nome.endsWith(".mp3") && !nome.endsWith(".mp4") && !nome.endsWith(".webm")) return;
     setArquivo(escolhido);
   }
 
@@ -79,7 +79,7 @@ export function ModalUpload({ aberto, aoFechar, aoAnexar }: ModalUploadProps) {
         <h2 id={idTitulo} className="text-[15px] font-semibold">
           Carregar arquivo
         </h2>
-        <p className="text-tinta-suave mt-1 text-[12px]">Envie um áudio MP3 ou um vídeo MP4 da entrevista.</p>
+        <p className="text-tinta-suave mt-1 text-[12px]">Envie um áudio (MP3 ou WebM) ou um vídeo MP4 da entrevista.</p>
 
         <label
           onDragOver={(evento) => {

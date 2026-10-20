@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Hamburguer,
   IconeCasos,
@@ -34,6 +34,7 @@ function classeTrilha(ativo: boolean) {
 
 export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCasosProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [busca, setBusca] = useState("");
   const [expandida, setExpandida] = useState(true);
   const segmento = pathname.match(/^\/casos\/([^/]+)/)?.[1] ?? null;
@@ -244,10 +245,17 @@ function TrilhaIcones({
       <Tooltip>
         <TooltipTrigger
           render={
-            <Link href="/login" className="pressionavel flex h-8 items-center justify-center rounded-[8px] px-1">
+            <button
+              type="button"
+              className="pressionavel flex h-8 items-center justify-center rounded-[8px] px-1"
+              onClick={async () => {
+                await fetch("/api/auth/sair", { method: "POST" });
+                router.push("/login");
+              }}
+            >
               <IconeSair />
               <span className="sr-only">Sair</span>
-            </Link>
+            </button>
           }
         />
         <TooltipContent side="right">Sair</TooltipContent>

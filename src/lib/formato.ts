@@ -2,6 +2,7 @@ const dataCurta = new Intl.DateTimeFormat("pt-BR", {
   day: "2-digit",
   month: "2-digit",
   year: "numeric",
+  timeZone: "America/Sao_Paulo",
 });
 
 /** Datas da lista de casos, como no protótipo: "Hoje", "Ontem" ou a data cheia. */

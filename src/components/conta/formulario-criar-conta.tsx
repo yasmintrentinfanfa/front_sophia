@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -9,6 +9,8 @@ import { CampoConta } from "./campo-conta";
 export function FormularioCriarConta() {
   const router = useRouter();
   const formulario = useRef<HTMLFormElement>(null);
+  const [erro, setErro] = useState("");
+  const [enviando, setEnviando] = useState(false);
 
   function validarSenhas() {
     const campos = formulario.current?.elements;
@@ -21,12 +23,32 @@ export function FormularioCriarConta() {
     );
   }
 
-  function aoEnviar(evento: FormEvent<HTMLFormElement>) {
+  async function aoEnviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
     validarSenhas();
-    if (!evento.currentTarget.reportValidity()) return;
-    // Segue o fluxo demonstrativo do login; senhas nao sao armazenadas.
-    router.push("/pagamento");
+    if (!evento.currentTarget.reportValidity() || enviando) return;
+    const campos = evento.currentTarget.elements;
+    const nome = (campos.namedItem("nome") as HTMLInputElement).value;
+    const email = (campos.namedItem("email") as HTMLInputElement).value;
+    const senha = (campos.namedItem("senha") as HTMLInputElement).value;
+    setEnviando(true);
+    setErro("");
+    try {
+      const res = await fetch("/api/auth/criar-conta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nome, email, senha }),
+      });
+      const dados = (await res.json().catch(() => ({}))) as { erro?: string };
+      if (!res.ok) {
+        throw new Error(dados.erro ?? "Não foi possível criar a conta.");
+      }
+      router.push("/pagamento");
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : "Não foi possível criar a conta.");
+    } finally {
+      setEnviando(false);
+    }
   }
 
   return (
@@ -71,11 +93,17 @@ export function FormularioCriarConta() {
         minLength={8}
         onChange={validarSenhas}
       />
+      {erro ? (
+        <p role="alert" className="text-[12px]">
+          {erro}
+        </p>
+      ) : null}
       <button
         type="submit"
-        className="pressionavel bg-acao text-acao-tinta flex h-10 items-center justify-center rounded-[8px] text-[13px] font-semibold"
+        disabled={enviando}
+        className="pressionavel bg-acao text-acao-tinta flex h-10 items-center justify-center rounded-[8px] text-[13px] font-semibold disabled:opacity-60"
       >
-        Criar conta
+        {enviando ? "Criando…" : "Criar conta"}
       </button>
       <p className="flex min-h-[100px] flex-wrap items-start gap-1 text-[13px] leading-4">
         <span className="text-tinta-suave">Já tem uma conta?</span>

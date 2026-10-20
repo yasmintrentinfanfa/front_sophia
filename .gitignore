@@ -31,7 +31,18 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-.env*
+.env
+.env.*
+.env.local
+!.env.example
+
+# python (API em /backend)
+backend/venv/
+backend/__pycache__/
+backend/debug_audio/
+backend/transcricoes/
+backend/data/
+backend/.env
 
 # vercel
 .vercel

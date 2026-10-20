@@ -1,8 +1,5 @@
 /**
- * Ícones da trilha lateral. No protótipo eles são desenhados com retângulos
- * vetoriais em vez de um pacote de ícones, então a geometria abaixo reproduz
- * exatamente as medidas do Figma (caixa de 20x20, traço de 1,5px em #6b665e).
- * O ícone de configurações é um asset exportado e vem de `public/`.
+ * Ícones da trilha lateral, nas medidas do Figma (caixa 20×20).
  */
 
 export function IconeNovoCaso() {
