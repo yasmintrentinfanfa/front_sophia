@@ -6,6 +6,7 @@ import { IconeTelefone } from "@/components/casos/icones-trilha";
 import { BotaoTema } from "@/components/tema/botao-tema";
 import { SeletorDestaque } from "@/components/tema/seletor-destaque";
 import { Modal } from "@/components/ui/modal";
+import { api } from "@/lib/api";
 
 interface ModalConfiguracoesProps {
   aberto: boolean;
@@ -56,6 +57,7 @@ export function ModalConfiguracoes({ aberto, aoFechar }: ModalConfiguracoesProps
           </div>
           <Link
             href="/login"
+            onClick={() => void api.sair()}
             className="pressionavel border-borda bg-campo flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-semibold"
           >
             Sair

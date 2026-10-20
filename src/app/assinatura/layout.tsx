@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { EtapasAssinatura } from "@/components/assinatura/etapas-assinatura";
+import { GuardaAssinatura } from "@/components/assinatura/guarda-assinatura";
 import { BotaoTema } from "@/components/tema/botao-tema";
 
 /** Fluxo pós-cadastro (plano → pagamento), no mesmo visual das telas de acesso. */
@@ -14,7 +15,7 @@ export default function LayoutAssinatura({ children }: { children: ReactNode }) 
 
       <main className="flex w-full flex-1 flex-col items-center gap-8 py-8">
         <EtapasAssinatura />
-        {children}
+        <GuardaAssinatura>{children}</GuardaAssinatura>
       </main>
     </div>
   );

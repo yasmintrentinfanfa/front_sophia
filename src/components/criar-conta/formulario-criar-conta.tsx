@@ -4,6 +4,9 @@ import { useId, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+import { api } from "@/lib/api";
+import { rotaInicial, VERSAO_TERMOS } from "@/lib/conta";
+
 const CLASSE_CAMPO =
   "border-borda focus:border-destaque focus:ring-destaque/20 bg-campo h-10 w-full rounded-[8px] border px-3 text-[13px] outline-none focus:ring-2";
 
@@ -24,11 +27,10 @@ export function FormularioCriarConta() {
   const [enviando, setEnviando] = useState(false);
 
   /**
-   * Ainda não há autenticação: o backend está sendo construído em paralelo
-   * (mesma nota da tela de login). O cadastro valida os campos no cliente e
-   * segue para a assinatura; só depois do pagamento o usuário chega aos casos.
+   * Cria a conta (salva no MongoDB pelo backend) já com sessão aberta e segue
+   * para a assinatura; só depois do pagamento o usuário chega aos casos.
    */
-  function aoEnviar(evento: FormEvent<HTMLFormElement>) {
+  async function aoEnviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
     setErro(null);
 
@@ -46,7 +48,18 @@ export function FormularioCriarConta() {
     }
 
     setEnviando(true);
-    router.push("/assinatura");
+    try {
+      const usuario = await api.criarConta({
+        nome: nome.trim(),
+        email: email.trim(),
+        senha,
+        aceiteTermos: { versao: VERSAO_TERMOS, aceitoEm: new Date().toISOString() },
+      });
+      router.push(rotaInicial(usuario));
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : "Não foi possível criar a conta.");
+      setEnviando(false);
+    }
   }
 
   return (

@@ -32,6 +32,43 @@ export interface DadosNovoCaso {
 }
 
 /*
+ * Conta do advogado. O cadastro é salvo no MongoDB pelo backend; a sessão vem num
+ * cookie httpOnly, então o front nunca guarda token nem envia o id do usuário —
+ * o backend descobre quem é pelo cookie.
+ */
+
+/** A conta só libera os casos depois que a assinatura é paga. */
+export type StatusConta = "pagamento_pendente" | "ativa";
+
+export interface Usuario {
+  id: string;
+  nome: string;
+  email: string;
+  statusConta: StatusConta;
+  /** ISO 8601. */
+  criadoEm: string;
+}
+
+export interface DadosCadastro {
+  nome: string;
+  email: string;
+  /** Vai em texto puro só pelo HTTPS; o backend guarda apenas o hash. */
+  senha: string;
+  /** Prova do aceite, guardada junto do usuário. */
+  aceiteTermos: {
+    /** Versão do texto aceito (`VERSAO_TERMOS` em `src/lib/conta.ts`). */
+    versao: string;
+    /** ISO 8601. */
+    aceitoEm: string;
+  };
+}
+
+export interface DadosEntrar {
+  email: string;
+  senha: string;
+}
+
+/*
  * Assinatura: mensalidade fixa da plataforma + um plano de créditos de IA.
  * Valores monetários sempre em centavos, para não ter erro de ponto flutuante.
  */
@@ -87,6 +124,8 @@ export type StatusAssinatura = "ativa" | "pendente" | "recusada";
 
 export interface Assinatura {
   id: string;
+  /** Dono da assinatura; definido pelo backend a partir da sessão. */
+  usuarioId: string;
   planoId: IdPlano;
   status: StatusAssinatura;
   /** Plataforma + plano, em centavos. */
@@ -101,7 +140,19 @@ export interface SophiaApi {
   criarCaso(dados: DadosNovoCaso): Promise<Caso>;
   moverCaso(id: string, pasta: PastaCaso): Promise<Caso>;
   excluirCaso(id: string): Promise<void>;
+
+  /** Cria a conta já com sessão aberta. Rejeita se o e-mail já estiver em uso. */
+  criarConta(dados: DadosCadastro): Promise<Usuario>;
+  /** Rejeita com `Error` de mensagem amigável quando e-mail ou senha não conferem. */
+  entrar(dados: DadosEntrar): Promise<Usuario>;
+  sair(): Promise<void>;
+  /** `null` quando não há sessão. */
+  obterUsuarioAtual(): Promise<Usuario | null>;
+
   obterOfertaAssinatura(): Promise<OfertaAssinatura>;
-  /** Rejeita com `Error` de mensagem amigável quando o pagamento é recusado. */
+  /**
+   * Assina para o usuário da sessão e passa a conta para `ativa`.
+   * Rejeita com `Error` de mensagem amigável quando o pagamento é recusado.
+   */
   assinar(dados: DadosAssinatura): Promise<Assinatura>;
 }

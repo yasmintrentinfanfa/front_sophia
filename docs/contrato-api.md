@@ -112,3 +112,91 @@ solicitarAnalise(casoId, instrucao?): Promise<AnalisePreliminar>;
 listarMensagens(casoId): Promise<MensagemChat[]>;
 enviarMensagem(casoId, conteudo): Promise<MensagemChat[]>; // [mensagem do advogado, resposta]
 ```
+
+## Conta e assinatura (pronto no front, aguardando backend)
+
+O front já chama estas rotas pelo adapter HTTP (`src/lib/api/http/adapter.ts`).
+Para ligar, defina `NEXT_PUBLIC_API_URL` (ver `.env.example`); sem ela tudo roda
+no mock. Casos continuam no mock mesmo com a variável definida, até terem rota.
+
+### Fluxo
+
+1. `/criar-conta` → `POST /auth/cadastro` cria o usuário com
+   `statusConta: "pagamento_pendente"` e já abre a sessão.
+2. `/assinatura` → `GET /auth/eu` confirma a sessão; `GET /assinatura/oferta`
+   traz plataforma e planos.
+3. `/assinatura/pagamento` → o cartão é tokenizado **no navegador** pelo SDK do
+   gateway (`src/lib/pagamento`); o front manda só o token em `POST /assinatura`.
+4. O backend cobra no gateway, grava a assinatura ligada ao usuário da sessão e
+   passa `statusConta` para `"ativa"`. O front segue para `/casos`.
+5. No login, `POST /auth/entrar` devolve o usuário; quem ainda está com
+   `pagamento_pendente` volta para `/assinatura` (`rotaInicial` em `src/lib/conta.ts`).
+
+### Rotas
+
+| Método | Rota | Corpo | Resposta |
+|---|---|---|---|
+| POST | `/auth/cadastro` | `DadosCadastro` | `201 Usuario` + cookie de sessão · `409` e-mail em uso |
+| POST | `/auth/entrar` | `DadosEntrar` | `200 Usuario` + cookie de sessão · `401` credenciais |
+| POST | `/auth/sair` | — | `204`, apaga o cookie |
+| GET | `/auth/eu` | — | `200 Usuario` · `401` sem sessão |
+| GET | `/assinatura/oferta` | — | `200 OfertaAssinatura` |
+| POST | `/assinatura` | `DadosAssinatura` | `201 Assinatura` · `402` pagamento recusado · `401` sem sessão |
+
+Os tipos estão em `src/lib/api/types.ts`. Erros devem vir como
+`{ "mensagem": "texto para o usuário" }`; sem isso o front usa uma mensagem
+padrão pelo status.
+
+Regras para o backend:
+
+- **Sessão em cookie httpOnly, Secure, SameSite=Lax.** O front nunca guarda token e
+  nunca envia `usuarioId`: o dono da assinatura sai sempre da sessão. Se o backend
+  estiver em outro domínio, habilitar CORS com `credentials` para a origem do front.
+- **Valores em centavos** (inteiros) em toda a API.
+- **Preço vem do servidor.** `POST /assinatura` recebe só `planoId`; o valor é
+  recalculado no backend a partir da oferta, nunca confiado ao front.
+
+### Coleções no MongoDB (sugestão)
+
+```js
+// usuarios — índice único em { email: 1 }
+{
+  _id: ObjectId,
+  nome: "João Silva",
+  email: "joao@escritorio.com",          // sempre minúsculo
+  senhaHash: "...",                       // bcrypt/argon2; nunca a senha
+  aceiteTermos: { versao: "2026-10", aceitoEm: ISODate },
+  statusConta: "pagamento_pendente",      // | "ativa"
+  gatewayClienteId: "cus_...",            // cliente criado no gateway na 1ª assinatura
+  criadoEm: ISODate,
+  atualizadoEm: ISODate
+}
+
+// assinaturas — índice em { usuarioId: 1 }
+{
+  _id: ObjectId,
+  usuarioId: ObjectId,                    // vínculo cartão/assinatura ↔ usuário
+  planoId: "intermediario",
+  valorPlataforma: 15000,                 // centavos, congelados no momento da compra
+  valorPlano: 25000,
+  valorMensal: 40000,
+  status: "ativa",                        // | "pendente" | "recusada" | "cancelada"
+  cartao: {                               // só dados de exibição
+    bandeira: "visa",
+    final: "1111",
+    validade: "12/30",
+    gatewayMetodoId: "pm_..."             // referência do cartão salvo no gateway
+  },
+  gatewayAssinaturaId: "sub_...",
+  criadaEm: ISODate,
+  proximaCobrancaEm: ISODate,
+  canceladaEm: null
+}
+```
+
+Nunca gravar número do cartão, CVV ou o token de uso único: o gateway guarda o
+cartão e devolve um id reutilizável (`gatewayMetodoId`). O CPF do titular vai para o
+gateway na cobrança; só guarde no Mongo se houver necessidade (LGPD).
+
+O status da cobrança mensal deve ser atualizado por **webhook** do gateway
+(pagamento aprovado, recusado, cartão expirado), não pelo front.

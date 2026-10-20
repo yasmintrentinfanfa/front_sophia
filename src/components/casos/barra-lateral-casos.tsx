@@ -14,6 +14,7 @@ import {
 import { BotaoTema } from "@/components/tema/botao-tema";
 import { ModalConfiguracoes } from "@/components/casos/modal-configuracoes";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { api } from "@/lib/api";
 import type { Caso } from "@/lib/api/types";
 import { pastaDoCaso, rotuloCaso } from "@/lib/casos/rotulo";
 import { normalizar } from "@/lib/texto";
@@ -275,6 +276,7 @@ function TrilhaIcones({
           render={
             <Link
               href="/login"
+              onClick={() => void api.sair()}
               className="pressionavel flex h-8 items-center justify-center rounded-[8px] px-1"
             >
               <IconeSair />

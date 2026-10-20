@@ -5,7 +5,7 @@
  * `SophiaApi` e trocá-lo em `src/lib/api/index.ts` — nenhum componente muda.
  */
 
-import type { Assinatura, BandeiraCartao, Caso, SophiaApi } from "@/lib/api/types";
+import type { Assinatura, BandeiraCartao, Caso, SophiaApi, Usuario } from "@/lib/api/types";
 import { pastaDoCaso } from "@/lib/casos/rotulo";
 
 import { CASOS, OFERTA_ASSINATURA } from "./dados";
@@ -22,6 +22,49 @@ function slug(texto: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
   return base || `caso-${Date.now()}`;
+}
+
+/*
+ * Contas e sessão simuladas no sessionStorage, para o fluxo cadastro → assinatura
+ * sobreviver a um recarregamento da página. Senha não é guardada nem conferida.
+ */
+const CHAVE_USUARIOS = "sophia-mock-usuarios";
+const CHAVE_SESSAO = "sophia-mock-sessao";
+
+function lerUsuarios(): Usuario[] {
+  try {
+    const lista = JSON.parse(sessionStorage.getItem(CHAVE_USUARIOS) ?? "[]") as Usuario[];
+    return Array.isArray(lista) ? lista : [];
+  } catch {
+    return [];
+  }
+}
+
+function salvarUsuario(usuario: Usuario) {
+  try {
+    const outros = lerUsuarios().filter((item) => item.id !== usuario.id);
+    sessionStorage.setItem(CHAVE_USUARIOS, JSON.stringify([...outros, usuario]));
+  } catch {
+    /* private mode */
+  }
+}
+
+function abrirSessao(usuario: Usuario | null) {
+  try {
+    if (usuario) sessionStorage.setItem(CHAVE_SESSAO, usuario.id);
+    else sessionStorage.removeItem(CHAVE_SESSAO);
+  } catch {
+    /* private mode */
+  }
+}
+
+function usuarioDaSessao() {
+  try {
+    const id = sessionStorage.getItem(CHAVE_SESSAO);
+    return lerUsuarios().find((usuario) => usuario.id === id) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 let casos = structuredClone(CASOS).map((caso) => ({
@@ -69,6 +112,50 @@ export const mockApi: SophiaApi = {
     casos = casos.filter((caso) => caso.id !== id);
   },
 
+  async criarConta(dados) {
+    await esperar(400);
+    const email = dados.email.trim().toLowerCase();
+    if (lerUsuarios().some((usuario) => usuario.email === email)) {
+      throw new Error("Já existe uma conta com este e-mail.");
+    }
+    const usuario: Usuario = {
+      id: `usuario-${Date.now()}`,
+      nome: dados.nome.trim(),
+      email,
+      statusConta: "pagamento_pendente",
+      criadoEm: new Date().toISOString(),
+    };
+    salvarUsuario(usuario);
+    abrirSessao(usuario);
+    return structuredClone(usuario);
+  },
+
+  async entrar(dados) {
+    await esperar(300);
+    const email = dados.email.trim().toLowerCase();
+    // E-mail desconhecido entra como conta ativa de demonstração, como o login fazia antes.
+    const usuario: Usuario = lerUsuarios().find((item) => item.email === email) ?? {
+      id: `usuario-demo-${email || "anonimo"}`,
+      nome: "Advogado(a) de demonstração",
+      email,
+      statusConta: "ativa",
+      criadoEm: new Date().toISOString(),
+    };
+    salvarUsuario(usuario);
+    abrirSessao(usuario);
+    return structuredClone(usuario);
+  },
+
+  async sair() {
+    await esperar(100);
+    abrirSessao(null);
+  },
+
+  async obterUsuarioAtual() {
+    await esperar(150);
+    return structuredClone(usuarioDaSessao());
+  },
+
   async obterOfertaAssinatura() {
     await esperar(200);
     return structuredClone(OFERTA_ASSINATURA);
@@ -76,6 +163,8 @@ export const mockApi: SophiaApi = {
 
   async assinar(dados) {
     await esperar(700);
+    const usuario = usuarioDaSessao();
+    if (!usuario) throw new Error("Sua sessão expirou. Entre novamente para assinar.");
     const plano = OFERTA_ASSINATURA.planos.find((item) => item.id === dados.planoId);
     if (!plano) throw new Error("Plano não encontrado.");
 
@@ -87,12 +176,14 @@ export const mockApi: SophiaApi = {
 
     const assinatura: Assinatura = {
       id: `assinatura-${Date.now()}`,
+      usuarioId: usuario.id,
       planoId: plano.id,
       status: "ativa",
       valorMensal: OFERTA_ASSINATURA.plataforma.precoMensal + plano.precoMensal,
       cartao: { bandeira: bandeira as BandeiraCartao, final, validade: "" },
       criadaEm: new Date().toISOString(),
     };
+    salvarUsuario({ ...usuario, statusConta: "ativa" });
     return structuredClone(assinatura);
   },
 };

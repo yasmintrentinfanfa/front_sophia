@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { api } from "@/lib/api";
+import { rotaInicial } from "@/lib/conta";
 
 const CLASSE_CAMPO =
   "border-borda focus:border-destaque focus:ring-destaque/20 bg-campo h-10 w-full rounded-[8px] border px-3 text-[13px] outline-none focus:ring-2";
@@ -15,14 +17,22 @@ export function FormularioLogin() {
   const idSenha = useId();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
 
-  /**
-   * Ainda não há autenticação: o backend está sendo construído em paralelo.
-   * Por ora o envio apenas leva ao painel de casos.
-   */
-  function aoEnviar(evento: FormEvent<HTMLFormElement>) {
+  /** Quem ainda não pagou a assinatura volta para ela em vez de ir aos casos. */
+  async function aoEnviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
-    router.push("/casos");
+    if (enviando) return;
+    setErro(null);
+    setEnviando(true);
+    try {
+      const usuario = await api.entrar({ email: email.trim(), senha });
+      router.push(rotaInicial(usuario));
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : "Não foi possível entrar.");
+      setEnviando(false);
+    }
   }
 
   return (
@@ -59,11 +69,13 @@ export function FormularioLogin() {
         <div className="flex justify-end">
           <AcaoFutura rotulo="Recuperação de senha">Esqueci minha senha</AcaoFutura>
         </div>
+        {erro ? <p className="text-destructive text-[12px]">{erro}</p> : null}
         <button
           type="submit"
-          className="bg-acao text-acao-tinta hover:bg-acao/90 flex h-10 w-full items-center justify-center rounded-[8px] text-[13px] font-semibold transition-colors"
+          disabled={enviando}
+          className="bg-acao text-acao-tinta hover:bg-acao/90 flex h-10 w-full items-center justify-center rounded-[8px] text-[13px] font-semibold transition-colors disabled:opacity-60"
         >
-          Entrar
+          {enviando ? "Entrando…" : "Entrar"}
         </button>
       </div>
 
