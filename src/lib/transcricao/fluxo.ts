@@ -13,7 +13,7 @@ export async function transcreverAudio(arquivo: Blob, nomeArquivo = "gravacao.we
   return texto;
 }
 
-export async function revisarTranscricao(texto: string) {
+export async function revisarTranscricao(texto: string): Promise<{ texto: string; revisado: boolean }> {
   const res = await fetch("/api/transcricao/revisar", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -23,10 +23,11 @@ export async function revisarTranscricao(texto: string) {
     texto_revisado?: string;
     erro?: string;
   };
-  if (!res.ok || dados.erro || !dados.texto_revisado) {
-    return texto;
+  const revisado = (dados.texto_revisado ?? "").trim();
+  if (!res.ok || dados.erro || !revisado) {
+    return { texto, revisado: false };
   }
-  return dados.texto_revisado.trim() || texto;
+  return { texto: revisado, revisado: true };
 }
 
 export async function salvarTranscricaoDoCaso(casoId: string, texto: string) {
@@ -60,9 +61,15 @@ export async function obterTranscricaoDoCaso(casoId: string) {
   return (dados.transcript?.text ?? "").trim();
 }
 
-export async function processarEntrevista(casoId: string, arquivo: Blob, nomeArquivo: string) {
+export async function processarEntrevista(
+  casoId: string,
+  arquivo: Blob,
+  nomeArquivo: string,
+  aoTranscrever?: (texto: string) => void,
+) {
   const bruto = await transcreverAudio(arquivo, nomeArquivo);
-  const final = await revisarTranscricao(bruto);
-  await salvarTranscricaoDoCaso(casoId, final);
-  return final;
+  aoTranscrever?.(bruto);
+  const resultado = await revisarTranscricao(bruto);
+  await salvarTranscricaoDoCaso(casoId, resultado.texto);
+  return resultado;
 }

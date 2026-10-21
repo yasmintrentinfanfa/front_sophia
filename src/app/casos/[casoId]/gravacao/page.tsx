@@ -20,6 +20,10 @@ export default function PaginaGravacao() {
   const [modalAberto, setModalAberto] = useState(false);
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [processando, setProcessando] = useState(false);
+  const [revisando, setRevisando] = useState(false);
+  const [revisado, setRevisado] = useState(false);
+  const [pronta, setPronta] = useState(false);
+  const [texto, setTexto] = useState("");
   const [erro, setErro] = useState("");
   const caso = casos.find((item) => item.id === casoId);
 
@@ -27,12 +31,18 @@ export default function PaginaGravacao() {
     setProcessando(true);
     setErro("");
     try {
-      const texto = await processarEntrevista(casoId, escolhido, escolhido.name);
+      const resultado = await processarEntrevista(casoId, escolhido, escolhido.name, (bruto) => {
+        setTexto(bruto);
+        setRevisando(true);
+      });
+      setTexto(resultado.texto);
+      setRevisado(resultado.revisado);
+      setRevisando(false);
       const transcricao: ConteudoCaso["transcricao"] = [
         {
           id: `${casoId}-transcricao`,
           tempo: "00:00",
-          texto,
+          texto: resultado.texto,
           papel: "cliente",
         },
       ];
@@ -41,11 +51,12 @@ export default function PaginaGravacao() {
       } catch {
         // A fala já foi salva no banco. O status local não impede abrir a análise.
       }
-      router.replace(`/casos/${casoId}/analise`);
+      setPronta(true);
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : "Não foi possível transcrever o arquivo.");
     } finally {
       setProcessando(false);
+      setRevisando(false);
     }
   }
 
@@ -114,8 +125,32 @@ export default function PaginaGravacao() {
             Arquivo selecionado: <span className="text-tinta font-medium">{arquivo.name}</span>
           </p>
         ) : null}
-        {processando ? (
+        {processando && !texto ? (
           <p className="text-[13px]">Transcrevendo o arquivo. Isso pode levar alguns minutos.</p>
+        ) : null}
+        {texto ? (
+          <section className="bg-campo border-borda flex flex-col gap-3 rounded-[10px] border p-4">
+            <h2 className="text-[13px] font-semibold">Transcrição</h2>
+            <p className="text-[13px] leading-5 whitespace-pre-wrap">{texto}</p>
+            {revisando ? <p className="text-tinta-suave text-[12px]">Revisando a transcrição…</p> : null}
+            {pronta && revisado ? (
+              <p className="text-tinta-suave text-[12px]">Transcrição revisada.</p>
+            ) : null}
+            {pronta && !revisado ? (
+              <p className="text-tinta-suave text-[12px]">
+                Texto transcrito pelo Whisper. A revisão da Groq entra quando a chave estiver configurada.
+              </p>
+            ) : null}
+            {pronta ? (
+              <button
+                type="button"
+                onClick={() => router.push(`/casos/${casoId}/analise`)}
+                className="pressionavel bg-acao text-acao-tinta flex h-8 w-fit items-center rounded-[8px] px-3 text-[12px] font-semibold"
+              >
+                Ver análise
+              </button>
+            ) : null}
+          </section>
         ) : null}
         {erro ? (
           <p role="alert" className="text-[12px]">
