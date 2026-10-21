@@ -9,6 +9,7 @@ import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
 import { ProgressoProcessamento } from "@/components/gravacao/progresso-processamento";
 import { SeletorAudio } from "@/components/gravacao/seletor-audio";
 import type { ConteudoCaso } from "@/lib/api/analise";
+import { ehMp3, lerTextoDeArquivo } from "@/lib/arquivos/ler-documento";
 import {
   ETAPAS_AUDIO,
   ETAPAS_TEXTO,
@@ -32,8 +33,8 @@ const MODOS: { valor: ModoRelato; titulo: string; descricao: string; Icone: Comp
   },
   {
     valor: "arquivo",
-    titulo: "Enviar áudio",
-    descricao: "Use uma gravação já feita, de preferência em MP3.",
+    titulo: "Enviar áudio/Arquivo",
+    descricao: "Envie um MP3 ou um arquivo em PDF, Word, DOC ou TXT.",
     Icone: FileAudio,
   },
   {
@@ -54,6 +55,7 @@ export default function PaginaGravacao() {
   const [relato, setRelato] = useState("");
   const [etapa, setEtapa] = useState<EtapaProcessamento | null>(null);
   const [resultado, setResultado] = useState<ResultadoRelato | null>(null);
+  const [veioDeAudio, setVeioDeAudio] = useState(false);
   const [erro, setErro] = useState("");
   const caso = casos.find((item) => item.id === casoId);
   const processando = etapa !== null;
@@ -90,6 +92,8 @@ export default function PaginaGravacao() {
   }
 
   const caracteres = relato.trim().length;
+  const etapas =
+    modo === "ao_vivo" || (modo === "arquivo" && veioDeAudio) ? ETAPAS_AUDIO : ETAPAS_TEXTO;
 
   return (
     <>
@@ -168,24 +172,26 @@ export default function PaginaGravacao() {
         <section className="bg-campo border-borda flex w-full max-w-[880px] flex-col gap-4 rounded-[12px] border p-5">
           {processando ? (
             <ProgressoProcessamento
-              etapas={modo === "texto" ? ETAPAS_TEXTO : ETAPAS_AUDIO}
+              etapas={etapas}
               atual={etapa}
               aviso={
-                modo === "texto"
-                  ? undefined
-                  : "A primeira transcrição pode levar alguns minutos. Mantenha esta tela aberta."
+                modo === "arquivo" && veioDeAudio
+                  ? "A primeira transcrição pode levar alguns minutos. Mantenha esta tela aberta."
+                  : undefined
               }
             />
           ) : resultado ? (
             <>
               <div className="flex flex-col gap-1">
-                <h3 className="text-[14px] font-semibold">{modo === "texto" ? "Relato salvo" : "Transcrição"}</h3>
+                <h3 className="text-[14px] font-semibold">
+                  {modo === "arquivo" && veioDeAudio ? "Transcrição" : "Relato salvo"}
+                </h3>
                 <p className="text-tinta-suave text-[12px]">
-                  {modo === "texto"
-                    ? "O relato foi salvo no caso."
-                    : resultado.revisado
+                  {modo === "arquivo" && veioDeAudio
+                    ? resultado.revisado
                       ? "Transcrição revisada."
-                      : "Texto transcrito pelo Whisper. A revisão da Groq entra quando a chave estiver configurada."}
+                      : "Texto transcrito pelo Whisper. A revisão da Groq entra quando a chave estiver configurada."
+                    : "O texto foi salvo no caso."}
                 </p>
               </div>
               <p className="border-borda max-h-[320px] overflow-y-auto rounded-[8px] border px-3 py-2.5 text-[13px] leading-5 whitespace-pre-wrap">
@@ -229,22 +235,28 @@ export default function PaginaGravacao() {
           ) : modo === "arquivo" ? (
             <>
               <div className="flex flex-col gap-1">
-                <h3 className="text-[14px] font-semibold">Áudio da entrevista</h3>
+                <h3 className="text-[14px] font-semibold">Áudio ou arquivo</h3>
                 <p className="text-tinta-suave text-[12px]">
-                  O áudio é transcrito, revisado e salvo no caso antes da análise.
+                  MP3 é transcrito e revisado. PDF, Word, DOC e TXT são lidos e salvos no caso antes da análise.
                 </p>
               </div>
               <SeletorAudio arquivo={arquivo} aoEscolher={setArquivo} />
               <button
                 type="button"
                 disabled={!arquivo}
-                onClick={() =>
-                  arquivo &&
-                  void registrarRelato((aoEtapa) => processarEntrevista(casoId, arquivo, arquivo.name, aoEtapa))
-                }
+                onClick={() => {
+                  if (!arquivo) return;
+                  const audio = ehMp3(arquivo);
+                  setVeioDeAudio(audio);
+                  void registrarRelato((aoEtapa) =>
+                    audio
+                      ? processarEntrevista(casoId, arquivo, arquivo.name, aoEtapa)
+                      : lerTextoDeArquivo(arquivo).then((texto) => processarRelatoEscrito(casoId, texto, aoEtapa)),
+                  );
+                }}
                 className="pressionavel bg-acao text-acao-tinta flex h-10 w-fit items-center rounded-[8px] px-4 text-[13px] font-semibold disabled:opacity-40"
               >
-                Processar áudio e gerar análise
+                Processar arquivo e gerar análise
               </button>
             </>
           ) : (
