@@ -43,7 +43,7 @@ export function FormularioCriarConta() {
       if (!res.ok) {
         throw new Error(dados.erro ?? "Não foi possível criar a conta.");
       }
-      router.push("/pagamento");
+      router.push("/assinatura");
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : "Não foi possível criar a conta.");
     } finally {

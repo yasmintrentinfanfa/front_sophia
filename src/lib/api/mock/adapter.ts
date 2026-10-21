@@ -1,17 +1,25 @@
 /**
- * Adapter mockado do `SophiaApi`, usado enquanto o backend real não existe.
+ * Adapter mockado do `SophiaApi`, usado enquanto o backend de casos não existe.
  *
  * Para ligar o front na API de verdade basta escrever outro objeto que satisfaça
  * `SophiaApi` e trocá-lo em `src/lib/api/index.ts` — nenhum componente muda.
+ *
+ * Conta e assinatura já são reais (`contaApi`). Os casos são simulados, mas
+ * seguem a regra de isolamento do backend: cada caso pertence a um usuário e toda
+ * operação só enxerga os casos do dono da sessão. Caso de outro usuário se
+ * comporta exatamente como caso inexistente.
  */
 
+import { contaApi } from "@/lib/api/conta";
 import type { Caso, SophiaApi } from "@/lib/api/types";
 import { pastaDoCaso } from "@/lib/casos/rotulo";
 
 import { CASOS } from "./dados";
 import { criarMockFluxo } from "./fluxo";
 
+/** Latência simulada da rede; desligada nos testes para não deixá-los lentos. */
 function esperar(ms: number) {
+  if (process.env.NODE_ENV === "test") return Promise.resolve();
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
@@ -22,30 +30,86 @@ function slug(texto: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
-  return base || `caso-${Date.now()}`;
+  return base || "caso";
 }
 
-let casos = structuredClone(CASOS).map((caso) => ({
-  ...caso,
-  pasta: pastaDoCaso(caso),
-}));
+/*
+ * Casos guardados no sessionStorage, indexados pelo id do dono — como o filtro
+ * `{ user_id }` no MongoDB —, para sobreviverem a um recarregamento da página.
+ */
+const CHAVE_CASOS = "sophia-mock-casos";
+
+type CasosPorUsuario = Record<string, Caso[]>;
+
+function lerTodos(): CasosPorUsuario {
+  try {
+    return JSON.parse(sessionStorage.getItem(CHAVE_CASOS) ?? "{}") as CasosPorUsuario;
+  } catch {
+    return {};
+  }
+}
+
+function salvarCasosDe(usuarioId: string, lista: Caso[]) {
+  try {
+    sessionStorage.setItem(CHAVE_CASOS, JSON.stringify({ ...lerTodos(), [usuarioId]: lista }));
+  } catch {
+    /* private mode */
+  }
+}
+
+/** Todo usuário começa com os casos de demonstração do protótipo, numa cópia só dele. */
+function casosDe(usuarioId: string): Caso[] {
+  const todos = lerTodos();
+  if (todos[usuarioId]) return todos[usuarioId];
+  const iniciais = structuredClone(CASOS).map((caso) => ({ ...caso, pasta: pastaDoCaso(caso) }));
+  salvarCasosDe(usuarioId, iniciais);
+  return iniciais;
+}
+
+/** Dono da sessão, conhecido depois de `obterUsuarioAtual` (o layout de /casos chama antes de tudo). */
+let dono: string | null = null;
+
+/** Equivale ao 401 do backend: sem sessão, nenhuma operação de caso acontece. */
+function donoDaSessao() {
+  if (!dono) throw new Error("Sua sessão expirou. Entre novamente.");
+  return dono;
+}
+
+/** Equivale ao `find_one({ _id, user_id })`: caso alheio e caso inexistente dão o mesmo erro. */
+function casoDoDono(usuarioId: string, id: string) {
+  const caso = casosDe(usuarioId).find((item) => item.id === id);
+  if (!caso) throw new Error("Caso não encontrado.");
+  return caso;
+}
 
 export const mockApi: SophiaApi = {
-  ...criarMockFluxo((id) => casos.find((caso) => caso.id === id)),
+  ...contaApi,
+
+  async obterUsuarioAtual() {
+    const usuario = await contaApi.obterUsuarioAtual();
+    dono = usuario?.id ?? null;
+    return usuario;
+  },
+
+  ...criarMockFluxo({
+    encontrarCaso: (id) => (dono ? casosDe(dono).find((caso) => caso.id === id) : undefined),
+    salvarCaso: (caso) => {
+      const usuarioId = donoDaSessao();
+      salvarCasosDe(usuarioId, casosDe(usuarioId).map((item) => (item.id === caso.id ? caso : item)));
+    },
+    escopo: donoDaSessao,
+  }),
+
   async listarCasos() {
     await esperar(220);
-    casos = casos.map((caso) => ({ ...caso, pasta: pastaDoCaso(caso) }));
-    return structuredClone(casos);
+    return structuredClone(casosDe(donoDaSessao()));
   },
 
   async criarCaso(dados) {
     await esperar(180);
-    let id = slug(dados.titulo);
-    if (casos.some((caso) => caso.id === id)) {
-      id = `${id}-${Date.now()}`;
-    }
+    const usuarioId = donoDaSessao();
     const criado: Caso = {
-      id,
+      id: `${slug(dados.titulo)}-${Date.now().toString(36)}`,
       titulo: dados.titulo.trim(),
       cliente: dados.cliente.trim(),
       area: dados.area?.trim() || undefined,
@@ -53,21 +117,22 @@ export const mockApi: SophiaApi = {
       pasta: "ativo",
       atualizadoEm: new Date().toISOString(),
     };
-    casos = [criado, ...casos];
+    salvarCasosDe(usuarioId, [criado, ...casosDe(usuarioId)]);
     return structuredClone(criado);
   },
 
   async moverCaso(id, pasta) {
     await esperar(120);
-    const atual = casos.find((caso) => caso.id === id);
-    if (!atual) throw new Error("Caso não encontrado");
-    const atualizado = { ...atual, pasta, atualizadoEm: new Date().toISOString() };
-    casos = casos.map((caso) => (caso.id === id ? atualizado : caso));
+    const usuarioId = donoDaSessao();
+    const atualizado = { ...casoDoDono(usuarioId, id), pasta, atualizadoEm: new Date().toISOString() };
+    salvarCasosDe(usuarioId, casosDe(usuarioId).map((caso) => (caso.id === id ? atualizado : caso)));
     return structuredClone(atualizado);
   },
 
   async excluirCaso(id) {
     await esperar(120);
-    casos = casos.filter((caso) => caso.id !== id);
+    const usuarioId = donoDaSessao();
+    casoDoDono(usuarioId, id);
+    salvarCasosDe(usuarioId, casosDe(usuarioId).filter((caso) => caso.id !== id));
   },
 };

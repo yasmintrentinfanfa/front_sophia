@@ -166,7 +166,7 @@ export default function PaginaSessaoAtiva() {
           aoVoltar={() => {
             estadoAntesDoFim.current = estado;
             setEstado("pausada");
-            gravador.current?.state === "recording" && gravador.current.pause();
+            if (gravador.current?.state === "recording") gravador.current.pause();
             setConfirmarSaida(true);
           }}
         />

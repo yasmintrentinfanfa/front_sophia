@@ -6,7 +6,9 @@ import Link from "next/link";
 
 import { ModalClausulas } from "@/components/casos/modal-clausulas";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { usuarioDaApi, type UsuarioApi } from "@/lib/api/http/mapeadores";
 import { gravarAceiteClausulas, leuAceiteClausulas } from "@/lib/clausulas";
+import { rotaInicial } from "@/lib/conta";
 
 const CLASSE_CAMPO =
   "border-borda focus:border-destaque focus:ring-destaque/20 bg-campo h-10 w-full rounded-[8px] border px-3 text-[13px] outline-none focus:ring-2";
@@ -20,6 +22,8 @@ export function FormularioLogin() {
   const [clausulasAbertas, setClausulasAbertas] = useState(false);
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
+  /** Quem ainda não pagou a assinatura vai para ela em vez dos casos. */
+  const [destino, setDestino] = useState("/casos");
 
   async function entrar() {
     const res = await fetch("/api/auth/entrar", {
@@ -27,10 +31,11 @@ export function FormularioLogin() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, senha }),
     });
-    const dados = (await res.json().catch(() => ({}))) as { erro?: string };
-    if (!res.ok) {
+    const dados = (await res.json().catch(() => ({}))) as { erro?: string; usuario?: UsuarioApi };
+    if (!res.ok || !dados.usuario) {
       throw new Error(dados.erro ?? "Não foi possível entrar.");
     }
+    return rotaInicial(usuarioDaApi(dados.usuario));
   }
 
   async function aoEnviar(evento: FormEvent<HTMLFormElement>) {
@@ -39,11 +44,12 @@ export function FormularioLogin() {
     setEnviando(true);
     setErro("");
     try {
-      await entrar();
+      const proxima = await entrar();
       if (leuAceiteClausulas()) {
-        router.push("/casos");
+        router.push(proxima);
         return;
       }
+      setDestino(proxima);
       setClausulasAbertas(true);
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : "Não foi possível entrar.");
@@ -116,7 +122,7 @@ export function FormularioLogin() {
         aoConfirmar={() => {
           gravarAceiteClausulas();
           setClausulasAbertas(false);
-          router.push("/casos");
+          router.push(destino);
         }}
       />
     </form>
