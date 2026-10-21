@@ -571,7 +571,10 @@ async def obter_caso(user_id: str = "", caso_id: str = ""):
         return JSONResponse({"erro": "MongoDB não configurado."}, status_code=503)
 
     consulta_id = ObjectId(caso_id) if ObjectId.is_valid(caso_id) else caso_id
-    documento = await case_collection.find_one({"_id": consulta_id, "user_id": user_id})
+    # Aceita o _id do Mongo ou o caso_id da aplicação.
+    documento = await case_collection.find_one(
+        {"user_id": user_id, "$or": [{"_id": consulta_id}, {"caso_id": caso_id}]}
+    )
     if not documento:
         return JSONResponse({"erro": "Caso não encontrado."}, status_code=404)
 
@@ -588,6 +591,7 @@ async def salvar_transcricao(payload: dict):
     """
     texto = (payload.get("texto") or "").strip()
     user_id = (payload.get("user_id") or "").strip()
+    caso_id = (payload.get("caso_id") or "").strip()
     if not texto:
         return {"erro": "Texto vazio, nada para salvar."}
     if not user_id:
@@ -608,18 +612,44 @@ async def salvar_transcricao(payload: dict):
 
     if case_collection is not None:
         try:
-            caso = {
-                "user_id": user_id,
-                "transcript": {
-                    "text": texto,
+            if caso_id:
+                # Caso criado pela aplicação: o relato fica no próprio documento do caso.
+                # Único por (usuário, caso) só onde há caso_id: documentos antigos da
+                # coleção não têm o campo e, como duplicados de caso_id nulo, faziam a
+                # criação do índice — e com ela todo salvamento — falhar.
+                await case_collection.create_index(
+                    [("user_id", 1), ("caso_id", 1)],
+                    unique=True,
+                    partialFilterExpression={"caso_id": {"$type": "string"}},
+                )
+                await case_collection.update_one(
+                    {"user_id": user_id, "caso_id": caso_id},
+                    {
+                        "$set": {
+                            "user_id": user_id,
+                            "caso_id": caso_id,
+                            "transcript": {"text": texto, "created_at": momento},
+                            "updated_at": momento,
+                        },
+                        "$setOnInsert": {"created_at": momento, "documents": []},
+                    },
+                    upsert=True,
+                )
+                salvo = await case_collection.find_one({"user_id": user_id, "caso_id": caso_id})
+                resultado["case_id"] = str(salvo["_id"]) if salvo else caso_id
+            else:
+                caso = {
+                    "user_id": user_id,
+                    "transcript": {
+                        "text": texto,
+                        "created_at": momento,
+                    },
+                    "documents": [],
                     "created_at": momento,
-                },
-                "documents": [],
-                "created_at": momento,
-                "updated_at": momento,
-            }
-            insercao = await case_collection.insert_one(caso)
-            resultado["case_id"] = str(insercao.inserted_id)
+                    "updated_at": momento,
+                }
+                insercao = await case_collection.insert_one(caso)
+                resultado["case_id"] = str(insercao.inserted_id)
         except Exception as exc:  # noqa: BLE001
             resultado["erro_mongo"] = str(exc)
     else:

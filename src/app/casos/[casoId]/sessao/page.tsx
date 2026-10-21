@@ -6,8 +6,9 @@ import { useParams, useRouter } from "next/navigation";
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
 import { ModalConfirmar } from "@/components/casos/modal-confirmar";
 import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
+import { ProgressoProcessamento } from "@/components/gravacao/progresso-processamento";
 import type { ConteudoCaso } from "@/lib/api/analise";
-import { processarEntrevista } from "@/lib/transcricao/fluxo";
+import { ETAPAS_AUDIO, processarEntrevista, type EtapaProcessamento } from "@/lib/transcricao/fluxo";
 import { cn } from "@/lib/utils";
 
 type EstadoGravacao = "gravando" | "pausada" | "encerrada";
@@ -27,7 +28,7 @@ export default function PaginaSessaoAtiva() {
   const [confirmarAnalise, setConfirmarAnalise] = useState(false);
   const [confirmarSaida, setConfirmarSaida] = useState(false);
   const [processando, setProcessando] = useState(false);
-  const [revisando, setRevisando] = useState(false);
+  const [etapa, setEtapa] = useState<EtapaProcessamento>("transcrevendo");
   const [revisado, setRevisado] = useState(false);
   const [pronta, setPronta] = useState(false);
   const [erro, setErro] = useState("");
@@ -45,11 +46,16 @@ export default function PaginaSessaoAtiva() {
     streamRef.current = null;
   }
 
-  function pausarGravacao() {
+  /*
+   * O MediaRecorder lança erro se pausado/retomado fora do estado certo — por
+   * exemplo depois de parado por um hot reload ou pela perda do microfone. Por
+   * isso todo pause/resume passa por aqui, conferindo o estado antes.
+   */
+  function pausarGravador() {
     if (gravador.current?.state === "recording") gravador.current.pause();
   }
 
-  function retomarGravacao() {
+  function retomarGravador() {
     if (gravador.current?.state === "paused") gravador.current.resume();
   }
 
@@ -78,6 +84,15 @@ export default function PaginaSessaoAtiva() {
         rec.ondataavailable = (evento) => {
           if (evento.data.size > 0) pedacos.current.push(evento.data);
         };
+        rec.onerror = () => {
+          setErro("A gravação foi interrompida. Finalize para aproveitar o que já foi gravado.");
+          setEstado("pausada");
+        };
+        // Microfone desconectado ou permissão revogada no meio da conversa.
+        media.getAudioTracks()[0]?.addEventListener("ended", () => {
+          setErro("O microfone foi desconectado. Finalize para aproveitar o que já foi gravado.");
+          setEstado("pausada");
+        });
         rec.start();
         gravador.current = rec;
       } catch {
@@ -122,15 +137,16 @@ export default function PaginaSessaoAtiva() {
       if (!audio.size) {
         throw new Error("A gravação está vazia.");
       }
-      const resultado = await processarEntrevista(casoId, audio, "gravacao.webm", (bruto) => {
-        setConfirmarAnalise(false);
-        setTexto(bruto);
-        setEstado("encerrada");
-        setRevisando(true);
+      const resultado = await processarEntrevista(casoId, audio, "gravacao.webm", (proxima) => {
+        setEtapa(proxima);
+        // Com o áudio transcrito, fecha o modal para o progresso aparecer na tela.
+        if (proxima !== "transcrevendo") {
+          setConfirmarAnalise(false);
+          setEstado("encerrada");
+        }
       });
       setTexto(resultado.texto);
       setRevisado(resultado.revisado);
-      setRevisando(false);
       const transcricao: ConteudoCaso["transcricao"] = [
         {
           id: `${casoId}-transcricao`,
@@ -139,6 +155,7 @@ export default function PaginaSessaoAtiva() {
           papel: "cliente",
         },
       ];
+      setEtapa("analisando");
       try {
         await finalizarSessao(casoId, transcricao);
       } catch {
@@ -154,10 +171,12 @@ export default function PaginaSessaoAtiva() {
           ? falha.message
           : "Não foi possível transcrever. Tente novamente; a gravação continua nesta tela.",
       );
+      // O áudio continua guardado: reabre o modal com o erro para tentar de novo.
+      setEstado("pausada");
+      setConfirmarAnalise(true);
     } finally {
       envioEmCurso.current = false;
       setProcessando(false);
-      setRevisando(false);
     }
   }
 
@@ -191,7 +210,7 @@ export default function PaginaSessaoAtiva() {
           aoVoltar={() => {
             estadoAntesDoFim.current = estado;
             setEstado("pausada");
-            pausarGravacao();
+            pausarGravador();
             setConfirmarSaida(true);
           }}
         />
@@ -205,12 +224,14 @@ export default function PaginaSessaoAtiva() {
             disabled={encerrada || processando}
             aria-pressed={estado === "pausada"}
             onClick={() => {
-              setEstado((atual) => {
-                const proximo = atual === "gravando" ? "pausada" : "gravando";
-                if (proximo === "pausada") pausarGravacao();
-                else retomarGravacao();
-                return proximo;
-              });
+              // Efeito colateral fora do updater: o React chama updaters duas vezes em desenvolvimento.
+              if (estado === "gravando") {
+                pausarGravador();
+                setEstado("pausada");
+              } else {
+                retomarGravador();
+                setEstado("gravando");
+              }
             }}
             className="pressionavel border-borda bg-campo flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-semibold disabled:opacity-50"
           >
@@ -222,7 +243,7 @@ export default function PaginaSessaoAtiva() {
             onClick={() => {
               estadoAntesDoFim.current = estado;
               setEstado("pausada");
-              pausarGravacao();
+              pausarGravador();
               setErro("");
               setConfirmarAnalise(true);
             }}
@@ -248,16 +269,15 @@ export default function PaginaSessaoAtiva() {
       <div className="flex min-h-0 flex-1 px-7 pt-3 pb-5">
         <section className="bg-campo border-borda flex min-h-0 w-full flex-1 flex-col gap-2 overflow-y-auto rounded-[10px] border p-4">
           <h2 className="text-[13px] font-semibold">Transcrição da conversa</h2>
-          {processando && !texto ? (
-            <p className="text-tinta-suave text-[13px]">
-              Transcrevendo a entrevista inteira. Isso pode levar alguns minutos na primeira vez.
-            </p>
+          {processando ? (
+            <ProgressoProcessamento
+              etapas={ETAPAS_AUDIO}
+              atual={etapa}
+              aviso="A primeira transcrição pode levar alguns minutos. Mantenha esta tela aberta."
+            />
           ) : texto ? (
             <div className="flex flex-col gap-3">
               <p className="text-[13px] leading-5 whitespace-pre-wrap">{texto}</p>
-              {revisando ? (
-                <p className="text-tinta-suave text-[12px]">Revisando a transcrição…</p>
-              ) : null}
               {pronta && revisado ? (
                 <p className="text-tinta-suave text-[12px]">Transcrição revisada.</p>
               ) : null}
@@ -301,7 +321,7 @@ export default function PaginaSessaoAtiva() {
           if (envioEmCurso.current || encerrou.current) return;
           setConfirmarAnalise(false);
           setEstado(estadoAntesDoFim.current);
-          if (estadoAntesDoFim.current === "gravando") retomarGravacao();
+          if (estadoAntesDoFim.current === "gravando") retomarGravador();
         }}
         aoConfirmar={() => void encerrarSessao()}
       />
@@ -313,7 +333,7 @@ export default function PaginaSessaoAtiva() {
         aoFechar={() => {
           setConfirmarSaida(false);
           setEstado(estadoAntesDoFim.current);
-          if (estadoAntesDoFim.current === "gravando") retomarGravacao();
+          if (estadoAntesDoFim.current === "gravando") retomarGravador();
         }}
         aoConfirmar={() => {
           soltarMicrofone();

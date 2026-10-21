@@ -25,6 +25,8 @@ const { GET: obterEu } = await import("@/app/api/auth/eu/route");
 const { POST: assinar } = await import("@/app/api/assinatura/route");
 const { GET: obterCaso } = await import("@/app/api/transcricao/caso/route");
 const { POST: trocarPlano } = await import("@/app/api/assinatura/plano/route");
+const { POST: transcrever } = await import("@/app/api/transcricao/transcrever/route");
+const { POST: revisar } = await import("@/app/api/transcricao/revisar/route");
 
 let backend: ReturnType<typeof vi.fn<typeof fetch>>;
 
@@ -60,6 +62,26 @@ describe("cookie forjado não acessa a conta de ninguém", () => {
     cookieAtual.valor = assinarSessao(ANA);
     expect((await obterEu()).status).toBe(200);
     expect(urlChamada()).toMatch(new RegExp(`/usuario/${ANA}$`));
+  });
+});
+
+describe("transcrição só para quem está logado", () => {
+  it("sem sessão, transcrever e revisar → 401 sem chamar o backend", async () => {
+    const form = new FormData();
+    form.append("audio", new Blob(["x"]), "a.mp3");
+    expect((await transcrever(new Request("http://x", { method: "POST", body: form }))).status).toBe(401);
+    expect(
+      (await revisar(new Request("http://x", { method: "POST", body: JSON.stringify({ texto: "oi" }) }))).status,
+    ).toBe(401);
+    expect(backend).not.toHaveBeenCalled();
+  });
+
+  it("com sessão, o áudio segue para o backend", async () => {
+    cookieAtual.valor = assinarSessao(ANA);
+    const form = new FormData();
+    form.append("audio", new Blob(["x"]), "a.mp3");
+    await transcrever(new Request("http://x", { method: "POST", body: form }));
+    expect(urlChamada()).toMatch(/\/transcribe$/);
   });
 });
 
