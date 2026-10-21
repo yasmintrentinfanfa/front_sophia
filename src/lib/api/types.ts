@@ -50,6 +50,14 @@ export interface Usuario {
   statusConta: StatusConta;
   /** ISO 8601. */
   criadoEm?: string;
+  /** Plano e cartão da assinatura ativa, para exibir na conta (sem valores). */
+  assinatura?: ResumoAssinatura;
+}
+
+export interface ResumoAssinatura {
+  planoId: IdPlano;
+  nomePlano: string;
+  cartao: CartaoSalvo;
 }
 
 /*
@@ -141,4 +149,9 @@ export interface SophiaApi {
    * Rejeita com `Error` de mensagem amigável quando o pagamento é recusado.
    */
   assinar(dados: DadosAssinatura): Promise<Assinatura>;
+  /**
+   * Troca o plano da assinatura ativa do usuário da sessão, mantendo o cartão.
+   * Devolve o usuário já com o plano novo.
+   */
+  trocarPlano(planoId: IdPlano): Promise<Usuario>;
 }

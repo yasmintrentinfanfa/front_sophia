@@ -110,3 +110,8 @@ export function cpfValido(valor: string) {
   };
   return verificador(9) === Number(digitos[9]) && verificador(10) === Number(digitos[10]);
 }
+
+/** "Mastercard •••• 4444", para exibir o cartão vinculado à conta. */
+export function descreverCartao(cartao: { bandeira: BandeiraCartao; final: string }) {
+  return `${ROTULO_BANDEIRA[cartao.bandeira]} •••• ${cartao.final}`;
+}

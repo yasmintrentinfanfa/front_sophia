@@ -239,6 +239,12 @@ class CartaoAssinatura(BaseModel):
     holder_name: str = ""
 
 
+class TrocaPlanoRequest(BaseModel):
+    # user_id vem do cookie assinado, lido pela rota /api/assinatura/plano do Next.
+    user_id: str
+    plan_id: str
+
+
 class AssinaturaRequest(BaseModel):
     # user_id vem do cookie assinado, lido pela rota /api/assinatura do Next.
     user_id: str
@@ -300,6 +306,18 @@ def usuario_publico(documento: dict) -> dict:
         # Contas sem o campo ainda não pagaram a assinatura.
         "account_status": documento.get("account_status") or "pagamento_pendente",
         "created_at": documento.get("created_at") or "",
+        "subscription": _resumo_assinatura_publico(documento.get("subscription")),
+    }
+
+
+def _resumo_assinatura_publico(resumo: dict | None) -> dict | None:
+    """Plano e cartão para exibir na conta; o valor fica de fora de propósito."""
+    if not resumo:
+        return None
+    return {
+        "plan_id": resumo.get("plan_id") or "",
+        "plan_name": resumo.get("plan_name") or "",
+        "card": resumo.get("card") or {},
     }
 
 
@@ -481,6 +499,68 @@ async def assinar(payload: AssinaturaRequest):
     return {"assinatura": documento}
 
 
+@app.post("/assinatura/plano")
+async def trocar_plano(payload: TrocaPlanoRequest):
+    """Troca o plano da assinatura ativa do usuário, mantendo o cartão vinculado."""
+    user_id = payload.user_id.strip()
+    plano = payload.plan_id.strip()
+    if plano not in PRECO_PLANOS:
+        return JSONResponse({"erro": "Plano inválido."}, status_code=400)
+
+    usuario = await _buscar_usuario(user_id)
+    resumo = (usuario or {}).get("subscription")
+    if not usuario or usuario.get("account_status") != "ativa" or not resumo:
+        return JSONResponse({"erro": "Nenhuma assinatura ativa para alterar."}, status_code=409)
+    if resumo.get("plan_id") == plano:
+        return JSONResponse({"erro": "Esse já é o seu plano atual."}, status_code=400)
+
+    agora = agora_iso()
+    mudancas = {
+        "plan_id": plano,
+        "plan_name": NOME_PLANOS[plano],
+        "plan_amount": PRECO_PLANOS[plano],
+        "monthly_amount": PRECO_PLATAFORMA + PRECO_PLANOS[plano],
+        "updated_at": agora,
+    }
+    novo_resumo = {
+        **resumo,
+        "plan_id": plano,
+        "plan_name": NOME_PLANOS[plano],
+        "monthly_amount": mudancas["monthly_amount"],
+    }
+    try:
+        if users_collection is not None and assinaturas_collection is not None:
+            # O filtro por user_id garante que só a assinatura do próprio usuário muda.
+            await assinaturas_collection.update_one(
+                {"_id": resumo["id"], "user_id": user_id}, {"$set": mudancas}
+            )
+            await users_collection.update_one(
+                {"_id": user_id}, {"$set": {"subscription": novo_resumo, "updated_at": agora}}
+            )
+        else:
+            lista = (
+                json.loads(ASSINATURAS_FILE.read_text(encoding="utf-8"))
+                if ASSINATURAS_FILE.exists()
+                else []
+            )
+            for assinatura in lista:
+                if assinatura.get("_id") == resumo["id"] and assinatura.get("user_id") == user_id:
+                    assinatura.update(mudancas)
+            ASSINATURAS_FILE.write_text(
+                json.dumps(lista, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
+            usuarios = _ler_users_arquivo()
+            for item in usuarios:
+                if item.get("_id") == user_id:
+                    item["subscription"] = novo_resumo
+                    item["updated_at"] = agora
+            _gravar_users_arquivo(usuarios)
+    except Exception as exc:  # noqa: BLE001
+        return JSONResponse({"erro": str(exc)}, status_code=500)
+
+    return {"usuario": usuario_publico({**usuario, "subscription": novo_resumo})}
+
+
 @app.get("/caso")
 async def obter_caso(user_id: str = "", caso_id: str = ""):
     user_id = user_id.strip()
@@ -491,7 +571,10 @@ async def obter_caso(user_id: str = "", caso_id: str = ""):
         return JSONResponse({"erro": "MongoDB não configurado."}, status_code=503)
 
     consulta_id = ObjectId(caso_id) if ObjectId.is_valid(caso_id) else caso_id
-    documento = await case_collection.find_one({"_id": consulta_id, "user_id": user_id})
+    # Aceita o _id do Mongo ou o caso_id da aplicação.
+    documento = await case_collection.find_one(
+        {"user_id": user_id, "$or": [{"_id": consulta_id}, {"caso_id": caso_id}]}
+    )
     if not documento:
         return JSONResponse({"erro": "Caso não encontrado."}, status_code=404)
 
@@ -508,6 +591,7 @@ async def salvar_transcricao(payload: dict):
     """
     texto = (payload.get("texto") or "").strip()
     user_id = (payload.get("user_id") or "").strip()
+    caso_id = (payload.get("caso_id") or "").strip()
     if not texto:
         return {"erro": "Texto vazio, nada para salvar."}
     if not user_id:
@@ -528,18 +612,44 @@ async def salvar_transcricao(payload: dict):
 
     if case_collection is not None:
         try:
-            caso = {
-                "user_id": user_id,
-                "transcript": {
-                    "text": texto,
+            if caso_id:
+                # Caso criado pela aplicação: o relato fica no próprio documento do caso.
+                # Único por (usuário, caso) só onde há caso_id: documentos antigos da
+                # coleção não têm o campo e, como duplicados de caso_id nulo, faziam a
+                # criação do índice — e com ela todo salvamento — falhar.
+                await case_collection.create_index(
+                    [("user_id", 1), ("caso_id", 1)],
+                    unique=True,
+                    partialFilterExpression={"caso_id": {"$type": "string"}},
+                )
+                await case_collection.update_one(
+                    {"user_id": user_id, "caso_id": caso_id},
+                    {
+                        "$set": {
+                            "user_id": user_id,
+                            "caso_id": caso_id,
+                            "transcript": {"text": texto, "created_at": momento},
+                            "updated_at": momento,
+                        },
+                        "$setOnInsert": {"created_at": momento, "documents": []},
+                    },
+                    upsert=True,
+                )
+                salvo = await case_collection.find_one({"user_id": user_id, "caso_id": caso_id})
+                resultado["case_id"] = str(salvo["_id"]) if salvo else caso_id
+            else:
+                caso = {
+                    "user_id": user_id,
+                    "transcript": {
+                        "text": texto,
+                        "created_at": momento,
+                    },
+                    "documents": [],
                     "created_at": momento,
-                },
-                "documents": [],
-                "created_at": momento,
-                "updated_at": momento,
-            }
-            insercao = await case_collection.insert_one(caso)
-            resultado["case_id"] = str(insercao.inserted_id)
+                    "updated_at": momento,
+                }
+                insercao = await case_collection.insert_one(caso)
+                resultado["case_id"] = str(insercao.inserted_id)
         except Exception as exc:  # noqa: BLE001
             resultado["erro_mongo"] = str(exc)
     else:

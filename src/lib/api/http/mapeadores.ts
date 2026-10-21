@@ -38,6 +38,11 @@ export interface UsuarioApi {
   /** Ausente em contas antigas: tratado como pagamento pendente. */
   account_status?: StatusConta;
   created_at?: string;
+  subscription?: {
+    plan_id: IdPlano;
+    plan_name: string;
+    card: { brand?: BandeiraCartao; last4?: string; expiry?: string };
+  } | null;
 }
 
 export function usuarioDaApi(dto: UsuarioApi): Usuario {
@@ -47,6 +52,17 @@ export function usuarioDaApi(dto: UsuarioApi): Usuario {
     email: dto.email,
     statusConta: dto.account_status ?? "pagamento_pendente",
     criadoEm: dto.created_at,
+    assinatura: dto.subscription
+      ? {
+          planoId: dto.subscription.plan_id,
+          nomePlano: dto.subscription.plan_name,
+          cartao: {
+            bandeira: dto.subscription.card.brand ?? "desconhecida",
+            final: dto.subscription.card.last4 ?? "",
+            validade: dto.subscription.card.expiry ?? "",
+          },
+        }
+      : undefined,
   };
 }
 

@@ -131,6 +131,49 @@ describe("conta pelas rotas do Next", () => {
     expect(redirecionamentoDosCasos(usuario)).toBe("/assinatura");
   });
 
+  it("traz plano e cartão da assinatura para a conta, sem valores", async () => {
+    simularFetch(
+      responder(200, {
+        usuario: {
+          _id: "u1",
+          name: "Ana",
+          email: "ana@teste.com",
+          account_status: "ativa",
+          subscription: {
+            plan_id: "intermediario",
+            plan_name: "Intermediário",
+            card: { brand: "mastercard", last4: "4444", expiry: "08/31" },
+          },
+        },
+      }),
+    );
+    const usuario = await contaApi.obterUsuarioAtual();
+    expect(usuario?.assinatura).toEqual({
+      planoId: "intermediario",
+      nomePlano: "Intermediário",
+      cartao: { bandeira: "mastercard", final: "4444", validade: "08/31" },
+    });
+  });
+
+  it("troca de plano manda só o plano novo e devolve o usuário atualizado", async () => {
+    const fetchFalso = simularFetch(
+      responder(200, {
+        usuario: {
+          _id: "u1",
+          name: "Ana",
+          email: "ana@teste.com",
+          account_status: "ativa",
+          subscription: { plan_id: "pro", plan_name: "Pro", card: { brand: "visa", last4: "4242", expiry: "12/30" } },
+        },
+      }),
+    );
+    const usuario = await contaApi.trocarPlano("pro");
+
+    expect(enviado(fetchFalso).url).toBe("/api/assinatura/plano");
+    expect(enviado(fetchFalso).corpo).toEqual({ plan_id: "pro" });
+    expect(usuario.assinatura?.nomePlano).toBe("Pro");
+  });
+
   it("assinatura não envia user_id: o dono vem da sessão", async () => {
     const fetchFalso = simularFetch(
       responder(200, {
