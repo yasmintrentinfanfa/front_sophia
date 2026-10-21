@@ -54,7 +54,7 @@ export async function requisitarJson<T>(url: string, init: RequestInit = {}): Pr
   return (await resposta.json()) as T;
 }
 
-type ApiConta = Pick<SophiaApi, "obterUsuarioAtual" | "obterOfertaAssinatura" | "assinar">;
+type ApiConta = Pick<SophiaApi, "obterUsuarioAtual" | "obterOfertaAssinatura" | "assinar" | "trocarPlano">;
 
 export const contaApi: ApiConta = {
   async obterUsuarioAtual() {
@@ -78,5 +78,13 @@ export const contaApi: ApiConta = {
       body: JSON.stringify(assinaturaParaApi(dados)),
     });
     return assinaturaDaApi(assinatura);
+  },
+
+  async trocarPlano(planoId) {
+    const { usuario } = await requisitarJson<{ usuario: UsuarioApi }>("/api/assinatura/plano", {
+      method: "POST",
+      body: JSON.stringify({ plan_id: planoId }),
+    });
+    return usuarioDaApi(usuario);
   },
 };
