@@ -111,6 +111,7 @@ export function assinaturaParaApi(dados: DadosAssinatura) {
   return {
     plan_id: dados.planoId,
     card_token: dados.tokenCartao,
+    card_expiry: dados.validadeCartao ?? "",
     holder: { name: dados.titular.nome, cpf: dados.titular.cpf },
   };
 }

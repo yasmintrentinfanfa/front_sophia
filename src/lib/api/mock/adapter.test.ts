@@ -80,22 +80,38 @@ describe("isolamento de casos por usuário", () => {
     await expect(api.enviarMensagem(casoDaAna.id, "oi")).rejects.toThrow(/nao encontrado/i);
   });
 
-  it("casos de demonstração são uma cópia por usuário", async () => {
-    await logarComo(ANA);
-    await api.moverCaso("rescisao-silva", "arquivo");
-
-    await logarComo(BRUNO);
-    const doBruno = (await api.listarCasos()).find((caso) => caso.id === "rescisao-silva");
-    expect(doBruno?.pasta).toBe("ativo");
+  it("usuário novo começa sem os casos de demonstração", async () => {
+    await logarComo("usuario-sem-casos");
+    expect(await ids()).toEqual([]);
   });
 
-  it("o chat de um usuário não aparece no mesmo caso de demonstração de outro", async () => {
-    await logarComo(ANA);
-    await api.enviarMensagem("rescisao-silva", "Mensagem confidencial da Ana");
+  it("casos de demonstração já gravados na sessão somem da lista", async () => {
+    sessionStorage.setItem(
+      "sophia-mock-casos",
+      JSON.stringify({
+        "usuario-com-exemplo": [
+          {
+            id: "rescisao-silva",
+            titulo: "Rescisão contratual",
+            cliente: "João Silva",
+            status: "em_analise",
+            pasta: "ativo",
+            atualizadoEm: "2026-09-21T14:32:00.000Z",
+          },
+          {
+            id: "cobranca-xyz",
+            titulo: "Ação de cobrança",
+            cliente: "Empresa XYZ Ltda",
+            status: "gravacao_pendente",
+            pasta: "ativo",
+            atualizadoEm: "2026-09-20T18:05:00.000Z",
+          },
+        ],
+      }),
+    );
 
-    await logarComo(BRUNO);
-    const conversa = await api.listarMensagens("rescisao-silva");
-    expect(conversa.map((mensagem) => mensagem.conteudo)).not.toContain("Mensagem confidencial da Ana");
+    await logarComo("usuario-com-exemplo");
+    expect(await ids()).toEqual([]);
   });
 
   it("o dono continua com acesso total ao próprio caso", async () => {

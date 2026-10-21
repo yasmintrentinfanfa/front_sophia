@@ -155,6 +155,7 @@ describe("conta pelas rotas do Next", () => {
     expect(enviado(fetchFalso).corpo).toEqual({
       plan_id: "basico",
       card_token: "tok_mock_visa_4242_1",
+      card_expiry: "",
       holder: { name: "Ana", cpf: "52998224725" },
     });
     expect(assinatura.usuarioId).toBe("98ff6434-655e-486f-b255-1bd89542ea7f");

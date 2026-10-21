@@ -12,9 +12,7 @@
 
 import { contaApi } from "@/lib/api/conta";
 import type { Caso, SophiaApi } from "@/lib/api/types";
-import { pastaDoCaso } from "@/lib/casos/rotulo";
 
-import { CASOS } from "./dados";
 import { criarMockFluxo } from "./fluxo";
 
 /** Latência simulada da rede; desligada nos testes para não deixá-los lentos. */
@@ -57,13 +55,18 @@ function salvarCasosDe(usuarioId: string, lista: Caso[]) {
   }
 }
 
-/** Todo usuário começa com os casos de demonstração do protótipo, numa cópia só dele. */
+/** Casos de exemplo do protótipo. Quem já os tinha na sessão deixa de vê-los. */
+const IDS_DEMONSTRACAO = new Set(["rescisao-silva", "cobranca-xyz", "locacao-santos"]);
+
+/** Cada usuário começa sem casos e só vê os que ele mesmo criou. */
 function casosDe(usuarioId: string): Caso[] {
   const todos = lerTodos();
-  if (todos[usuarioId]) return todos[usuarioId];
-  const iniciais = structuredClone(CASOS).map((caso) => ({ ...caso, pasta: pastaDoCaso(caso) }));
-  salvarCasosDe(usuarioId, iniciais);
-  return iniciais;
+  const salvos = todos[usuarioId] ?? [];
+  const proprios = salvos.filter((caso) => !IDS_DEMONSTRACAO.has(caso.id));
+  if (!todos[usuarioId] || proprios.length !== salvos.length) {
+    salvarCasosDe(usuarioId, proprios);
+  }
+  return proprios;
 }
 
 /** Dono da sessão, conhecido depois de `obterUsuarioAtual` (o layout de /casos chama antes de tudo). */
@@ -75,6 +78,18 @@ function donoDaSessao() {
   return dono;
 }
 
+/**
+ * O id fica em memória depois do layout. Se o módulo recarrega no meio da
+ * gravação, a finalização não acha o caso e a análise não abre. Relê a sessão.
+ */
+async function garantirDono() {
+  if (!dono) {
+    const usuario = await contaApi.obterUsuarioAtual();
+    dono = usuario?.id ?? null;
+  }
+  return donoDaSessao();
+}
+
 /** Equivale ao `find_one({ _id, user_id })`: caso alheio e caso inexistente dão o mesmo erro. */
 function casoDoDono(usuarioId: string, id: string) {
   const caso = casosDe(usuarioId).find((item) => item.id === id);
@@ -82,8 +97,18 @@ function casoDoDono(usuarioId: string, id: string) {
   return caso;
 }
 
+const fluxo = criarMockFluxo({
+  encontrarCaso: (id) => (dono ? casosDe(dono).find((caso) => caso.id === id) : undefined),
+  salvarCaso: (caso) => {
+    const usuarioId = donoDaSessao();
+    salvarCasosDe(usuarioId, casosDe(usuarioId).map((item) => (item.id === caso.id ? caso : item)));
+  },
+  escopo: donoDaSessao,
+});
+
 export const mockApi: SophiaApi = {
   ...contaApi,
+  ...fluxo,
 
   async obterUsuarioAtual() {
     const usuario = await contaApi.obterUsuarioAtual();
@@ -91,23 +116,39 @@ export const mockApi: SophiaApi = {
     return usuario;
   },
 
-  ...criarMockFluxo({
-    encontrarCaso: (id) => (dono ? casosDe(dono).find((caso) => caso.id === id) : undefined),
-    salvarCaso: (caso) => {
-      const usuarioId = donoDaSessao();
-      salvarCasosDe(usuarioId, casosDe(usuarioId).map((item) => (item.id === caso.id ? caso : item)));
-    },
-    escopo: donoDaSessao,
-  }),
+  async finalizarSessao(casoId, transcricao) {
+    await garantirDono();
+    return fluxo.finalizarSessao(casoId, transcricao);
+  },
+
+  async obterCaso(casoId) {
+    await garantirDono();
+    return fluxo.obterCaso(casoId);
+  },
+
+  async solicitarAnalise(casoId, instrucao) {
+    await garantirDono();
+    return fluxo.solicitarAnalise(casoId, instrucao);
+  },
+
+  async listarMensagens(casoId) {
+    await garantirDono();
+    return fluxo.listarMensagens(casoId);
+  },
+
+  async enviarMensagem(casoId, conteudo) {
+    await garantirDono();
+    return fluxo.enviarMensagem(casoId, conteudo);
+  },
 
   async listarCasos() {
     await esperar(220);
-    return structuredClone(casosDe(donoDaSessao()));
+    return structuredClone(casosDe(await garantirDono()));
   },
 
   async criarCaso(dados) {
     await esperar(180);
-    const usuarioId = donoDaSessao();
+    const usuarioId = await garantirDono();
     const criado: Caso = {
       id: `${slug(dados.titulo)}-${Date.now().toString(36)}`,
       titulo: dados.titulo.trim(),
@@ -123,7 +164,7 @@ export const mockApi: SophiaApi = {
 
   async moverCaso(id, pasta) {
     await esperar(120);
-    const usuarioId = donoDaSessao();
+    const usuarioId = await garantirDono();
     const atualizado = { ...casoDoDono(usuarioId, id), pasta, atualizadoEm: new Date().toISOString() };
     salvarCasosDe(usuarioId, casosDe(usuarioId).map((caso) => (caso.id === id ? atualizado : caso)));
     return structuredClone(atualizado);
@@ -131,7 +172,7 @@ export const mockApi: SophiaApi = {
 
   async excluirCaso(id) {
     await esperar(120);
-    const usuarioId = donoDaSessao();
+    const usuarioId = await garantirDono();
     casoDoDono(usuarioId, id);
     salvarCasosDe(usuarioId, casosDe(usuarioId).filter((caso) => caso.id !== id));
   },

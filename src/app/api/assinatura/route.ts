@@ -14,10 +14,13 @@ export async function POST(pedido: Request) {
   const corpo = (await pedido.json().catch(() => ({}))) as {
     plan_id?: string;
     card_token?: string;
+    card_expiry?: string;
     holder?: { name?: string; cpf?: string };
   };
   const planId = (corpo.plan_id ?? "").trim();
   const cardToken = (corpo.card_token ?? "").trim();
+  const expiry = (corpo.card_expiry ?? "").trim();
+  const holderName = (corpo.holder?.name ?? "").trim();
   if (!planId || !cardToken) {
     return Response.json({ erro: "Informe o plano e o cartão." }, { status: 400 });
   }
@@ -36,7 +39,11 @@ export async function POST(pedido: Request) {
     const res = await fetch(urlDoBack("/assinatura"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: userId, plan_id: planId, card: { brand, last4 } }),
+      body: JSON.stringify({
+        user_id: userId,
+        plan_id: planId,
+        card: { brand, last4, expiry, holder_name: holderName },
+      }),
     });
     const dados = await res.json().catch(() => ({}));
     return Response.json(dados, { status: res.status });

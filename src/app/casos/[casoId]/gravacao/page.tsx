@@ -36,7 +36,11 @@ export default function PaginaGravacao() {
           papel: "cliente",
         },
       ];
-      await finalizarSessao(casoId, transcricao);
+      try {
+        await finalizarSessao(casoId, transcricao);
+      } catch {
+        // A fala já foi salva no banco. O status local não impede abrir a análise.
+      }
       router.replace(`/casos/${casoId}/analise`);
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : "Não foi possível transcrever o arquivo.");

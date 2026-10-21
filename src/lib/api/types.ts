@@ -97,6 +97,8 @@ export interface DadosAssinatura {
    * cartão vão direto do navegador para o gateway e nunca passam pela API da Sophia.
    */
   tokenCartao: string;
+  /** "MM/AA", vinda do gateway junto com o token. */
+  validadeCartao?: string;
   titular: {
     nome: string;
     /** Só dígitos. */

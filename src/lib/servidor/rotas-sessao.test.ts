@@ -75,11 +75,21 @@ describe("dono vem sempre do cookie", () => {
     cookieAtual.valor = assinarSessao(ANA);
     const pedido = new Request("http://x/api/assinatura", {
       method: "POST",
-      body: JSON.stringify({ user_id: BRUNO, plan_id: "pro", card_token: "tok_mock_visa_4242_1" }),
+      body: JSON.stringify({
+        user_id: BRUNO,
+        plan_id: "pro",
+        card_token: "tok_mock_visa_4242_1",
+        card_expiry: "08/31",
+        holder: { name: "Ana Silva", cpf: "52998224725" },
+      }),
     });
 
     expect((await assinar(pedido)).status).toBe(200);
-    expect(corpoChamado()).toEqual({ user_id: ANA, plan_id: "pro", card: { brand: "visa", last4: "4242" } });
+    expect(corpoChamado()).toEqual({
+      user_id: ANA,
+      plan_id: "pro",
+      card: { brand: "visa", last4: "4242", expiry: "08/31", holder_name: "Ana Silva" },
+    });
   });
 
   it("assinatura sem sessão → 401", async () => {

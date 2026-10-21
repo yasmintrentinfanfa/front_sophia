@@ -130,6 +130,7 @@ function FormularioCartao({ plano, total }: { plano: Plano; total: number }) {
       await api.assinar({
         planoId: plano.id,
         tokenCartao: cartao.token,
+        validadeCartao: cartao.validade,
         titular: { nome: valores.nome.trim(), cpf: soDigitos(valores.cpf) },
       });
       setConfirmado(true);

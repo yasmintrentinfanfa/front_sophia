@@ -1,6 +1,5 @@
 import type { Caso } from "../types";
 import type { AnalisePreliminar, ConteudoCaso, MensagemChat } from "../analise";
-import { INSIGHTS, MENSAGENS, RESUMO } from "./detalhes";
 
 interface DependenciasFluxo {
   /** Só devolve casos do dono da sessão. */
@@ -21,90 +20,22 @@ export function criarMockFluxo({ encontrarCaso, salvarCaso, escopo }: Dependenci
     if (!caso) throw new Error("Caso nao encontrado.");
     const existente = conteudos.get(chave(casoId));
     if (existente) return existente;
-    const exemplo = casoId === "rescisao-silva";
     const conteudo: ConteudoCaso = {
       casoId,
-      titulo: exemplo ? "Rescisao contratual - Silva" : caso.titulo,
-      analise: exemplo
-        ? {
-            id: `${casoId}-analise-1`,
-            casoId,
-            versao: 1,
-            geradaEm: "2026-03-10T11:20:00.000Z",
-            resumo: RESUMO,
-            insights: structuredClone(INSIGHTS),
-            demonstracao: true,
-          }
-        : null,
+      titulo: caso.titulo,
+      analise: null,
       versoesAnalise: [],
-      transcricao: exemplo
-        ? [
-            {
-              id: "fala-1",
-              tempo: "00:12",
-              texto: "Cliente descreve atraso de pagamentos",
-              papel: "cliente",
-            },
-            {
-              id: "fala-2",
-              tempo: "00:45",
-              texto: "Advogado questiona sobre clausula penal",
-              papel: "advogado",
-            },
-            {
-              id: "fala-3",
-              tempo: "01:20",
-              texto: "Cliente menciona tentativa de acordo",
-              papel: "cliente",
-            },
-          ]
-        : [],
-      documentos: exemplo
-        ? [
-            {
-              id: "doc-1",
-              nome: "CTPS",
-              tipo: "PDF",
-              sanitizacao: { status: "pendente" },
-            },
-            {
-              id: "doc-2",
-              nome: "Comprovantes de pagamento",
-              tipo: "PDF",
-              sanitizacao: { status: "pendente" },
-            },
-            {
-              id: "doc-3",
-              nome: "Extratos previdenciarios",
-              tipo: "PDF",
-              sanitizacao: { status: "pendente" },
-            },
-          ]
-        : [],
-      historico: exemplo
-        ? [
-            {
-              id: "evento-1",
-              descricao: "Analise preliminar - versao 1",
-              data: "2026-03-10T11:20:00.000Z",
-            },
-          ]
-        : [],
+      transcricao: [],
+      documentos: [],
+      historico: [],
     };
-    if (conteudo.analise) {
-      conteudo.versoesAnalise.push(structuredClone(conteudo.analise));
-    }
     conteudos.set(chave(casoId), conteudo);
     return conteudo;
   }
 
   function obterMensagens(casoId: string) {
     obterConteudo(casoId);
-    if (!conversas.has(chave(casoId)))
-      conversas.set(
-        chave(casoId),
-        casoId === "rescisao-silva" ? structuredClone(MENSAGENS) : [],
-      );
+    if (!conversas.has(chave(casoId))) conversas.set(chave(casoId), []);
     return conversas.get(chave(casoId))!;
   }
 

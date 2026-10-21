@@ -30,6 +30,7 @@ export default function PaginaSessaoAtiva() {
   const [erro, setErro] = useState("");
   const [texto, setTexto] = useState("");
   const envioEmCurso = useRef(false);
+  const encerrou = useRef(false);
   const estadoAntesDoFim = useRef<EstadoGravacao>("gravando");
   const gravador = useRef<MediaRecorder | null>(null);
   const pedacos = useRef<Blob[]>([]);
@@ -39,6 +40,14 @@ export default function PaginaSessaoAtiva() {
   function soltarMicrofone() {
     streamRef.current?.getTracks().forEach((trilha) => trilha.stop());
     streamRef.current = null;
+  }
+
+  function pausarGravacao() {
+    if (gravador.current?.state === "recording") gravador.current.pause();
+  }
+
+  function retomarGravacao() {
+    if (gravador.current?.state === "paused") gravador.current.resume();
   }
 
   useEffect(() => {
@@ -120,7 +129,12 @@ export default function PaginaSessaoAtiva() {
           papel: "cliente",
         },
       ];
-      await finalizarSessao(casoId, transcricao);
+      try {
+        await finalizarSessao(casoId, transcricao);
+      } catch {
+        // A fala já foi salva no banco. O status local não impede abrir a análise.
+      }
+      encerrou.current = true;
       setEstado("encerrada");
       setConfirmarAnalise(false);
       router.replace(`/casos/${casoId}/analise`);
@@ -166,7 +180,7 @@ export default function PaginaSessaoAtiva() {
           aoVoltar={() => {
             estadoAntesDoFim.current = estado;
             setEstado("pausada");
-            if (gravador.current?.state === "recording") gravador.current.pause();
+            pausarGravacao();
             setConfirmarSaida(true);
           }}
         />
@@ -182,8 +196,8 @@ export default function PaginaSessaoAtiva() {
             onClick={() => {
               setEstado((atual) => {
                 const proximo = atual === "gravando" ? "pausada" : "gravando";
-                if (proximo === "pausada") gravador.current?.pause();
-                else if (gravador.current?.state === "paused") gravador.current.resume();
+                if (proximo === "pausada") pausarGravacao();
+                else retomarGravacao();
                 return proximo;
               });
             }}
@@ -197,7 +211,7 @@ export default function PaginaSessaoAtiva() {
             onClick={() => {
               estadoAntesDoFim.current = estado;
               setEstado("pausada");
-              if (gravador.current?.state === "recording") gravador.current.pause();
+              pausarGravacao();
               setErro("");
               setConfirmarAnalise(true);
             }}
@@ -246,12 +260,10 @@ export default function PaginaSessaoAtiva() {
         processando={processando}
         erro={erro}
         aoFechar={() => {
-          if (envioEmCurso.current) return;
+          if (envioEmCurso.current || encerrou.current) return;
           setConfirmarAnalise(false);
           setEstado(estadoAntesDoFim.current);
-          if (estadoAntesDoFim.current === "gravando" && gravador.current?.state === "paused") {
-            gravador.current.resume();
-          }
+          if (estadoAntesDoFim.current === "gravando") retomarGravacao();
         }}
         aoConfirmar={() => void encerrarSessao()}
       />
@@ -263,9 +275,7 @@ export default function PaginaSessaoAtiva() {
         aoFechar={() => {
           setConfirmarSaida(false);
           setEstado(estadoAntesDoFim.current);
-          if (estadoAntesDoFim.current === "gravando" && gravador.current?.state === "paused") {
-            gravador.current.resume();
-          }
+          if (estadoAntesDoFim.current === "gravando") retomarGravacao();
         }}
         aoConfirmar={() => {
           soltarMicrofone();
