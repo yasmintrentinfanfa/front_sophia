@@ -8,7 +8,7 @@ import type { Usuario } from "@/lib/api/types";
 import { rotaInicial } from "@/lib/conta";
 
 /**
- * A assinatura é sempre de um usuário: sem sessão volta para o cadastro, e quem
+ * A assinatura é sempre de um usuário: sem sessão volta para o login, e quem
  * já pagou não tem o que fazer aqui. Mostra a conta para o usuário confirmar
  * em nome de quem está assinando.
  */
@@ -20,7 +20,7 @@ export function GuardaAssinatura({ children }: { children: ReactNode }) {
     let ativo = true;
     api.obterUsuarioAtual().then((atual) => {
       if (!ativo) return;
-      if (!atual) router.replace("/criar-conta");
+      if (!atual) router.replace("/login");
       else if (atual.statusConta === "ativa") router.replace(rotaInicial(atual));
       else setUsuario(atual);
     });
