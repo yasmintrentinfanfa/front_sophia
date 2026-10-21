@@ -79,8 +79,31 @@ function textoDoDoc(buffer: ArrayBuffer) {
   return textoLegivel(new TextDecoder("utf-16le").decode(buffer));
 }
 
-export function ehMp3(arquivo: File) {
-  return arquivo.name.toLowerCase().endsWith(".mp3");
+/** Áudios que o Whisper desta instalação consegue abrir. */
+export const EXTENSOES_AUDIO = [
+  ".mp3",
+  ".wav",
+  ".m4a",
+  ".m4b",
+  ".aac",
+  ".mp4",
+  ".ogg",
+  ".opus",
+  ".flac",
+  ".webm",
+  ".wma",
+  ".aiff",
+  ".aif",
+  ".mp2",
+  ".amr",
+  ".3gp",
+];
+
+export const EXTENSOES_DOCUMENTO = [".pdf", ".doc", ".docx", ".txt"];
+
+export function ehAudio(arquivo: File) {
+  const nome = arquivo.name.toLowerCase();
+  return EXTENSOES_AUDIO.some((extensao) => nome.endsWith(extensao));
 }
 
 export async function lerTextoDeArquivo(arquivo: File) {
@@ -90,7 +113,7 @@ export async function lerTextoDeArquivo(arquivo: File) {
   else if (nome.endsWith(".docx")) texto = textoDoXmlWord(await xmlDoDocx(await arquivo.arrayBuffer()));
   else if (nome.endsWith(".pdf")) texto = textoDoPdf(await arquivo.arrayBuffer());
   else if (nome.endsWith(".doc")) texto = textoDoDoc(await arquivo.arrayBuffer());
-  else throw new Error("Formato não suportado. Envie MP3, PDF, Word, DOC ou TXT.");
+  else throw new Error("Formato não suportado. Envie um áudio, PDF, Word, DOC ou TXT.");
 
   texto = texto.replace(/\u0000/g, "").trim();
   if (texto.length < 20) {

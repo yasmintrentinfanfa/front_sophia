@@ -9,7 +9,7 @@ import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
 import { ProgressoProcessamento } from "@/components/gravacao/progresso-processamento";
 import { SeletorAudio } from "@/components/gravacao/seletor-audio";
 import type { ConteudoCaso } from "@/lib/api/analise";
-import { ehMp3, lerTextoDeArquivo } from "@/lib/arquivos/ler-documento";
+import { ehAudio, lerTextoDeArquivo } from "@/lib/arquivos/ler-documento";
 import {
   ETAPAS_AUDIO,
   ETAPAS_TEXTO,
@@ -34,7 +34,7 @@ const MODOS: { valor: ModoRelato; titulo: string; descricao: string; Icone: Comp
   {
     valor: "arquivo",
     titulo: "Enviar áudio/Arquivo",
-    descricao: "Envie um MP3 ou um arquivo em PDF, Word, DOC ou TXT.",
+    descricao: "Envie um áudio ou um arquivo em PDF, Word, DOC ou TXT.",
     Icone: FileAudio,
   },
   {
@@ -237,7 +237,7 @@ export default function PaginaGravacao() {
               <div className="flex flex-col gap-1">
                 <h3 className="text-[14px] font-semibold">Áudio ou arquivo</h3>
                 <p className="text-tinta-suave text-[12px]">
-                  MP3 é transcrito e revisado. PDF, Word, DOC e TXT são lidos e salvos no caso antes da análise.
+                  O áudio é transcrito e revisado. PDF, Word, DOC e TXT são lidos e salvos no caso antes da análise.
                 </p>
               </div>
               <SeletorAudio arquivo={arquivo} aoEscolher={setArquivo} />
@@ -246,7 +246,7 @@ export default function PaginaGravacao() {
                 disabled={!arquivo}
                 onClick={() => {
                   if (!arquivo) return;
-                  const audio = ehMp3(arquivo);
+                  const audio = ehAudio(arquivo);
                   setVeioDeAudio(audio);
                   void registrarRelato((aoEtapa) =>
                     audio
