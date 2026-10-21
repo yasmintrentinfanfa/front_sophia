@@ -27,6 +27,9 @@ export default function PaginaSessaoAtiva() {
   const [confirmarAnalise, setConfirmarAnalise] = useState(false);
   const [confirmarSaida, setConfirmarSaida] = useState(false);
   const [processando, setProcessando] = useState(false);
+  const [revisando, setRevisando] = useState(false);
+  const [revisado, setRevisado] = useState(false);
+  const [pronta, setPronta] = useState(false);
   const [erro, setErro] = useState("");
   const [texto, setTexto] = useState("");
   const envioEmCurso = useRef(false);
@@ -119,13 +122,20 @@ export default function PaginaSessaoAtiva() {
       if (!audio.size) {
         throw new Error("A gravação está vazia.");
       }
-      const transcrito = await processarEntrevista(casoId, audio, "gravacao.webm");
-      setTexto(transcrito);
+      const resultado = await processarEntrevista(casoId, audio, "gravacao.webm", (bruto) => {
+        setConfirmarAnalise(false);
+        setTexto(bruto);
+        setEstado("encerrada");
+        setRevisando(true);
+      });
+      setTexto(resultado.texto);
+      setRevisado(resultado.revisado);
+      setRevisando(false);
       const transcricao: ConteudoCaso["transcricao"] = [
         {
           id: `${casoId}-transcricao`,
           tempo: formatarCronometro(segundos),
-          texto: transcrito,
+          texto: resultado.texto,
           papel: "cliente",
         },
       ];
@@ -137,7 +147,7 @@ export default function PaginaSessaoAtiva() {
       encerrou.current = true;
       setEstado("encerrada");
       setConfirmarAnalise(false);
-      router.replace(`/casos/${casoId}/analise`);
+      setPronta(true);
     } catch (falha) {
       setErro(
         falha instanceof Error
@@ -147,6 +157,7 @@ export default function PaginaSessaoAtiva() {
     } finally {
       envioEmCurso.current = false;
       setProcessando(false);
+      setRevisando(false);
     }
   }
 
@@ -237,16 +248,43 @@ export default function PaginaSessaoAtiva() {
       <div className="flex min-h-0 flex-1 px-7 pt-3 pb-5">
         <section className="bg-campo border-borda flex min-h-0 w-full flex-1 flex-col gap-2 overflow-y-auto rounded-[10px] border p-4">
           <h2 className="text-[13px] font-semibold">Transcrição da conversa</h2>
-          {processando ? (
+          {processando && !texto ? (
             <p className="text-tinta-suave text-[13px]">
               Transcrevendo a entrevista inteira. Isso pode levar alguns minutos na primeira vez.
             </p>
           ) : texto ? (
-            <p className="text-[13px] leading-5 whitespace-pre-wrap">{texto}</p>
+            <div className="flex flex-col gap-3">
+              <p className="text-[13px] leading-5 whitespace-pre-wrap">{texto}</p>
+              {revisando ? (
+                <p className="text-tinta-suave text-[12px]">Revisando a transcrição…</p>
+              ) : null}
+              {pronta && revisado ? (
+                <p className="text-tinta-suave text-[12px]">Transcrição revisada.</p>
+              ) : null}
+              {pronta && !revisado ? (
+                <p className="text-tinta-suave text-[12px]">
+                  Texto transcrito pelo Whisper. A revisão da Groq entra quando a chave estiver configurada.
+                </p>
+              ) : null}
+              {erro ? (
+                <p role="alert" className="text-[12px] text-red-600 dark:text-red-400">
+                  {erro}
+                </p>
+              ) : null}
+              {pronta ? (
+                <button
+                  type="button"
+                  onClick={() => router.push(`/casos/${casoId}/analise`)}
+                  className="pressionavel bg-acao text-acao-tinta flex h-8 w-fit items-center rounded-[8px] px-3 text-[12px] font-semibold"
+                >
+                  Ver análise
+                </button>
+              ) : null}
+            </div>
           ) : (
             <p className="text-tinta-suave text-[13px]">
-              A transcrição aparece depois de finalizar. Grave a entrevista inteira, como no fluxo do
-              backend: o áudio só é enviado ao parar.
+              A transcrição aparece aqui assim que o Whisper terminar. Grave a entrevista inteira: o áudio
+              só é enviado ao finalizar.
             </p>
           )}
         </section>

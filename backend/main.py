@@ -24,7 +24,8 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
 
 PASTA_BACK = Path(__file__).resolve().parent
-load_dotenv(PASTA_BACK / ".env")
+# override: o .env do backend vale mesmo se a variável já chegou vazia no processo.
+load_dotenv(PASTA_BACK / ".env", override=True)
 load_dotenv(PASTA_BACK.parent / ".env.local")
 load_dotenv(PASTA_BACK.parent / ".env")
 
@@ -179,6 +180,7 @@ async def health():
         "status": "ok",
         "mongodb": mongo_status,
         "whisper": "pronto" if _whisper is not None else "ainda não carregado",
+        "groq": "configurada" if os.getenv("GROQ_API_KEY", "").strip() else "ausente",
     }
 
 
