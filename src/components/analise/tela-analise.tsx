@@ -1,21 +1,41 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { Sparkles } from "lucide-react";
 
 import { ColunasAnalise } from "@/components/analise/colunas-analise";
 import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
+import { api } from "@/lib/api";
 import type { ConteudoCaso as DadosCaso } from "@/lib/api/analise";
 
 export function TelaAnalise({
   dados,
   destinoVoltar,
   destinoChat,
+  destinoPecas,
 }: {
   dados: DadosCaso;
   destinoVoltar: string;
   destinoChat: string;
+  destinoPecas: string;
 }) {
-  const analise = dados.analise;
+  const [analise, setAnalise] = useState(dados.analise);
+  const [gerando, setGerando] = useState(false);
+  const [erro, setErro] = useState("");
+  const temRelato = dados.transcricao.some((fala) => fala.texto.trim()) || dados.documentos.length > 0;
+
+  async function gerarAnalise() {
+    setGerando(true);
+    setErro("");
+    try {
+      setAnalise(await api.solicitarAnalise(dados.casoId));
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : "Não foi possível gerar a análise. Tente novamente.");
+    } finally {
+      setGerando(false);
+    }
+  }
 
   return (
     <>
@@ -32,6 +52,12 @@ export function TelaAnalise({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href={destinoPecas}
+            className="pressionavel bg-campo border-borda flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-medium"
+          >
+            Peças processuais
+          </Link>
           <Link
             href={destinoChat}
             className="pressionavel bg-acao text-acao-tinta flex h-8 items-center rounded-[8px] px-3 text-[12px] font-semibold"
@@ -51,6 +77,31 @@ export function TelaAnalise({
         </section>
         {analise ? (
           <ColunasAnalise analise={analise} destinoChat={destinoChat} />
+        ) : temRelato ? (
+          <section className="bg-destaque-suave border-destaque/40 flex w-full max-w-[880px] flex-wrap items-center justify-between gap-3 rounded-[12px] border px-5 py-4">
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <h2 className="text-[14px] font-semibold">O relato está salvo, falta a análise</h2>
+              <p className="text-tinta-suave text-[12px]">
+                {gerando
+                  ? "A IA está lendo o relato e os documentos. Isso pode levar até um minuto."
+                  : "Gere os cards de teses, jurisprudência, perguntas e necessidades a partir do relato."}
+              </p>
+              {erro ? (
+                <p role="alert" className="text-destructive mt-1 text-[12px] font-medium">
+                  {erro}
+                </p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={() => void gerarAnalise()}
+              disabled={gerando}
+              className="pressionavel bg-acao text-acao-tinta flex h-10 shrink-0 items-center gap-2 rounded-[8px] px-4 text-[13px] font-semibold disabled:opacity-60"
+            >
+              <Sparkles className={gerando ? "size-4 animate-pulse" : "size-4"} aria-hidden />
+              {gerando ? "Gerando análise…" : "Gerar análise"}
+            </button>
+          </section>
         ) : (
           <Link
             href={`/casos/${dados.casoId}/gravacao`}
