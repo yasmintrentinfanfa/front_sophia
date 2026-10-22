@@ -154,8 +154,8 @@ sessão. O navegador nunca fala direto com o backend nem envia `user_id`.
    `/assinatura/pagamento`: o cartão é tokenizado **no navegador** pelo gateway
    (`src/lib/pagamento`, hoje mockado) e o front manda só o token.
 3. `POST /api/assinatura` lê o dono do cookie e chama o backend `POST /assinatura`,
-   que recalcula o preço pelo `plan_id`, grava em `assinaturas` e passa o usuário
-   para `account_status: "ativa"`.
+   que recalcula o preço pelo `plan_id`, grava o resumo em `users.subscription` e passa
+   o usuário para `account_status: "ativa"`.
 4. No login (`POST /api/auth/entrar`), quem ainda não pagou vai para `/assinatura`;
    quem pagou vai para `/casos` (`rotaInicial` em `src/lib/conta.ts`).
 5. `/casos` só abre com sessão e conta ativa (`GET /api/auth/eu` →
@@ -182,19 +182,18 @@ entrar na conta dela; agora qualquer alteração invalida a sessão. O segredo v
 `SESSION_SECRET` (obrigatória em produção, ver `.env.example`). Cookies antigos, sem
 assinatura, deixam de valer: quem estava logado precisa entrar de novo.
 
-### Coleção `assinaturas` (MongoDB)
+### Assinatura no documento `users`
+
+O resumo fica em `users.subscription`. Não há coleção separada de assinaturas.
 
 ```js
 {
-  _id: "uuid",
-  user_id: "uuid do users",          // vínculo assinatura ↔ usuário
+  id: "uuid",
   plan_id: "intermediario",
-  status: "ativa",
-  platform_amount: 15000,             // centavos, calculados no backend
-  plan_amount: 25000,
-  monthly_amount: 40000,
-  card: { brand: "visa", last4: "4242" },  // só exibição; número e CVV nunca chegam aqui
-  created_at: "2026-10-20T17:25:00"
+  plan_name: "Intermediário",
+  monthly_amount: 40000,              // centavos, calculados no backend
+  card: { brand: "visa", last4: "4242", expiry: "08/31" },  // só exibição; número e CVV nunca chegam aqui
+  since: "2026-10-20T17:25:00"
 }
 ```
 
