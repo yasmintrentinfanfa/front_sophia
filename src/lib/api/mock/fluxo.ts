@@ -58,10 +58,7 @@ export function criarMockFluxo({ encontrarCaso, salvarCaso, escopo }: Dependenci
     async obterCaso(casoId: string): Promise<ConteudoCaso> {
       return structuredClone(obterConteudo(casoId));
     },
-    async solicitarAnalise(
-      casoId: string,
-      instrucao?: string,
-    ): Promise<AnalisePreliminar> {
+    async solicitarAnalise(casoId: string): Promise<AnalisePreliminar> {
       const conteudo = obterConteudo(casoId);
       const versao = (conteudo.analise?.versao ?? 0) + 1;
       const analise: AnalisePreliminar = {
@@ -76,7 +73,6 @@ export function criarMockFluxo({ encontrarCaso, salvarCaso, escopo }: Dependenci
             : "A analise deste caso estara disponivel apos o processamento da transcricao e dos documentos."),
         insights: structuredClone(conteudo.analise?.insights ?? []),
         demonstracao: true,
-        instrucao,
       };
       conteudo.analise = analise;
       conteudo.versoesAnalise.unshift(structuredClone(analise));

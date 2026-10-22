@@ -97,8 +97,8 @@ Decisões tomadas:
   exposto ao usuário, para não criar falsa sensação de certeza jurídica num público
   que não tem repertório para conferir.
 - **Reanálises são incrementais e versionadas**, não substituem a análise anterior.
-- `solicitarAnalise(casoId, instrucao?)` recebe a instrução como opcional de
-  propósito: o usuário-alvo não deve precisar escrever nada para obter o resultado.
+- `solicitarAnalise(casoId)` não recebe instruções do usuário: o usuário-alvo não
+  precisa escrever nada para obter o resultado. Dúvidas sobre o caso vão para o chat.
 
 ### Documentos anexados
 
@@ -118,7 +118,7 @@ type ResultadoSanitizacao =
 ```ts
 obterCaso(casoId): Promise<ConteudoCaso>;              // transcrição, documentos, análise e histórico
 finalizarSessao(casoId, transcricao): Promise<Caso>;   // salva a transcrição, solicita análise e atualiza o status
-solicitarAnalise(casoId, instrucao?): Promise<AnalisePreliminar>;
+solicitarAnalise(casoId): Promise<AnalisePreliminar>;
 listarMensagens(casoId): Promise<MensagemChat[]>;
 enviarMensagem(casoId, conteudo): Promise<MensagemChat[]>; // [mensagem do advogado, resposta]
 ```

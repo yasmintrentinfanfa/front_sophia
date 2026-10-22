@@ -135,9 +135,9 @@ export const mockApi: SophiaApi = {
     return fluxo.obterCaso(casoId);
   },
 
-  async solicitarAnalise(casoId, instrucao) {
+  async solicitarAnalise(casoId) {
     await garantirDono();
-    return fluxo.solicitarAnalise(casoId, instrucao);
+    return fluxo.solicitarAnalise(casoId);
   },
 
   async listarMensagens(casoId) {
