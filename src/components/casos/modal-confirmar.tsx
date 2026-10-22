@@ -7,6 +7,8 @@ interface ModalConfirmarProps {
   titulo: string;
   descricao: string;
   confirmar: string;
+  /** Rótulo do botão que fecha sem confirmar. */
+  dispensar?: string;
   aoFechar: () => void;
   aoConfirmar: () => void;
   processando?: boolean;
@@ -18,6 +20,7 @@ export function ModalConfirmar({
   titulo,
   descricao,
   confirmar,
+  dispensar = "Cancelar",
   aoFechar,
   aoConfirmar,
   processando = false,
@@ -40,7 +43,7 @@ export function ModalConfirmar({
           onClick={aoFechar}
           className="pressionavel border-borda flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-semibold"
         >
-          Cancelar
+          {dispensar}
         </button>
         <button
           type="button"

@@ -8,6 +8,7 @@ const usuario = (statusConta: Usuario["statusConta"]): Usuario => ({
   nome: "Ana",
   email: "ana@teste.com",
   statusConta,
+  contaAtiva: true,
   criadoEm: "2026-10-01T00:00:00.000Z",
 });
 
