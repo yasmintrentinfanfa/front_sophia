@@ -48,6 +48,8 @@ export interface Usuario {
   nome: string;
   email: string;
   statusConta: StatusConta;
+  /** false quando a pessoa pediu o cancelamento. Conta antiga sem o campo segue ativa. */
+  contaAtiva: boolean;
   /** ISO 8601. */
   criadoEm?: string;
   /** Plano e cartão da assinatura ativa, para exibir na conta (sem valores). */
@@ -154,4 +156,8 @@ export interface SophiaApi {
    * Devolve o usuário já com o plano novo.
    */
   trocarPlano(planoId: IdPlano): Promise<Usuario>;
+  /**
+   * Pede o cancelamento da conta da sessão. O acesso segue até o fim do mês pago.
+   */
+  cancelarConta(): Promise<Usuario>;
 }

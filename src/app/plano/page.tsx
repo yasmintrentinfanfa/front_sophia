@@ -22,6 +22,10 @@ export default function PaginaTrocarPlano() {
   const [processando, setProcessando] = useState(false);
   const [erro, setErro] = useState<string>();
   const [trocadoPara, setTrocadoPara] = useState<string | null>(null);
+  const [cancelando, setCancelando] = useState(false);
+  const [processandoCancelamento, setProcessandoCancelamento] = useState(false);
+  const [erroCancelamento, setErroCancelamento] = useState<string>();
+  const [cancelada, setCancelada] = useState(false);
 
   // Só quem tem assinatura ativa troca de plano; os demais seguem a mesma regra de /casos.
   useEffect(() => {
@@ -30,7 +34,10 @@ export default function PaginaTrocarPlano() {
       if (!ativo) return;
       const destino = redirecionamentoDosCasos(atual);
       if (destino) router.replace(destino);
-      else setUsuario(atual);
+      else {
+        setUsuario(atual);
+        setCancelada(atual?.contaAtiva === false);
+      }
     });
     return () => {
       ativo = false;
@@ -97,6 +104,20 @@ export default function PaginaTrocarPlano() {
     }
   }
 
+  async function confirmarCancelamento() {
+    setProcessandoCancelamento(true);
+    setErroCancelamento(undefined);
+    try {
+      const atualizado = await api.cancelarConta();
+      setCancelada(atualizado.contaAtiva === false);
+      setCancelando(false);
+    } catch (falha) {
+      setErroCancelamento(falha instanceof Error ? falha.message : "Não foi possível cancelar a conta.");
+    } finally {
+      setProcessandoCancelamento(false);
+    }
+  }
+
   return (
     <div className="flex w-full max-w-[880px] flex-col gap-6 pb-24">
       <div className="flex flex-col gap-1 text-center">
@@ -130,6 +151,37 @@ export default function PaginaTrocarPlano() {
           Trocar plano
         </button>
       </BarraResumo>
+
+      {cancelada ? (
+        <p className="text-tinta-suave text-center text-[13px]">
+          Cancelamento pedido. O acesso segue até o fim deste mês e deixa de funcionar depois disso.
+        </p>
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            setErroCancelamento(undefined);
+            setCancelando(true);
+          }}
+          className="text-tinta-suave hover:text-tinta w-fit self-center text-[13px] underline-offset-2 hover:underline"
+        >
+          Cancelar conta
+        </button>
+      )}
+
+      <ModalConfirmar
+        aberto={cancelando}
+        titulo="Cancelar a conta"
+        descricao="Depois do cancelamento, o acesso continua só até o fim do mês já pago. Quando esse mês terminar, não será mais possível entrar no sistema."
+        confirmar={processandoCancelamento ? "Cancelando…" : "Cancelar conta"}
+        dispensar="Manter conta"
+        processando={processandoCancelamento}
+        erro={erroCancelamento}
+        aoFechar={() => {
+          if (!processandoCancelamento) setCancelando(false);
+        }}
+        aoConfirmar={confirmarCancelamento}
+      />
 
       <ModalConfirmar
         aberto={confirmando}

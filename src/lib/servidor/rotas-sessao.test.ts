@@ -25,6 +25,7 @@ const { GET: obterEu } = await import("@/app/api/auth/eu/route");
 const { POST: assinar } = await import("@/app/api/assinatura/route");
 const { GET: obterCaso } = await import("@/app/api/transcricao/caso/route");
 const { POST: trocarPlano } = await import("@/app/api/assinatura/plano/route");
+const { POST: cancelarConta } = await import("@/app/api/conta/cancelar/route");
 const { POST: transcrever } = await import("@/app/api/transcricao/transcrever/route");
 const { POST: revisar } = await import("@/app/api/transcricao/revisar/route");
 const { GET: listarCasos, POST: criarCaso } = await import("@/app/api/casos/route");
@@ -107,6 +108,26 @@ describe("troca de plano", () => {
     expect((await trocarPlano(pedido())).status).toBe(401);
     cookieAtual.valor = ANA;
     expect((await trocarPlano(pedido())).status).toBe(401);
+    expect(backend).not.toHaveBeenCalled();
+  });
+});
+
+describe("cancelamento da conta", () => {
+  it("marca o cancelamento do usuário da sessão, ignorando user_id no corpo", async () => {
+    cookieAtual.valor = assinarSessao(ANA);
+    const pedido = new Request("http://x/api/conta/cancelar", {
+      method: "POST",
+      body: JSON.stringify({ user_id: BRUNO }),
+    });
+
+    expect((await cancelarConta(pedido)).status).toBe(200);
+    expect(urlChamada()).toMatch(/\/conta\/cancelar$/);
+    expect(corpoChamado()).toEqual({ user_id: ANA });
+  });
+
+  it("sem sessão → 401, sem chamar o backend", async () => {
+    const pedido = new Request("http://x/api/conta/cancelar", { method: "POST" });
+    expect((await cancelarConta(pedido)).status).toBe(401);
     expect(backend).not.toHaveBeenCalled();
   });
 });

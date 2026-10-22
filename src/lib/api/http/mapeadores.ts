@@ -37,6 +37,8 @@ export interface UsuarioApi {
   email: string;
   /** Ausente em contas antigas: tratado como pagamento pendente. */
   account_status?: StatusConta;
+  /** Ausente em contas antigas: tratado como ativa. false = pediu cancelamento. */
+  account_active?: boolean;
   created_at?: string;
   subscription?: {
     plan_id: IdPlano;
@@ -51,6 +53,7 @@ export function usuarioDaApi(dto: UsuarioApi): Usuario {
     nome: dto.name,
     email: dto.email,
     statusConta: dto.account_status ?? "pagamento_pendente",
+    contaAtiva: dto.account_active !== false,
     criadoEm: dto.created_at,
     assinatura: dto.subscription
       ? {

@@ -262,6 +262,11 @@ class TrocaPlanoRequest(BaseModel):
     plan_id: str
 
 
+class CancelarContaRequest(BaseModel):
+    # user_id vem do cookie assinado, lido pela rota /api/conta/cancelar do Next.
+    user_id: str
+
+
 class AssinaturaRequest(BaseModel):
     # user_id vem do cookie assinado, lido pela rota /api/assinatura do Next.
     user_id: str
@@ -323,6 +328,8 @@ def usuario_publico(documento: dict) -> dict:
         # Contas sem o campo ainda não pagaram a assinatura.
         "account_status": documento.get("account_status") or "pagamento_pendente",
         "created_at": documento.get("created_at") or "",
+        # Ausente nas contas antigas: segue ativa. false = pediu cancelamento.
+        "account_active": documento.get("account_active") is not False,
         "subscription": _resumo_assinatura_publico(documento.get("subscription")),
     }
 
@@ -423,6 +430,7 @@ async def cadastro(payload: CadastroRequest):
         "name": nome,
         "email": email,
         "password_hash": password_hash,
+        "account_active": True,
         "created_at": agora_iso(),
     }
     try:
@@ -620,6 +628,40 @@ async def trocar_plano(payload: TrocaPlanoRequest):
         return JSONResponse({"erro": str(exc)}, status_code=500)
 
     return {"usuario": usuario_publico({**usuario, "subscription": novo_resumo})}
+
+
+@app.post("/conta/cancelar")
+async def cancelar_conta(payload: CancelarContaRequest):
+    """Marca account_active = false. O acesso segue até o fim do mês já pago."""
+    user_id = payload.user_id.strip()
+    if not user_id:
+        return JSONResponse({"erro": "Usuário não encontrado."}, status_code=400)
+
+    usuario = await _buscar_usuario(user_id)
+    if not usuario:
+        return JSONResponse({"erro": "Usuário não encontrado."}, status_code=404)
+    if usuario.get("account_active") is False:
+        return {"usuario": usuario_publico(usuario)}
+
+    agora = agora_iso()
+    try:
+        if users_collection is not None:
+            await users_collection.update_one(
+                {"_id": user_id},
+                {"$set": {"account_active": False, "updated_at": agora}},
+            )
+        else:
+            usuarios = _ler_users_arquivo()
+            for item in usuarios:
+                if item.get("_id") == user_id:
+                    item["account_active"] = False
+                    item["updated_at"] = agora
+            _gravar_users_arquivo(usuarios)
+    except Exception as exc:  # noqa: BLE001
+        return JSONResponse({"erro": str(exc)}, status_code=500)
+
+    usuario["account_active"] = False
+    return {"usuario": usuario_publico(usuario)}
 
 
 @app.get("/caso")
