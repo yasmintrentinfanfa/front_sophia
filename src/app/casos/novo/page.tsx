@@ -19,11 +19,13 @@ export default function PaginaNovoCaso() {
   const [cliente, setCliente] = useState("");
   const [area, setArea] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState("");
 
   async function aoEnviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
     if (!titulo.trim() || !cliente.trim() || enviando) return;
     setEnviando(true);
+    setErro("");
     try {
       const caso = await criarCaso({
         titulo: titulo.trim(),
@@ -31,6 +33,8 @@ export default function PaginaNovoCaso() {
         area: area || undefined,
       });
       router.push(`/casos/${caso.id}/gravacao`);
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : "Não foi possível criar o caso.");
     } finally {
       setEnviando(false);
     }
@@ -81,6 +85,12 @@ export default function PaginaNovoCaso() {
           </label>
           <SeletorAreaJuridica id={idArea} valor={area} aoMudar={setArea} />
         </div>
+
+        {erro ? (
+          <p role="alert" className="text-destructive text-[12px]">
+            {erro}
+          </p>
+        ) : null}
 
         <div className="flex gap-3">
           <button

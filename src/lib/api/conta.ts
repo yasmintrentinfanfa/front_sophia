@@ -1,7 +1,7 @@
 /**
  * Conta e assinatura pelas rotas do próprio Next (`src/app/api`), que falam com o
  * backend Python e cuidam do cookie de sessão assinado. Vale para o mock e para o
- * adapter HTTP: o login já é real, só os casos ainda são simulados.
+ * adapter HTTP: o login e a lista de casos já são reais.
  *
  * Nenhuma chamada envia id de usuário; a rota descobre quem é pelo cookie.
  */

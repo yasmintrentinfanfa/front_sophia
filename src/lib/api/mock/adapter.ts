@@ -4,14 +4,14 @@
  * Para ligar o front na API de verdade basta escrever outro objeto que satisfaça
  * `SophiaApi` e trocá-lo em `src/lib/api/index.ts` — nenhum componente muda.
  *
- * Conta e assinatura já são reais (`contaApi`). Os casos são simulados, mas
- * seguem a regra de isolamento do backend: cada caso pertence a um usuário e toda
- * operação só enxerga os casos do dono da sessão. Caso de outro usuário se
- * comporta exatamente como caso inexistente.
+ * Conta, assinatura e a lista de casos já são reais (`contaApi` e `/api/casos`).
+ * Análise e chat seguem simulados. Cada caso pertence a um usuário: operação
+ * sobre caso alheio se comporta como caso inexistente.
  */
 
-import { contaApi } from "@/lib/api/conta";
-import type { Caso, SophiaApi } from "@/lib/api/types";
+import { contaApi, requisitarJson } from "@/lib/api/conta";
+import { casoDaApi, novoCasoParaApi, type CasoApi } from "@/lib/api/http/mapeadores";
+import type { Caso, PastaCaso, SophiaApi } from "@/lib/api/types";
 
 import { criarMockFluxo } from "./fluxo";
 
@@ -32,9 +32,16 @@ function slug(texto: string) {
 }
 
 /*
- * Casos guardados no sessionStorage, indexados pelo id do dono — como o filtro
- * `{ user_id }` no MongoDB —, para sobreviverem a um recarregamento da página.
+ * Espelho local da lista, para a análise e o chat (ainda simulados) acharem o caso
+ * nesta aba. Fora dos testes a lista de verdade está no Mongo: este espelho é
+ * reescrito toda vez que o usuário entra.
+ *
+ * Nos testes (`NODE_ENV=test`) o sessionStorage continua sendo a fonte, para
+ * cobrir o isolamento entre usuários sem subir a API.
  */
+function casosNoBanco() {
+  return process.env.NODE_ENV !== "test";
+}
 const CHAVE_CASOS = "sophia-mock-casos";
 
 type CasosPorUsuario = Record<string, Caso[]>;
@@ -118,7 +125,9 @@ export const mockApi: SophiaApi = {
 
   async finalizarSessao(casoId, transcricao) {
     await garantirDono();
-    return fluxo.finalizarSessao(casoId, transcricao);
+    const caso = await fluxo.finalizarSessao(casoId, transcricao);
+    if (casosNoBanco()) await atualizarCasoNoBanco(casoId, { status: "em_analise" });
+    return caso;
   },
 
   async obterCaso(casoId) {
@@ -142,38 +151,85 @@ export const mockApi: SophiaApi = {
   },
 
   async listarCasos() {
-    await esperar(220);
-    return structuredClone(casosDe(await garantirDono()));
+    const usuarioId = await garantirDono();
+    if (!casosNoBanco()) {
+      await esperar(220);
+      return structuredClone(casosDe(usuarioId));
+    }
+    const lista = (await requisitarJson<CasoApi[]>("/api/casos")).map(casoDaApi);
+    salvarCasosDe(usuarioId, lista);
+    return lista;
   },
 
   async criarCaso(dados) {
-    await esperar(180);
     const usuarioId = await garantirDono();
-    const criado: Caso = {
-      id: `${slug(dados.titulo)}-${Date.now().toString(36)}`,
-      titulo: dados.titulo.trim(),
-      cliente: dados.cliente.trim(),
-      area: dados.area?.trim() || undefined,
-      status: "gravacao_pendente",
-      pasta: "ativo",
-      atualizadoEm: new Date().toISOString(),
-    };
-    salvarCasosDe(usuarioId, [criado, ...casosDe(usuarioId)]);
-    return structuredClone(criado);
+    if (!casosNoBanco()) {
+      await esperar(180);
+      const criado: Caso = {
+        id: `${slug(dados.titulo)}-${Date.now().toString(36)}`,
+        titulo: dados.titulo.trim(),
+        cliente: dados.cliente.trim(),
+        area: dados.area?.trim() || undefined,
+        status: "gravacao_pendente",
+        pasta: "ativo",
+        atualizadoEm: new Date().toISOString(),
+      };
+      salvarCasosDe(usuarioId, [criado, ...casosDe(usuarioId)]);
+      return structuredClone(criado);
+    }
+    const criado = casoDaApi(
+      await requisitarJson<CasoApi>("/api/casos", {
+        method: "POST",
+        body: JSON.stringify({
+          ...novoCasoParaApi(dados),
+          caso_id: `${slug(dados.titulo)}-${Date.now().toString(36)}`,
+        }),
+      }),
+    );
+    salvarCasosDe(usuarioId, [criado, ...casosDe(usuarioId).filter((caso) => caso.id !== criado.id)]);
+    return criado;
   },
 
   async moverCaso(id, pasta) {
-    await esperar(120);
     const usuarioId = await garantirDono();
-    const atualizado = { ...casoDoDono(usuarioId, id), pasta, atualizadoEm: new Date().toISOString() };
-    salvarCasosDe(usuarioId, casosDe(usuarioId).map((caso) => (caso.id === id ? atualizado : caso)));
-    return structuredClone(atualizado);
+    if (!casosNoBanco()) {
+      await esperar(120);
+      const atualizado = { ...casoDoDono(usuarioId, id), pasta, atualizadoEm: new Date().toISOString() };
+      salvarCasosDe(usuarioId, casosDe(usuarioId).map((caso) => (caso.id === id ? atualizado : caso)));
+      return structuredClone(atualizado);
+    }
+    const atualizado = await atualizarCasoNoBanco(id, { folder: pasta });
+    guardarCasoLocal(usuarioId, atualizado);
+    return atualizado;
   },
 
   async excluirCaso(id) {
-    await esperar(120);
     const usuarioId = await garantirDono();
-    casoDoDono(usuarioId, id);
+    if (!casosNoBanco()) {
+      await esperar(120);
+      casoDoDono(usuarioId, id);
+      salvarCasosDe(usuarioId, casosDe(usuarioId).filter((caso) => caso.id !== id));
+      return;
+    }
+    await requisitarJson<void>(`/api/casos/${encodeURIComponent(id)}`, { method: "DELETE" });
     salvarCasosDe(usuarioId, casosDe(usuarioId).filter((caso) => caso.id !== id));
   },
 };
+
+function guardarCasoLocal(usuarioId: string, caso: Caso) {
+  const lista = casosDe(usuarioId);
+  const existe = lista.some((item) => item.id === caso.id);
+  salvarCasosDe(
+    usuarioId,
+    existe ? lista.map((item) => (item.id === caso.id ? caso : item)) : [caso, ...lista],
+  );
+}
+
+async function atualizarCasoNoBanco(id: string, campos: { folder?: PastaCaso; status?: Caso["status"] }) {
+  return casoDaApi(
+    await requisitarJson<CasoApi>(`/api/casos/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(campos),
+    }),
+  );
+}

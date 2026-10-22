@@ -20,6 +20,7 @@ export default function LayoutCasos({ children }: { children: ReactNode }) {
   const [liberado, setLiberado] = useState(false);
   const [casos, setCasos] = useState<Caso[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [erroLista, setErroLista] = useState("");
 
   useEffect(() => {
     let ativo = true;
@@ -36,6 +37,10 @@ export default function LayoutCasos({ children }: { children: ReactNode }) {
         return api.listarCasos().then((lista) => {
           if (ativo) setCasos(lista);
         });
+      })
+      .catch((falha: unknown) => {
+        if (!ativo) return;
+        setErroLista(falha instanceof Error ? falha.message : "Não foi possível carregar os casos.");
       })
       .finally(() => {
         if (ativo) setCarregando(false);
@@ -72,14 +77,26 @@ export default function LayoutCasos({ children }: { children: ReactNode }) {
   );
 
   if (!liberado) {
-    return <p className="text-tinta-suave px-7 pt-6 text-[13px]">Verificando sua sessão…</p>;
+    return (
+      <p className="text-tinta-suave px-7 pt-6 text-[13px]">
+        {erroLista || "Verificando sua sessão…"}
+      </p>
+    );
   }
 
   return (
     <ProvedorListaCasos value={contexto}>
       <div className="bg-fundo flex h-dvh overflow-hidden">
         <BarraLateralCasos casos={casos} carregando={carregando} />
-        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          {erroLista ? (
+            <p role="alert" className="text-destructive px-7 pt-6 text-[13px]">
+              {erroLista}
+            </p>
+          ) : (
+            children
+          )}
+        </main>
       </div>
     </ProvedorListaCasos>
   );

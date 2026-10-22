@@ -17,7 +17,7 @@ import bcrypt
 import httpx
 from bson import ObjectId
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, File, Response, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -46,6 +46,9 @@ case_collection = mongo_db["case"] if mongo_db is not None else None
 assinaturas_collection = mongo_db["assinaturas"] if mongo_db is not None else None
 USERS_FILE = PASTA_BACK / "data" / "users.json"
 ASSINATURAS_FILE = PASTA_BACK / "data" / "assinaturas.json"
+CASES_FILE = PASTA_BACK / "data" / "cases.json"
+STATUS_CASO = {"gravacao_pendente", "em_analise", "concluido"}
+PASTAS_CASO = {"ativo", "arquivo"}
 FUSO = timezone(timedelta(hours=-3))
 
 
@@ -332,6 +335,50 @@ def _gravar_users_arquivo(lista: list[dict]) -> None:
     USERS_FILE.write_text(json.dumps(lista, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
+def _ler_cases_arquivo() -> list[dict]:
+    if not CASES_FILE.exists():
+        return []
+    return json.loads(CASES_FILE.read_text(encoding="utf-8"))
+
+
+def _gravar_cases_arquivo(lista: list[dict]) -> None:
+    CASES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    CASES_FILE.write_text(json.dumps(lista, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def _id_do_caso(documento: dict) -> str:
+    caso_id = str(documento.get("caso_id") or "").strip()
+    if caso_id:
+        return caso_id
+    return str(documento.get("_id") or "")
+
+
+def _mesmo_caso(documento: dict, caso_id: str) -> bool:
+    return _id_do_caso(documento) == caso_id or str(documento.get("_id") or "") == caso_id
+
+
+def _caso_publico(documento: dict) -> dict:
+    transcricao = documento.get("transcript") if isinstance(documento.get("transcript"), dict) else {}
+    texto = str((transcricao or {}).get("text") or "").strip()
+    status = documento.get("status")
+    if status not in STATUS_CASO:
+        status = "em_analise" if texto else "gravacao_pendente"
+    pasta = documento.get("folder") if documento.get("folder") in PASTAS_CASO else "ativo"
+    return {
+        "_id": _id_do_caso(documento),
+        "title": str(documento.get("title") or "").strip() or "Caso sem título",
+        "client_name": documento.get("client_name") or "",
+        "legal_area": documento.get("legal_area") or None,
+        "status": status,
+        "folder": pasta,
+        "updated_at": documento.get("updated_at") or documento.get("created_at") or "",
+    }
+
+
+def _caso_id_valido(caso_id: str) -> bool:
+    return bool(caso_id) and len(caso_id) <= 120 and all(c.isalnum() or c in "-_" for c in caso_id)
+
+
 @app.post("/cadastro")
 async def cadastro(payload: CadastroRequest):
     """Cria um documento na collection users (UUID, email, bcrypt, created_at)."""
@@ -582,6 +629,161 @@ async def obter_caso(user_id: str = "", caso_id: str = ""):
     return documento
 
 
+async def _documentos_do_usuario(user_id: str) -> list[dict]:
+    if case_collection is None:
+        return [item for item in _ler_cases_arquivo() if item.get("user_id") == user_id]
+    return await case_collection.find({"user_id": user_id}).to_list(length=1000)
+
+
+async def _buscar_caso_do_usuario(user_id: str, caso_id: str) -> dict | None:
+    if case_collection is None:
+        return next(
+            (item for item in _ler_cases_arquivo() if item.get("user_id") == user_id and _mesmo_caso(item, caso_id)),
+            None,
+        )
+    consulta_id = ObjectId(caso_id) if ObjectId.is_valid(caso_id) else caso_id
+    return await case_collection.find_one(
+        {"user_id": user_id, "$or": [{"_id": consulta_id}, {"caso_id": caso_id}]}
+    )
+
+
+def _filtro_caso(user_id: str, caso_id: str) -> dict:
+    consulta_id = ObjectId(caso_id) if ObjectId.is_valid(caso_id) else caso_id
+    return {"user_id": user_id, "$or": [{"caso_id": caso_id}, {"_id": consulta_id}]}
+
+
+@app.get("/casos")
+async def listar_casos(user_id: str = ""):
+    user_id = user_id.strip()
+    if not user_id:
+        return JSONResponse({"erro": "Informe o usuário."}, status_code=400)
+    documentos = await _documentos_do_usuario(user_id)
+    casos = [_caso_publico(item) for item in documentos if item.get("in_system") is not False]
+    casos.sort(key=lambda item: item.get("updated_at") or "", reverse=True)
+    return {"casos": casos}
+
+
+@app.post("/casos")
+async def criar_caso(payload: dict):
+    user_id = (payload.get("user_id") or "").strip()
+    caso_id = (payload.get("caso_id") or "").strip()
+    title = (payload.get("title") or "").strip()
+    client_name = (payload.get("client_name") or "").strip()
+    legal_area = (payload.get("legal_area") or "").strip() or None
+    if not user_id:
+        return JSONResponse({"erro": "Informe o usuário."}, status_code=400)
+    if not _caso_id_valido(caso_id):
+        return JSONResponse({"erro": "Identificador do caso inválido."}, status_code=400)
+    if not title or not client_name:
+        return JSONResponse({"erro": "Informe o título e o cliente."}, status_code=400)
+    if len(title) > 200 or len(client_name) > 200 or (legal_area and len(legal_area) > 80):
+        return JSONResponse({"erro": "Título, cliente ou área longo demais."}, status_code=400)
+
+    agora = agora_iso()
+    campos = {
+        "user_id": user_id,
+        "caso_id": caso_id,
+        "title": title,
+        "client_name": client_name,
+        "legal_area": legal_area,
+        "in_system": True,
+        "updated_at": agora,
+    }
+    if case_collection is None:
+        lista = _ler_cases_arquivo()
+        existente = next((item for item in lista if item.get("user_id") == user_id and _mesmo_caso(item, caso_id)), None)
+        if existente:
+            existente.update(campos)
+        else:
+            lista.append({
+                **campos,
+                "_id": caso_id,
+                "status": "gravacao_pendente",
+                "folder": "ativo",
+                "documents": [],
+                "created_at": agora,
+            })
+        _gravar_cases_arquivo(lista)
+        salvo = next(item for item in lista if item.get("user_id") == user_id and _mesmo_caso(item, caso_id))
+        return {"caso": _caso_publico(salvo)}
+
+    await case_collection.update_one(
+        {"user_id": user_id, "caso_id": caso_id},
+        {
+            "$set": campos,
+            "$setOnInsert": {
+                "status": "gravacao_pendente",
+                "folder": "ativo",
+                "documents": [],
+                "created_at": agora,
+            },
+        },
+        upsert=True,
+    )
+    salvo = await _buscar_caso_do_usuario(user_id, caso_id)
+    return {"caso": _caso_publico(salvo or campos)}
+
+
+@app.patch("/casos/{caso_id}")
+async def atualizar_caso(caso_id: str, payload: dict):
+    user_id = (payload.get("user_id") or "").strip()
+    if not user_id:
+        return JSONResponse({"erro": "Informe o usuário."}, status_code=400)
+    campos: dict = {"updated_at": agora_iso()}
+    if payload.get("folder") is not None:
+        pasta = payload.get("folder")
+        if pasta not in PASTAS_CASO:
+            return JSONResponse({"erro": "Pasta inválida."}, status_code=400)
+        campos["folder"] = pasta
+    if payload.get("status") is not None:
+        status = payload.get("status")
+        if status not in STATUS_CASO:
+            return JSONResponse({"erro": "Status inválido."}, status_code=400)
+        campos["status"] = status
+    if len(campos) == 1:
+        return JSONResponse({"erro": "Nada para atualizar."}, status_code=400)
+
+    if case_collection is None:
+        lista = _ler_cases_arquivo()
+        salvo = next((item for item in lista if item.get("user_id") == user_id and _mesmo_caso(item, caso_id)), None)
+        if not salvo:
+            return JSONResponse({"erro": "Caso não encontrado."}, status_code=404)
+        salvo.update(campos)
+        _gravar_cases_arquivo(lista)
+        return {"caso": _caso_publico(salvo)}
+
+    resultado = await case_collection.update_one(_filtro_caso(user_id, caso_id), {"$set": campos})
+    if resultado.matched_count == 0:
+        return JSONResponse({"erro": "Caso não encontrado."}, status_code=404)
+    salvo = await _buscar_caso_do_usuario(user_id, caso_id)
+    return {"caso": _caso_publico(salvo or {"caso_id": caso_id, **campos})}
+
+
+@app.delete("/casos/{caso_id}")
+async def excluir_caso(caso_id: str, user_id: str = ""):
+    """Tira o caso da tela do cliente sem apagar o documento.
+
+    ``in_system`` fica false. true significa que o caso ainda aparece para o usuário.
+    """
+    user_id = user_id.strip()
+    if not user_id:
+        return JSONResponse({"erro": "Informe o usuário."}, status_code=400)
+    campos = {"in_system": False, "updated_at": agora_iso()}
+    if case_collection is None:
+        lista = _ler_cases_arquivo()
+        salvo = next((item for item in lista if item.get("user_id") == user_id and _mesmo_caso(item, caso_id)), None)
+        if not salvo:
+            return JSONResponse({"erro": "Caso não encontrado."}, status_code=404)
+        salvo.update(campos)
+        _gravar_cases_arquivo(lista)
+        return Response(status_code=204)
+
+    resultado = await case_collection.update_one(_filtro_caso(user_id, caso_id), {"$set": campos})
+    if resultado.matched_count == 0:
+        return JSONResponse({"erro": "Caso não encontrado."}, status_code=404)
+    return Response(status_code=204)
+
+
 @app.post("/salvar-transcricao")
 async def salvar_transcricao(payload: dict):
     """Cria um caso na collection case, com a transcrição embutida.
@@ -634,6 +836,18 @@ async def salvar_transcricao(payload: dict):
                         "$setOnInsert": {"created_at": momento, "documents": []},
                     },
                     upsert=True,
+                )
+                await case_collection.update_one(
+                    {
+                        "user_id": user_id,
+                        "caso_id": caso_id,
+                        "$or": [
+                            {"status": {"$exists": False}},
+                            {"status": None},
+                            {"status": "gravacao_pendente"},
+                        ],
+                    },
+                    {"$set": {"status": "em_analise"}},
                 )
                 salvo = await case_collection.find_one({"user_id": user_id, "caso_id": caso_id})
                 resultado["case_id"] = str(salvo["_id"]) if salvo else caso_id
