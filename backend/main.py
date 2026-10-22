@@ -784,6 +784,26 @@ async def excluir_caso(caso_id: str, user_id: str = ""):
     return Response(status_code=204)
 
 
+def _duracao_audio(valor) -> int | None:
+    """Segundos do áudio enviado ou gravado. Ausente ou inválido não impede o salvamento."""
+    if valor is None or isinstance(valor, bool):
+        return None
+    try:
+        segundos = int(round(float(valor)))
+    except (TypeError, ValueError):
+        return None
+    if segundos <= 0 or segundos > 360_000:
+        return None
+    return segundos
+
+
+def _transcript(texto: str, momento: str, duracao_segundos: int | None) -> dict:
+    transcricao = {"text": texto, "created_at": momento}
+    if duracao_segundos is not None:
+        transcricao["duration_seconds"] = duracao_segundos
+    return transcricao
+
+
 @app.post("/salvar-transcricao")
 async def salvar_transcricao(payload: dict):
     """Cria um caso na collection case, com a transcrição embutida.
@@ -794,6 +814,7 @@ async def salvar_transcricao(payload: dict):
     texto = (payload.get("texto") or "").strip()
     user_id = (payload.get("user_id") or "").strip()
     caso_id = (payload.get("caso_id") or "").strip()
+    duracao_segundos = _duracao_audio(payload.get("duracao_segundos"))
     if not texto:
         return {"erro": "Texto vazio, nada para salvar."}
     if not user_id:
@@ -830,7 +851,7 @@ async def salvar_transcricao(payload: dict):
                         "$set": {
                             "user_id": user_id,
                             "caso_id": caso_id,
-                            "transcript": {"text": texto, "created_at": momento},
+                            "transcript": _transcript(texto, momento, duracao_segundos),
                             "updated_at": momento,
                         },
                         "$setOnInsert": {"created_at": momento, "documents": []},
@@ -854,10 +875,7 @@ async def salvar_transcricao(payload: dict):
             else:
                 caso = {
                     "user_id": user_id,
-                    "transcript": {
-                        "text": texto,
-                        "created_at": momento,
-                    },
+                    "transcript": _transcript(texto, momento, duracao_segundos),
                     "documents": [],
                     "created_at": momento,
                     "updated_at": momento,

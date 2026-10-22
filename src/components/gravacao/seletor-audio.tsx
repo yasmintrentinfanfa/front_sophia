@@ -1,12 +1,23 @@
 "use client";
 
 import { useState, type ChangeEvent, type DragEvent } from "react";
-import { FileAudio, X } from "lucide-react";
+import { FileAudio, FileText, X } from "lucide-react";
 
+import { EXTENSOES_AUDIO, EXTENSOES_DOCUMENTO, ehAudio } from "@/lib/arquivos/ler-documento";
 import { cn } from "@/lib/utils";
 
-const EXTENSOES = [".mp3", ".m4a", ".wav", ".webm", ".mp4"];
-const ACEITOS = `audio/mpeg,audio/mp4,audio/x-m4a,audio/wav,audio/webm,video/mp4,${EXTENSOES.join(",")}`;
+const EXTENSOES = [...EXTENSOES_AUDIO, ...EXTENSOES_DOCUMENTO];
+const ACEITOS = [
+  "audio/*",
+  "video/mp4",
+  "video/webm",
+  "video/3gpp",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain",
+  ...EXTENSOES,
+].join(",");
 
 function formatarTamanho(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -31,7 +42,7 @@ export function SeletorAudio({
     if (!escolhido) return;
     const nome = escolhido.name.toLowerCase();
     if (!EXTENSOES.some((extensao) => nome.endsWith(extensao))) {
-      setErro("Formato não suportado. Envie MP3, M4A, WAV, WebM ou MP4.");
+      setErro("Formato não suportado. Envie um áudio, PDF, Word, DOC ou TXT.");
       return;
     }
     setErro("");
@@ -42,7 +53,11 @@ export function SeletorAudio({
     return (
       <div className="border-borda bg-superficie flex items-center gap-3 rounded-[10px] border px-4 py-3">
         <span className="bg-destaque-suave text-destaque flex size-9 shrink-0 items-center justify-center rounded-[8px]">
-          <FileAudio className="size-4" aria-hidden />
+          {ehAudio(arquivo) ? (
+            <FileAudio className="size-4" aria-hidden />
+          ) : (
+            <FileText className="size-4" aria-hidden />
+          )}
         </span>
         <div className="flex min-w-0 flex-1 flex-col">
           <p className="truncate text-[13px] font-semibold">{arquivo.name}</p>
@@ -86,10 +101,10 @@ export function SeletorAudio({
           className="sr-only"
         />
         <span className="bg-destaque-suave text-destaque flex size-10 items-center justify-center rounded-full">
-          <FileAudio className="size-5" aria-hidden />
+          <FileText className="size-5" aria-hidden />
         </span>
-        <p className="text-[13px] font-semibold">Arraste o áudio aqui ou clique para escolher</p>
-        <p className="text-tinta-suave text-[11px]">MP3 (recomendado), M4A, WAV, WebM ou MP4</p>
+        <p className="text-[13px] font-semibold">Arraste o arquivo aqui ou clique para escolher</p>
+        <p className="text-tinta-suave text-[11px]">Áudio, PDF, Word, DOC ou TXT</p>
       </label>
       {erro ? (
         <p role="alert" className="text-destructive text-[12px]">
