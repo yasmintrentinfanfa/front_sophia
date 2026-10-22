@@ -8,6 +8,7 @@ import { ModalConfirmar } from "@/components/casos/modal-confirmar";
 import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
 import { ProgressoProcessamento } from "@/components/gravacao/progresso-processamento";
 import type { ConteudoCaso } from "@/lib/api/analise";
+import { formatarDuracao } from "@/lib/formato";
 import { ETAPAS_AUDIO, processarEntrevista, type EtapaProcessamento } from "@/lib/transcricao/fluxo";
 import { cn } from "@/lib/utils";
 
@@ -137,6 +138,7 @@ export default function PaginaSessaoAtiva() {
       if (!audio.size) {
         throw new Error("A gravação está vazia.");
       }
+      const duracao = segundos;
       const resultado = await processarEntrevista(casoId, audio, "gravacao.webm", (proxima) => {
         setEtapa(proxima);
         // Com o áudio transcrito, fecha o modal para o progresso aparecer na tela.
@@ -144,13 +146,13 @@ export default function PaginaSessaoAtiva() {
           setConfirmarAnalise(false);
           setEstado("encerrada");
         }
-      });
+      }, duracao);
       setTexto(resultado.texto);
       setRevisado(resultado.revisado);
       const transcricao: ConteudoCaso["transcricao"] = [
         {
           id: `${casoId}-transcricao`,
-          tempo: formatarCronometro(segundos),
+          tempo: formatarDuracao(duracao),
           texto: resultado.texto,
           papel: "cliente",
         },
@@ -260,7 +262,7 @@ export default function PaginaSessaoAtiva() {
               aria-hidden
             />
             <span>
-              {ROTULO_ESTADO[estado]}  {formatarCronometro(segundos)}
+              {ROTULO_ESTADO[estado]}  {formatarDuracao(segundos)}
             </span>
           </p>
         </div>
@@ -342,10 +344,4 @@ export default function PaginaSessaoAtiva() {
       />
     </>
   );
-}
-
-function formatarCronometro(total: number) {
-  const minutos = Math.floor(total / 60);
-  const segundos = total % 60;
-  return `${String(minutos).padStart(2, "0")}:${String(segundos).padStart(2, "0")}`;
 }

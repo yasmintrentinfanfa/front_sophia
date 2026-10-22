@@ -30,11 +30,12 @@ export async function revisarTranscricao(texto: string): Promise<{ texto: string
   return { texto: revisado, revisado: true };
 }
 
-export async function salvarTranscricaoDoCaso(casoId: string, texto: string) {
+export async function salvarTranscricaoDoCaso(casoId: string, texto: string, duracaoSegundos?: number) {
+  const duracao = duracaoParaSalvar(duracaoSegundos);
   const res = await fetch("/api/transcricao/salvar", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ casoId, texto }),
+    body: JSON.stringify({ casoId, texto, ...(duracao === undefined ? {} : { duracaoSegundos: duracao }) }),
   });
   const dados = (await res.json().catch(() => ({}))) as {
     erro?: string;
@@ -53,14 +54,24 @@ export async function salvarTranscricaoDoCaso(casoId: string, texto: string) {
 }
 
 export async function obterTranscricaoDoCaso(casoId: string) {
+  const vazio = { texto: "", duracaoSegundos: null as number | null };
   const res = await fetch(`/api/transcricao/caso?casoId=${encodeURIComponent(casoId)}`);
-  if (res.status === 404) return "";
+  if (res.status === 404) return vazio;
   const dados = (await res.json().catch(() => ({}))) as {
     erro?: string;
-    transcript?: { text?: string };
+    transcript?: { text?: string; duration_seconds?: number };
   };
-  if (!res.ok) return "";
-  return (dados.transcript?.text ?? "").trim();
+  if (!res.ok) return vazio;
+  const duracao = dados.transcript?.duration_seconds;
+  return {
+    texto: (dados.transcript?.text ?? "").trim(),
+    duracaoSegundos: typeof duracao === "number" && Number.isFinite(duracao) ? duracao : null,
+  };
+}
+
+function duracaoParaSalvar(segundos?: number) {
+  if (segundos === undefined || !Number.isFinite(segundos) || segundos <= 0) return undefined;
+  return Math.min(Math.round(segundos), 360_000);
 }
 
 /** Etapas mostradas ao usuário enquanto o relato vira análise. */
@@ -81,13 +92,14 @@ export async function processarEntrevista(
   arquivo: Blob,
   nomeArquivo: string,
   aoEtapa?: (etapa: EtapaProcessamento) => void,
+  duracaoSegundos?: number,
 ): Promise<ResultadoRelato> {
   aoEtapa?.("transcrevendo");
   const bruto = await transcreverAudio(arquivo, nomeArquivo);
   aoEtapa?.("revisando");
   const resultado = await revisarTranscricao(bruto);
   aoEtapa?.("salvando");
-  await salvarTranscricaoDoCaso(casoId, resultado.texto);
+  await salvarTranscricaoDoCaso(casoId, resultado.texto, duracaoSegundos);
   return resultado;
 }
 

@@ -9,7 +9,9 @@ import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
 import { ProgressoProcessamento } from "@/components/gravacao/progresso-processamento";
 import { SeletorAudio } from "@/components/gravacao/seletor-audio";
 import type { ConteudoCaso } from "@/lib/api/analise";
+import { duracaoDoAudio } from "@/lib/arquivos/duracao-audio";
 import { ehAudio, lerTextoDeArquivo } from "@/lib/arquivos/ler-documento";
+import { formatarDuracao } from "@/lib/formato";
 import {
   ETAPAS_AUDIO,
   ETAPAS_TEXTO,
@@ -61,13 +63,16 @@ export default function PaginaGravacao() {
   const processando = etapa !== null;
 
   /** Salva o relato (áudio ou texto) no caso e mostra o texto final antes de abrir a análise. */
-  async function registrarRelato(processar: (aoEtapa: (etapa: EtapaProcessamento) => void) => Promise<ResultadoRelato>) {
+  async function registrarRelato(
+    processar: (aoEtapa: (etapa: EtapaProcessamento) => void) => Promise<ResultadoRelato>,
+    tempo = "00:00",
+  ) {
     setErro("");
     setResultado(null);
     try {
       const final = await processar(setEtapa);
       const transcricao: ConteudoCaso["transcricao"] = [
-        { id: `${casoId}-transcricao`, tempo: "00:00", texto: final.texto, papel: "cliente" },
+        { id: `${casoId}-transcricao`, tempo, texto: final.texto, papel: "cliente" },
       ];
       setEtapa("analisando");
       try {
@@ -246,13 +251,21 @@ export default function PaginaGravacao() {
                 disabled={!arquivo}
                 onClick={() => {
                   if (!arquivo) return;
-                  const audio = ehAudio(arquivo);
+                  const escolhido = arquivo;
+                  const audio = ehAudio(escolhido);
                   setVeioDeAudio(audio);
-                  void registrarRelato((aoEtapa) =>
-                    audio
-                      ? processarEntrevista(casoId, arquivo, arquivo.name, aoEtapa)
-                      : lerTextoDeArquivo(arquivo).then((texto) => processarRelatoEscrito(casoId, texto, aoEtapa)),
-                  );
+                  void (async () => {
+                    const duracao = audio ? await duracaoDoAudio(escolhido).catch(() => 0) : 0;
+                    await registrarRelato(
+                      (aoEtapa) =>
+                        audio
+                          ? processarEntrevista(casoId, escolhido, escolhido.name, aoEtapa, duracao)
+                          : lerTextoDeArquivo(escolhido).then((texto) =>
+                              processarRelatoEscrito(casoId, texto, aoEtapa),
+                            ),
+                      duracao > 0 ? formatarDuracao(duracao) : "00:00",
+                    );
+                  })();
                 }}
                 className="pressionavel bg-acao text-acao-tinta flex h-10 w-fit items-center rounded-[8px] px-4 text-[13px] font-semibold disabled:opacity-40"
               >
