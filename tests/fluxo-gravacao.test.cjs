@@ -43,6 +43,10 @@ test("finalizar salva as falas, gera analise e permite reabrir pela lista", asyn
     destinoDoCaso(caso, "/casos/outro/repositorio/chat"),
     "/casos/novo-caso/repositorio/chat",
   );
+  assert.equal(
+    destinoDoCaso(caso, "/casos/outro/chat"),
+    "/casos/novo-caso/chat",
+  );
   const atualizado = await api.finalizarSessao(caso.id, transcricao);
   const dados = await api.obterCaso(caso.id);
   assert.deepEqual(dados.transcricao, transcricao);

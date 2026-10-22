@@ -1,12 +1,9 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
 import Link from "next/link";
 
 import { ColunasAnalise } from "@/components/analise/colunas-analise";
 import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
-import { ModalFluxo } from "@/components/fluxo/modal-fluxo";
-import { api } from "@/lib/api";
 import type { ConteudoCaso as DadosCaso } from "@/lib/api/analise";
 
 export function TelaAnalise({
@@ -18,28 +15,7 @@ export function TelaAnalise({
   destinoVoltar: string;
   destinoChat: string;
 }) {
-  const [analise, setAnalise] = useState(dados.analise);
-  const [configurando, setConfigurando] = useState(false);
-  const [instrucao, setInstrucao] = useState(analise?.instrucao ?? "");
-  const [salvando, setSalvando] = useState(false);
-  const [erro, setErro] = useState("");
-
-  async function configurar(evento: FormEvent<HTMLFormElement>) {
-    evento.preventDefault();
-    if (salvando) return;
-    setSalvando(true);
-    setErro("");
-    try {
-      setAnalise(
-        await api.solicitarAnalise(dados.casoId, instrucao.trim() || undefined),
-      );
-      setConfigurando(false);
-    } catch {
-      setErro("Não foi possível salvar a configuração.");
-    } finally {
-      setSalvando(false);
-    }
-  }
+  const analise = dados.analise;
 
   return (
     <>
@@ -56,18 +32,11 @@ export function TelaAnalise({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setConfigurando(true)}
-            className="pressionavel bg-campo border-borda flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-medium"
-          >
-            Configurar IA
-          </button>
           <Link
             href={destinoChat}
             className="pressionavel bg-acao text-acao-tinta flex h-8 items-center rounded-[8px] px-3 text-[12px] font-semibold"
           >
-            Gerar peça processual
+            Chat com IA
           </Link>
         </div>
       </header>
@@ -81,7 +50,7 @@ export function TelaAnalise({
           </p>
         </section>
         {analise ? (
-          <ColunasAnalise analise={analise} />
+          <ColunasAnalise analise={analise} destinoChat={destinoChat} />
         ) : (
           <Link
             href={`/casos/${dados.casoId}/gravacao`}
@@ -91,40 +60,6 @@ export function TelaAnalise({
           </Link>
         )}
       </div>
-      <ModalFluxo
-        aberto={configurando}
-        aoFechar={() => {
-          if (!salvando) setConfigurando(false);
-        }}
-        titulo="Configurar IA"
-        descricao="Orientações para a análise deste caso."
-      >
-        <form onSubmit={configurar} className="mt-4 flex flex-col gap-3">
-          <label htmlFor="instrucao-ia" className="text-[13px] font-medium">
-            Instruções adicionais
-          </label>
-          <textarea
-            id="instrucao-ia"
-            value={instrucao}
-            onChange={(evento) => setInstrucao(evento.target.value)}
-            maxLength={4000}
-            rows={5}
-            className="bg-campo border-borda focus:border-destaque w-full resize-y rounded-[8px] border p-3 text-[13px] outline-none"
-          />
-          {erro ? (
-            <p role="alert" className="text-[12px]">
-              {erro}
-            </p>
-          ) : null}
-          <button
-            type="submit"
-            disabled={salvando}
-            className="pressionavel bg-acao text-acao-tinta flex h-8 items-center justify-center rounded-[8px] px-3 text-[12px] font-semibold disabled:opacity-60"
-          >
-            {salvando ? "Salvando…" : "Salvar configuração"}
-          </button>
-        </form>
-      </ModalFluxo>
     </>
   );
 }

@@ -33,7 +33,6 @@ export interface AnalisePreliminar {
   resumo: string;
   insights: Insight[];
   demonstracao: boolean;
-  instrucao?: string;
 }
 
 export interface MensagemChat {

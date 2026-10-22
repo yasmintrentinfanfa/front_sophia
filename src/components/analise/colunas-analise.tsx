@@ -19,7 +19,13 @@ const COLUNAS: { titulo: string; categorias: CategoriaInsight[] }[] = [
   { titulo: "Necessidades adicionais", categorias: ["necessidade", "acordo"] },
 ];
 
-export function ColunasAnalise({ analise }: { analise: AnalisePreliminar }) {
+export function ColunasAnalise({
+  analise,
+  destinoChat,
+}: {
+  analise: AnalisePreliminar;
+  destinoChat: string;
+}) {
   const [selecionado, setSelecionado] = useState<Insight | null>(null);
   return (
     <>
@@ -117,7 +123,7 @@ export function ColunasAnalise({ analise }: { analise: AnalisePreliminar }) {
               </p>
             )}
             <Link
-              href={`/casos/${analise.casoId}/repositorio/chat?pergunta=${encodeURIComponent(selecionado.titulo)}`}
+              href={`${destinoChat}?pergunta=${encodeURIComponent(selecionado.titulo)}`}
               className="text-destaque mt-4 inline-block text-[13px] underline"
             >
               Continuar no chat

@@ -138,7 +138,7 @@ export interface SophiaApi {
   excluirCaso(id: string): Promise<void>;
   obterCaso(casoId: string): Promise<ConteudoCaso>;
   finalizarSessao(casoId: string, transcricao: ConteudoCaso["transcricao"]): Promise<Caso>;
-  solicitarAnalise(casoId: string, instrucao?: string): Promise<AnalisePreliminar>;
+  solicitarAnalise(casoId: string): Promise<AnalisePreliminar>;
   listarMensagens(casoId: string): Promise<MensagemChat[]>;
   enviarMensagem(casoId: string, conteudo: string): Promise<MensagemChat[]>;
 

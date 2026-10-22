@@ -10,7 +10,7 @@ export default function PaginaAnalise() {
         <TelaAnalise
           dados={dados}
           destinoVoltar={`/casos/${dados.casoId}/gravacao`}
-          destinoChat={`/casos/${dados.casoId}/repositorio/chat`}
+          destinoChat={`/casos/${dados.casoId}/chat`}
         />
       )}
     </ConteudoCaso>

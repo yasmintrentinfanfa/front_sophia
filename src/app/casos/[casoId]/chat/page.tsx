@@ -1,14 +1,7 @@
-import { redirect } from "next/navigation";
+"use client";
 
-export default async function PaginaChatAntiga({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ casoId: string }>;
-  searchParams: Promise<{ pergunta?: string }>;
-}) {
-  const { casoId } = await params;
-  const { pergunta } = await searchParams;
-  const sufixo = pergunta ? `?pergunta=${encodeURIComponent(pergunta)}` : "";
-  redirect(`/casos/${casoId}/repositorio/chat${sufixo}`);
+import { ChatCaso } from "@/components/chat/chat-caso";
+
+export default function PaginaChat() {
+  return <ChatCaso destinoVoltar={(casoId) => `/casos/${casoId}/analise`} />;
 }
