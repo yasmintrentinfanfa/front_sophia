@@ -8,7 +8,7 @@ import { useListaCasos } from "@/components/casos/contexto-lista-casos";
 import { api } from "@/lib/api";
 import type { ConteudoCaso as DadosCaso } from "@/lib/api/analise";
 import { formatarDuracao } from "@/lib/formato";
-import { obterTranscricaoDoCaso } from "@/lib/transcricao/fluxo";
+import { obterSalvoDoCaso } from "@/lib/transcricao/fluxo";
 
 export function ConteudoCaso({
   children,
@@ -42,7 +42,7 @@ function CarregarConteudo({
     api
       .obterCaso(casoId)
       .then(async (carregado) => {
-        const salva = await obterTranscricaoDoCaso(casoId);
+        const salva = await obterSalvoDoCaso(casoId);
         if (salva.texto) {
           const tempoLocal = carregado.transcricao.find((fala) => fala.tempo && fala.tempo !== "00:00")?.tempo;
           carregado.transcricao = [
@@ -54,6 +54,15 @@ function CarregarConteudo({
               papel: "cliente",
             },
           ];
+        }
+        if (salva.documentos.length) {
+          carregado.documentos = salva.documentos.map((item) => ({
+            id: item.id,
+            nome: item.nome,
+            tipo: item.tipo,
+            texto: item.texto,
+            sanitizacao: { status: "limpo" as const },
+          }));
         }
         if (ativo) setDados(carregado);
       })

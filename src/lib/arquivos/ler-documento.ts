@@ -106,6 +106,11 @@ export function ehAudio(arquivo: File) {
   return EXTENSOES_AUDIO.some((extensao) => nome.endsWith(extensao));
 }
 
+export function tipoDocumento(arquivo: File) {
+  const nome = arquivo.name.toLowerCase();
+  return EXTENSOES_DOCUMENTO.find((extensao) => nome.endsWith(extensao))?.slice(1) ?? "";
+}
+
 export async function lerTextoDeArquivo(arquivo: File) {
   const nome = arquivo.name.toLowerCase();
   let texto = "";

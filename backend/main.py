@@ -912,6 +912,80 @@ async def salvar_transcricao(payload: dict):
     return resultado
 
 
+TIPOS_DOCUMENTO = {"pdf", "doc", "docx", "txt"}
+
+
+def _anexar_documento_arquivo(user_id: str, caso_id: str, documento: dict, momento: str) -> bool:
+    lista = _ler_cases_arquivo()
+    caso = next((item for item in lista if item.get("user_id") == user_id and _mesmo_caso(item, caso_id)), None)
+    if not caso:
+        return False
+    caso.setdefault("documents", []).append(documento)
+    caso["updated_at"] = momento
+    if caso.get("status") in (None, "gravacao_pendente"):
+        caso["status"] = "em_analise"
+    _gravar_cases_arquivo(lista)
+    return True
+
+
+@app.post("/salvar-documento")
+async def salvar_documento(payload: dict):
+    """Anexa um arquivo lido (PDF, Word, DOC ou TXT) em documents do caso.
+
+    Não grava em transcript: no repositório o arquivo fica na aba Documentos.
+    """
+    nome = (payload.get("nome") or "").strip()
+    tipo = (payload.get("tipo") or "").strip().lower().lstrip(".")
+    texto = (payload.get("texto") or "").strip()
+    user_id = (payload.get("user_id") or "").strip()
+    caso_id = (payload.get("caso_id") or "").strip()
+    if not user_id or not _caso_id_valido(caso_id):
+        return JSONResponse({"erro": "Informe o caso para anexar o documento."}, status_code=400)
+    if tipo not in TIPOS_DOCUMENTO:
+        return JSONResponse({"erro": "Envie um PDF, Word, DOC ou TXT."}, status_code=400)
+    if len(texto) < 20:
+        return JSONResponse({"erro": "Não foi possível ler texto suficiente neste arquivo."}, status_code=400)
+    if len(texto) > 500_000 or len(nome) > 180:
+        return JSONResponse({"erro": "O arquivo é grande demais para anexar."}, status_code=400)
+
+    momento = agora_iso()
+    documento = {
+        "id": str(uuid.uuid4()),
+        "name": nome or f"documento.{tipo}",
+        "type": tipo,
+        "text": texto,
+        "created_at": momento,
+    }
+    try:
+        if case_collection is not None:
+            resultado = await case_collection.update_one(
+                _filtro_caso(user_id, caso_id),
+                {"$push": {"documents": documento}, "$set": {"updated_at": momento}},
+            )
+            if resultado.matched_count == 0:
+                return JSONResponse({"erro": "Caso não encontrado."}, status_code=404)
+            await case_collection.update_one(
+                {
+                    "$and": [
+                        _filtro_caso(user_id, caso_id),
+                        {
+                            "$or": [
+                                {"status": {"$exists": False}},
+                                {"status": None},
+                                {"status": "gravacao_pendente"},
+                            ]
+                        },
+                    ]
+                },
+                {"$set": {"status": "em_analise"}},
+            )
+        elif not _anexar_documento_arquivo(user_id, caso_id, documento, momento):
+            return JSONResponse({"erro": "Caso não encontrado."}, status_code=404)
+    except Exception as exc:  # noqa: BLE001
+        return JSONResponse({"erro": str(exc)}, status_code=500)
+    return {"documento": {"id": documento["id"], "name": documento["name"], "type": documento["type"]}}
+
+
 @app.websocket("/ws/transcribe")
 async def websocket_transcribe(websocket: WebSocket):
     await websocket.accept()

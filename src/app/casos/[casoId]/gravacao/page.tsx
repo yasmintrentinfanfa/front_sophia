@@ -10,13 +10,15 @@ import { ProgressoProcessamento } from "@/components/gravacao/progresso-processa
 import { SeletorAudio } from "@/components/gravacao/seletor-audio";
 import type { ConteudoCaso } from "@/lib/api/analise";
 import { duracaoDoAudio } from "@/lib/arquivos/duracao-audio";
-import { ehAudio, lerTextoDeArquivo } from "@/lib/arquivos/ler-documento";
+import { ehAudio, lerTextoDeArquivo, tipoDocumento } from "@/lib/arquivos/ler-documento";
 import { formatarDuracao } from "@/lib/formato";
+import { api } from "@/lib/api";
 import {
   ETAPAS_AUDIO,
   ETAPAS_TEXTO,
   processarEntrevista,
   processarRelatoEscrito,
+  salvarDocumentoDoCaso,
   type EtapaProcessamento,
   type ResultadoRelato,
 } from "@/lib/transcricao/fluxo";
@@ -196,7 +198,9 @@ export default function PaginaGravacao() {
                     ? resultado.revisado
                       ? "Transcrição revisada."
                       : "Texto transcrito pelo Whisper. A revisão da Groq entra quando a chave estiver configurada."
-                    : "O texto foi salvo no caso."}
+                    : modo === "arquivo"
+                      ? "O arquivo foi salvo em Documentos, no repositório do caso."
+                      : "O texto foi salvo no caso."}
                 </p>
               </div>
               <p className="border-borda max-h-[320px] overflow-y-auto rounded-[8px] border px-3 py-2.5 text-[13px] leading-5 whitespace-pre-wrap">
@@ -254,17 +258,37 @@ export default function PaginaGravacao() {
                   const escolhido = arquivo;
                   const audio = ehAudio(escolhido);
                   setVeioDeAudio(audio);
+                  if (audio) {
+                    void (async () => {
+                      const duracao = await duracaoDoAudio(escolhido).catch(() => 0);
+                      await registrarRelato(
+                        (aoEtapa) => processarEntrevista(casoId, escolhido, escolhido.name, aoEtapa, duracao),
+                        duracao > 0 ? formatarDuracao(duracao) : "00:00",
+                      );
+                    })();
+                    return;
+                  }
                   void (async () => {
-                    const duracao = audio ? await duracaoDoAudio(escolhido).catch(() => 0) : 0;
-                    await registrarRelato(
-                      (aoEtapa) =>
-                        audio
-                          ? processarEntrevista(casoId, escolhido, escolhido.name, aoEtapa, duracao)
-                          : lerTextoDeArquivo(escolhido).then((texto) =>
-                              processarRelatoEscrito(casoId, texto, aoEtapa),
-                            ),
-                      duracao > 0 ? formatarDuracao(duracao) : "00:00",
-                    );
+                    setErro("");
+                    setResultado(null);
+                    try {
+                      setEtapa("salvando");
+                      const texto = await lerTextoDeArquivo(escolhido);
+                      await salvarDocumentoDoCaso(casoId, escolhido.name, tipoDocumento(escolhido), texto);
+                      setEtapa("analisando");
+                      try {
+                        await api.solicitarAnalise(casoId);
+                      } catch {
+                        // O arquivo já está em documentos. A análise local pode falhar sem impedir o salvamento.
+                      }
+                      setResultado({ texto, revisado: false });
+                    } catch (falha) {
+                      setErro(
+                        falha instanceof Error ? falha.message : "Não foi possível registrar o arquivo. Tente novamente.",
+                      );
+                    } finally {
+                      setEtapa(null);
+                    }
                   })();
                 }}
                 className="pressionavel bg-acao text-acao-tinta flex h-10 w-fit items-center rounded-[8px] px-4 text-[13px] font-semibold disabled:opacity-40"

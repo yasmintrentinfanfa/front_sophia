@@ -162,8 +162,12 @@ function Repositorio({ dados }: { dados: DadosCaso }) {
         aberto={!!documento}
         aoFechar={() => setDocumento(null)}
         titulo={documento?.nome ?? "Documento"}
-        descricao="Documento de demonstração do caso. O arquivo original estará disponível após a integração do repositório."
-      />
+        descricao={documento?.texto ? undefined : "Não há texto legível neste documento."}
+      >
+        {documento?.texto ? (
+          <p className="mt-3 max-h-[360px] overflow-y-auto text-[13px] leading-5 whitespace-pre-wrap">{documento.texto}</p>
+        ) : null}
+      </ModalFluxo>
     </>
   );
 }
