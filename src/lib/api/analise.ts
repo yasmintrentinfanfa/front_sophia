@@ -47,6 +47,8 @@ export interface DocumentoCaso {
   id: string;
   nome: string;
   tipo: string;
+  /** Texto lido do arquivo, quando ele foi anexado ao caso. */
+  texto?: string;
   sanitizacao:
     | { status: "pendente" }
     | { status: "limpo" }

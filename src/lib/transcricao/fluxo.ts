@@ -53,20 +53,58 @@ export async function salvarTranscricaoDoCaso(casoId: string, texto: string, dur
   return dados.case_id;
 }
 
-export async function obterTranscricaoDoCaso(casoId: string) {
-  const vazio = { texto: "", duracaoSegundos: null as number | null };
+export async function salvarDocumentoDoCaso(casoId: string, nome: string, tipo: string, texto: string) {
+  const res = await fetch(`/api/casos/${encodeURIComponent(casoId)}/documentos`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ casoId, nome, tipo, texto }),
+  });
+  const dados = (await res.json().catch(() => ({}))) as { erro?: string };
+  if (!res.ok) {
+    throw new Error(dados.erro ?? "Não foi possível salvar o documento no caso.");
+  }
+}
+
+export interface DocumentoSalvo {
+  id: string;
+  nome: string;
+  tipo: string;
+  texto: string;
+}
+
+export async function obterSalvoDoCaso(casoId: string) {
+  const vazio = {
+    texto: "",
+    duracaoSegundos: null as number | null,
+    documentos: [] as DocumentoSalvo[],
+  };
   const res = await fetch(`/api/transcricao/caso?casoId=${encodeURIComponent(casoId)}`);
   if (res.status === 404) return vazio;
   const dados = (await res.json().catch(() => ({}))) as {
     erro?: string;
     transcript?: { text?: string; duration_seconds?: number };
+    documents?: { id?: string; name?: string; type?: string; text?: string }[];
   };
   if (!res.ok) return vazio;
   const duracao = dados.transcript?.duration_seconds;
+  const documentos = (dados.documents ?? [])
+    .filter((item) => (item.text ?? "").trim() || (item.name ?? "").trim())
+    .map((item, indice) => ({
+      id: item.id || `${casoId}-documento-${indice}`,
+      nome: (item.name ?? "").trim() || "Documento",
+      tipo: (item.type ?? "").trim().toUpperCase() || "Arquivo",
+      texto: (item.text ?? "").trim(),
+    }));
   return {
     texto: (dados.transcript?.text ?? "").trim(),
     duracaoSegundos: typeof duracao === "number" && Number.isFinite(duracao) ? duracao : null,
+    documentos,
   };
+}
+
+export async function obterTranscricaoDoCaso(casoId: string) {
+  const salvo = await obterSalvoDoCaso(casoId);
+  return { texto: salvo.texto, duracaoSegundos: salvo.duracaoSegundos };
 }
 
 function duracaoParaSalvar(segundos?: number) {
