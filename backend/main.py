@@ -43,9 +43,7 @@ mongo_client = AsyncIOMotorClient(MONGODB_URI) if MONGODB_URI else None
 mongo_db = mongo_client["sophia-data"] if mongo_client else None
 users_collection = mongo_db["users"] if mongo_db is not None else None
 case_collection = mongo_db["case"] if mongo_db is not None else None
-assinaturas_collection = mongo_db["assinaturas"] if mongo_db is not None else None
 USERS_FILE = PASTA_BACK / "data" / "users.json"
-ASSINATURAS_FILE = PASTA_BACK / "data" / "assinaturas.json"
 CASES_FILE = PASTA_BACK / "data" / "cases.json"
 STATUS_CASO = {"gravacao_pendente", "em_analise", "concluido"}
 PASTAS_CASO = {"ativo", "arquivo"}
@@ -531,9 +529,7 @@ async def assinar(payload: AssinaturaRequest):
         "since": agora,
     }
     try:
-        if users_collection is not None and assinaturas_collection is not None:
-            await assinaturas_collection.create_index("user_id")
-            await assinaturas_collection.insert_one(documento)
+        if users_collection is not None:
             await users_collection.update_one(
                 {"_id": user_id},
                 {
@@ -545,16 +541,6 @@ async def assinar(payload: AssinaturaRequest):
                 },
             )
         else:
-            lista = (
-                json.loads(ASSINATURAS_FILE.read_text(encoding="utf-8"))
-                if ASSINATURAS_FILE.exists()
-                else []
-            )
-            lista.append(documento)
-            ASSINATURAS_FILE.parent.mkdir(parents=True, exist_ok=True)
-            ASSINATURAS_FILE.write_text(
-                json.dumps(lista, indent=2, ensure_ascii=False), encoding="utf-8"
-            )
             usuarios = _ler_users_arquivo()
             for usuario in usuarios:
                 if usuario.get("_id") == user_id:
@@ -584,40 +570,18 @@ async def trocar_plano(payload: TrocaPlanoRequest):
         return JSONResponse({"erro": "Esse já é o seu plano atual."}, status_code=400)
 
     agora = agora_iso()
-    mudancas = {
-        "plan_id": plano,
-        "plan_name": NOME_PLANOS[plano],
-        "plan_amount": PRECO_PLANOS[plano],
-        "monthly_amount": PRECO_PLATAFORMA + PRECO_PLANOS[plano],
-        "updated_at": agora,
-    }
     novo_resumo = {
         **resumo,
         "plan_id": plano,
         "plan_name": NOME_PLANOS[plano],
-        "monthly_amount": mudancas["monthly_amount"],
+        "monthly_amount": PRECO_PLATAFORMA + PRECO_PLANOS[plano],
     }
     try:
-        if users_collection is not None and assinaturas_collection is not None:
-            # O filtro por user_id garante que só a assinatura do próprio usuário muda.
-            await assinaturas_collection.update_one(
-                {"_id": resumo["id"], "user_id": user_id}, {"$set": mudancas}
-            )
+        if users_collection is not None:
             await users_collection.update_one(
                 {"_id": user_id}, {"$set": {"subscription": novo_resumo, "updated_at": agora}}
             )
         else:
-            lista = (
-                json.loads(ASSINATURAS_FILE.read_text(encoding="utf-8"))
-                if ASSINATURAS_FILE.exists()
-                else []
-            )
-            for assinatura in lista:
-                if assinatura.get("_id") == resumo["id"] and assinatura.get("user_id") == user_id:
-                    assinatura.update(mudancas)
-            ASSINATURAS_FILE.write_text(
-                json.dumps(lista, indent=2, ensure_ascii=False), encoding="utf-8"
-            )
             usuarios = _ler_users_arquivo()
             for item in usuarios:
                 if item.get("_id") == user_id:
