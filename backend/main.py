@@ -23,6 +23,9 @@ from fastapi.responses import JSONResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
 
+from analise.router import criar_router as criar_router_analise
+from analise.storage import Armazenamento
+
 PASTA_BACK = Path(__file__).resolve().parent
 # override: o .env do backend vale mesmo se a variável já chegou vazia no processo.
 load_dotenv(PASTA_BACK / ".env", override=True)
@@ -43,6 +46,8 @@ mongo_client = AsyncIOMotorClient(MONGODB_URI) if MONGODB_URI else None
 mongo_db = mongo_client["sophia-data"] if mongo_client else None
 users_collection = mongo_db["users"] if mongo_db is not None else None
 case_collection = mongo_db["case"] if mongo_db is not None else None
+# Análises, chat, minutas e histórico de relatos (módulo `analise`), cada um na sua coleção.
+armazenamento_ia = Armazenamento(mongo_db) if mongo_db is not None else None
 USERS_FILE = PASTA_BACK / "data" / "users.json"
 CASES_FILE = PASTA_BACK / "data" / "cases.json"
 STATUS_CASO = {"gravacao_pendente", "em_analise", "concluido"}
@@ -894,6 +899,8 @@ async def salvar_transcricao(payload: dict):
                 )
                 salvo = await case_collection.find_one({"user_id": user_id, "caso_id": caso_id})
                 resultado["case_id"] = str(salvo["_id"]) if salvo else caso_id
+                if armazenamento_ia is not None:
+                    await armazenamento_ia.adicionar_relato(user_id, caso_id, texto, momento, duracao_segundos)
             else:
                 caso = {
                     "user_id": user_id,
@@ -984,6 +991,46 @@ async def salvar_documento(payload: dict):
     except Exception as exc:  # noqa: BLE001
         return JSONResponse({"erro": str(exc)}, status_code=500)
     return {"documento": {"id": documento["id"], "name": documento["name"], "type": documento["type"]}}
+
+
+# ---------------------------------------------------------------------------
+# Análise preliminar, chat e minutas (módulo `analise`)
+# ---------------------------------------------------------------------------
+
+
+async def contexto_do_caso(user_id: str, caso_id: str) -> dict | None:
+    """Dados do caso para a IA. None = caso inexistente, de outro usuário ou excluído."""
+    documento = await _buscar_caso_do_usuario(user_id, caso_id)
+    if not documento or documento.get("in_system") is False:
+        return None
+    relatos = []
+    if armazenamento_ia is not None:
+        relatos = await armazenamento_ia.listar_relatos(user_id, _id_do_caso(documento))
+    transcricao = documento.get("transcript") if isinstance(documento.get("transcript"), dict) else {}
+    if not relatos and str((transcricao or {}).get("text") or "").strip():
+        # Caso salvo antes do histórico de relatos existir: usa o relato guardado no próprio caso.
+        relatos = [{"texto": transcricao["text"], "criado_em": transcricao.get("created_at")}]
+    return {
+        "titulo": documento.get("title") or "",
+        "cliente": documento.get("client_name") or "",
+        "area": documento.get("legal_area") or None,
+        "relatos": relatos,
+        "documentos": [d for d in documento.get("documents") or [] if isinstance(d, dict)],
+    }
+
+
+async def marcar_caso_analisado(user_id: str, caso_id: str, versao: int) -> None:
+    if case_collection is None:
+        return
+    filtro = _filtro_caso(user_id, caso_id)
+    await case_collection.update_one(filtro, {"$set": {"analysis_version": versao, "updated_at": agora_iso()}})
+    await case_collection.update_one(
+        {"$and": [filtro, {"status": {"$in": [None, "gravacao_pendente"]}}]},
+        {"$set": {"status": "em_analise"}},
+    )
+
+
+app.include_router(criar_router_analise(contexto_do_caso, lambda: armazenamento_ia, marcar_caso_analisado))
 
 
 @app.websocket("/ws/transcribe")
