@@ -65,6 +65,7 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
         expandida={expandida}
         aoAlternar={() => setExpandida((atual) => !atual)}
         casoId={idDaRota ?? casosAtivos[0]?.id}
+        mostrarRepositorio={!carregando && casosAtivos.length > 0}
       />
 
       {expandida ? (
@@ -125,10 +126,12 @@ function TrilhaIcones({
   expandida,
   aoAlternar,
   casoId,
+  mostrarRepositorio,
 }: {
   expandida: boolean;
   aoAlternar: () => void;
   casoId?: string;
+  mostrarRepositorio: boolean;
 }) {
   const pathname = usePathname();
   const [configuracoesAberta, setConfiguracoesAberta] = useState(false);
@@ -198,21 +201,23 @@ function TrilhaIcones({
         <TooltipContent side="right">Casos em análise</TooltipContent>
       </Tooltip>
 
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Link
-              href={casoId ? `/casos/${casoId}/repositorio` : "/casos"}
-              aria-current={emRepositorio ? "page" : undefined}
-              className={classeTrilha(emRepositorio)}
-            >
-              <IconeRepositorio />
-              <span className="sr-only">Repositório</span>
-            </Link>
-          }
-        />
-        <TooltipContent side="right">Repositório</TooltipContent>
-      </Tooltip>
+      {mostrarRepositorio ? (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Link
+                href={casoId ? `/casos/${casoId}/repositorio` : "/casos"}
+                aria-current={emRepositorio ? "page" : undefined}
+                className={classeTrilha(emRepositorio)}
+              >
+                <IconeRepositorio />
+                <span className="sr-only">Repositório</span>
+              </Link>
+            }
+          />
+          <TooltipContent side="right">Repositório</TooltipContent>
+        </Tooltip>
+      ) : null}
 
       <span className="flex-1" />
 

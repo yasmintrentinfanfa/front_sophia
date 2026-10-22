@@ -27,6 +27,8 @@ const { GET: obterCaso } = await import("@/app/api/transcricao/caso/route");
 const { POST: trocarPlano } = await import("@/app/api/assinatura/plano/route");
 const { POST: transcrever } = await import("@/app/api/transcricao/transcrever/route");
 const { POST: revisar } = await import("@/app/api/transcricao/revisar/route");
+const { GET: listarCasos, POST: criarCaso } = await import("@/app/api/casos/route");
+const { PATCH: atualizarCaso, DELETE: excluirCaso } = await import("@/app/api/casos/[casoId]/route");
 
 let backend: ReturnType<typeof vi.fn<typeof fetch>>;
 
@@ -145,6 +147,58 @@ describe("dono vem sempre do cookie", () => {
       body: JSON.stringify({ plan_id: "pro", card_token: "tok_mock_visa_4242_1" }),
     });
     expect((await assinar(pedido)).status).toBe(401);
+    expect(backend).not.toHaveBeenCalled();
+  });
+
+  it("lista e cria casos com o usuário da sessão, ignorando user_id no pedido", async () => {
+    cookieAtual.valor = assinarSessao(ANA);
+
+    await listarCasos(new Request(`http://x/api/casos?user_id=${BRUNO}`));
+    expect(new URL(urlChamada()).searchParams.get("user_id")).toBe(ANA);
+
+    backend.mockClear();
+    await criarCaso(
+      new Request("http://x/api/casos", {
+        method: "POST",
+        body: JSON.stringify({
+          user_id: BRUNO,
+          caso_id: "divorcio-abc",
+          title: "Divórcio",
+          client_name: "Paula",
+          legal_area: "familia",
+        }),
+      }),
+    );
+    expect(corpoChamado()).toEqual({
+      user_id: ANA,
+      caso_id: "divorcio-abc",
+      title: "Divórcio",
+      client_name: "Paula",
+      legal_area: "familia",
+    });
+  });
+
+  it("arquivar e excluir usam o dono da sessão", async () => {
+    cookieAtual.valor = assinarSessao(ANA);
+    const contexto = { params: Promise.resolve({ casoId: "divorcio-abc" }) };
+
+    await atualizarCaso(
+      new Request("http://x/api/casos/divorcio-abc", {
+        method: "PATCH",
+        body: JSON.stringify({ user_id: BRUNO, folder: "arquivo" }),
+      }),
+      contexto,
+    );
+    expect(urlChamada()).toMatch(/\/casos\/divorcio-abc$/);
+    expect(corpoChamado()).toEqual({ user_id: ANA, folder: "arquivo" });
+
+    backend.mockClear();
+    await excluirCaso(new Request(`http://x/api/casos/divorcio-abc?user_id=${BRUNO}`, { method: "DELETE" }), contexto);
+    expect(new URL(urlChamada()).searchParams.get("user_id")).toBe(ANA);
+  });
+
+  it("sem sessão, a lista de casos não chama o backend", async () => {
+    expect((await listarCasos(new Request("http://x/api/casos"))).status).toBe(401);
     expect(backend).not.toHaveBeenCalled();
   });
 

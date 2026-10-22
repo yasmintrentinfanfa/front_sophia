@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { BarraLateralCasos } from "@/components/casos/barra-lateral-casos";
 import { ProvedorListaCasos } from "@/components/casos/contexto-lista-casos";
@@ -17,9 +17,11 @@ import { redirecionamentoDosCasos } from "@/lib/conta";
  */
 export default function LayoutCasos({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [liberado, setLiberado] = useState(false);
   const [casos, setCasos] = useState<Caso[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [erroLista, setErroLista] = useState("");
 
   useEffect(() => {
     let ativo = true;
@@ -37,6 +39,10 @@ export default function LayoutCasos({ children }: { children: ReactNode }) {
           if (ativo) setCasos(lista);
         });
       })
+      .catch((falha: unknown) => {
+        if (!ativo) return;
+        setErroLista(falha instanceof Error ? falha.message : "Não foi possível carregar os casos.");
+      })
       .finally(() => {
         if (ativo) setCarregando(false);
       });
@@ -45,6 +51,13 @@ export default function LayoutCasos({ children }: { children: ReactNode }) {
       ativo = false;
     };
   }, [router]);
+
+  const semCasos = liberado && !carregando && !erroLista && casos.length === 0;
+  const abrirNovoCaso = semCasos && pathname === "/casos";
+
+  useEffect(() => {
+    if (abrirNovoCaso) router.replace("/casos/novo");
+  }, [abrirNovoCaso, router]);
 
   const contexto = useMemo(
     () => ({
@@ -72,14 +85,28 @@ export default function LayoutCasos({ children }: { children: ReactNode }) {
   );
 
   if (!liberado) {
-    return <p className="text-tinta-suave px-7 pt-6 text-[13px]">Verificando sua sessão…</p>;
+    return (
+      <p className="text-tinta-suave px-7 pt-6 text-[13px]">
+        {erroLista || "Verificando sua sessão…"}
+      </p>
+    );
   }
 
   return (
     <ProvedorListaCasos value={contexto}>
       <div className="bg-fundo flex h-dvh overflow-hidden">
         <BarraLateralCasos casos={casos} carregando={carregando} />
-        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          {erroLista ? (
+            <p role="alert" className="text-destructive px-7 pt-6 text-[13px]">
+              {erroLista}
+            </p>
+          ) : abrirNovoCaso ? (
+            <p className="text-tinta-suave px-7 pt-6 text-[13px]">Abrindo o novo caso…</p>
+          ) : (
+            children
+          )}
+        </main>
       </div>
     </ProvedorListaCasos>
   );
