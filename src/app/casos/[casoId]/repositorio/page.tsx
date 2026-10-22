@@ -121,7 +121,7 @@ function Repositorio({ dados }: { dados: DadosCaso }) {
           className="flex flex-col gap-4 px-7 pt-4 pb-6"
         >
           {dados.analise ? (
-            <ColunasAnalise analise={dados.analise} />
+            <ColunasAnalise analise={dados.analise} destinoChat={`/casos/${dados.casoId}/repositorio/chat`} />
           ) : (
             <p className="text-tinta-suave text-[13px]">
               Nenhuma análise neste caso.

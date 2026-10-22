@@ -104,7 +104,7 @@ export function criarMockFluxo({ encontrarCaso, salvarCaso, escopo }: Dependenci
           id: crypto.randomUUID(),
           papel: "assistente",
           conteudo:
-            "Mensagem recebida. Este chat esta em demonstracao; a resposta juridica e a geracao da peca estarao disponiveis com a integracao da IA.",
+            "Mensagem recebida. Este chat esta em demonstracao; as respostas sobre o caso estarao disponiveis com a integracao da IA.",
           criadaEm,
         },
       ];

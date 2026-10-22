@@ -36,7 +36,7 @@ export function TelaAnalise({
             href={destinoChat}
             className="pressionavel bg-acao text-acao-tinta flex h-8 items-center rounded-[8px] px-3 text-[12px] font-semibold"
           >
-            Gerar peça processual
+            Chat com IA
           </Link>
         </div>
       </header>
@@ -50,7 +50,7 @@ export function TelaAnalise({
           </p>
         </section>
         {analise ? (
-          <ColunasAnalise analise={analise} />
+          <ColunasAnalise analise={analise} destinoChat={destinoChat} />
         ) : (
           <Link
             href={`/casos/${dados.casoId}/gravacao`}

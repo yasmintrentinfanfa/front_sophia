@@ -10,5 +10,8 @@ export function destinoDoCaso(caso: Caso, origem = "") {
   if (origem.includes("/repositorio")) {
     return `/casos/${caso.id}/repositorio`;
   }
+  if (origem.endsWith("/chat")) {
+    return `/casos/${caso.id}/chat`;
+  }
   return `/casos/${caso.id}/gravacao`;
 }
