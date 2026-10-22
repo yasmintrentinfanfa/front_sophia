@@ -23,14 +23,17 @@ export default function PaginaNovoCaso() {
 
   async function aoEnviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
-    if (!titulo.trim() || !cliente.trim() || enviando) return;
+    if (!titulo.trim() || !cliente.trim() || !area || enviando) {
+      if (!area) setErro("Escolha a área jurídica.");
+      return;
+    }
     setEnviando(true);
     setErro("");
     try {
       const caso = await criarCaso({
         titulo: titulo.trim(),
         cliente: cliente.trim(),
-        area: area || undefined,
+        area,
       });
       router.push(`/casos/${caso.id}/gravacao`);
     } catch (falha) {

@@ -49,6 +49,20 @@ ASSINATURAS_FILE = PASTA_BACK / "data" / "assinaturas.json"
 CASES_FILE = PASTA_BACK / "data" / "cases.json"
 STATUS_CASO = {"gravacao_pendente", "em_analise", "concluido"}
 PASTAS_CASO = {"ativo", "arquivo"}
+AREAS_JURIDICAS = {
+    "civil",
+    "familia-sucessoes",
+    "trabalhista",
+    "previdenciario",
+    "consumidor",
+    "empresarial",
+    "tributario",
+    "penal",
+    "administrativo",
+    "imobiliario",
+    "ambiental",
+    "digital",
+}
 FUSO = timezone(timedelta(hours=-3))
 
 
@@ -669,14 +683,16 @@ async def criar_caso(payload: dict):
     caso_id = (payload.get("caso_id") or "").strip()
     title = (payload.get("title") or "").strip()
     client_name = (payload.get("client_name") or "").strip()
-    legal_area = (payload.get("legal_area") or "").strip() or None
+    legal_area = (payload.get("legal_area") or "").strip()
     if not user_id:
         return JSONResponse({"erro": "Informe o usuário."}, status_code=400)
     if not _caso_id_valido(caso_id):
         return JSONResponse({"erro": "Identificador do caso inválido."}, status_code=400)
     if not title or not client_name:
         return JSONResponse({"erro": "Informe o título e o cliente."}, status_code=400)
-    if len(title) > 200 or len(client_name) > 200 or (legal_area and len(legal_area) > 80):
+    if legal_area not in AREAS_JURIDICAS:
+        return JSONResponse({"erro": "Escolha a área jurídica."}, status_code=400)
+    if len(title) > 200 or len(client_name) > 200:
         return JSONResponse({"erro": "Título, cliente ou área longo demais."}, status_code=400)
 
     agora = agora_iso()
