@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { BarraLateralCasos } from "@/components/casos/barra-lateral-casos";
 import { ProvedorListaCasos } from "@/components/casos/contexto-lista-casos";
@@ -17,6 +17,7 @@ import { redirecionamentoDosCasos } from "@/lib/conta";
  */
 export default function LayoutCasos({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [liberado, setLiberado] = useState(false);
   const [casos, setCasos] = useState<Caso[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -50,6 +51,13 @@ export default function LayoutCasos({ children }: { children: ReactNode }) {
       ativo = false;
     };
   }, [router]);
+
+  const semCasos = liberado && !carregando && !erroLista && casos.length === 0;
+  const abrirNovoCaso = semCasos && pathname === "/casos";
+
+  useEffect(() => {
+    if (abrirNovoCaso) router.replace("/casos/novo");
+  }, [abrirNovoCaso, router]);
 
   const contexto = useMemo(
     () => ({
@@ -93,6 +101,8 @@ export default function LayoutCasos({ children }: { children: ReactNode }) {
             <p role="alert" className="text-destructive px-7 pt-6 text-[13px]">
               {erroLista}
             </p>
+          ) : abrirNovoCaso ? (
+            <p className="text-tinta-suave px-7 pt-6 text-[13px]">Abrindo o novo caso…</p>
           ) : (
             children
           )}
