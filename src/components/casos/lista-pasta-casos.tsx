@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
 import { ModalConfirmar } from "@/components/casos/modal-confirmar";
+import { IconeArea } from "@/components/casos/icone-area";
 import { IconeLixeira, IconeRepositorio, IconeRestaurar } from "@/components/casos/icones-trilha";
 import type { Caso, PastaCaso } from "@/lib/api/types";
 import { pastaDoCaso, rotuloCaso } from "@/lib/casos/rotulo";
@@ -121,7 +122,10 @@ function CartaoCaso({
   return (
     <div className="bg-superficie border-borda flex h-[64px] w-full items-center gap-2 rounded-[10px] border px-4 py-3">
       <Link href={destinoDoCaso(caso)} className="pressionavel flex min-w-0 flex-1 flex-col gap-1">
-        <h2 className="truncate text-[13px] font-semibold">{caso.titulo}</h2>
+        <h2 className="flex min-w-0 items-center gap-1.5 text-[13px] font-semibold">
+          <IconeArea area={caso.area} />
+          <span className="truncate">{caso.titulo}</span>
+        </h2>
         <p className="text-tinta-suave truncate text-[12px]">Cliente: {caso.cliente}</p>
       </Link>
       <div className="text-meta flex shrink-0 flex-col items-end gap-1 text-[11px]">

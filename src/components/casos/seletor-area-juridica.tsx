@@ -46,6 +46,7 @@ export function SeletorAreaJuridica({ id, valor, aoMudar }: SeletorAreaJuridicaP
         type="button"
         aria-haspopup="listbox"
         aria-expanded={aberto}
+        aria-required="true"
         onClick={() => setAberto((atual) => !atual)}
         className={cn(CLASSE_CAMPO, "flex items-center justify-between gap-2 text-left")}
       >

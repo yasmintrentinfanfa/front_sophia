@@ -272,4 +272,33 @@ html[data-destaque] .tela-login .bg-acao {
     transform: scale(0.96);
     filter: brightness(0.94);
   }
+  .telefone-toque {
+    animation: toque-telefone 3.2s ease-in-out infinite;
+  }
+}
+
+@keyframes toque-telefone {
+  0%,
+  55%,
+  100% {
+    transform: rotate(0deg);
+  }
+  62% {
+    transform: rotate(-8deg);
+  }
+  70% {
+    transform: rotate(8deg);
+  }
+  78% {
+    transform: rotate(-4deg);
+  }
+  86% {
+    transform: rotate(0deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .telefone-toque {
+    animation: none;
+  }
 }

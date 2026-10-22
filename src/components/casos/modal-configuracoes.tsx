@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { X } from "lucide-react";
 
 import { IconeTelefone } from "@/components/casos/icones-trilha";
 import { BotaoTema } from "@/components/tema/botao-tema";
@@ -28,8 +29,16 @@ export function ModalConfiguracoes({
       aoFechar={aoFechar}
       titulo="Configurações"
       descricao="Tema, cor, pagamento e sessão"
-      className="max-w-[340px]"
+      className="relative max-w-[340px]"
     >
+      <button
+        type="button"
+        onClick={aoFechar}
+        aria-label="Fechar"
+        className="hover:bg-tinta/5 absolute top-3 right-3 flex size-8 items-center justify-center rounded-[8px]"
+      >
+        <X className="size-4" aria-hidden />
+      </button>
       <div className="mt-4 flex flex-col gap-3">
         <div className="border-borda flex items-center justify-between rounded-[10px] border px-3 py-2.5">
           <div className="flex flex-col gap-0.5">
@@ -61,21 +70,11 @@ export function ModalConfiguracoes({
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between">
-        <span
-          title="Entre em contato o suporte"
-          aria-label="Entre em contato o suporte"
-          className="text-tinta-suave flex size-8 items-center justify-center rounded-[8px]"
-        >
+      <div className="text-tinta-suave group mt-3 flex w-fit cursor-pointer items-center gap-1.5">
+        <span className="telefone-toque inline-flex [&_svg]:size-3.5">
           <IconeTelefone />
         </span>
-        <button
-          type="button"
-          onClick={aoFechar}
-          className="border-borda flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-semibold"
-        >
-          Fechar
-        </button>
+        <p className="text-[11px] underline-offset-2 group-hover:underline">Entre em contato com o suporte</p>
       </div>
     </Modal>
   );
