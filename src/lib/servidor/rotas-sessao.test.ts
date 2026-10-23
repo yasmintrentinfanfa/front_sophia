@@ -268,6 +268,19 @@ describe("análise, chat e minutas com IA", () => {
     expect(corpoChamado()).toEqual({ user_id: ANA, modelo_id: "contestacao" });
   });
 
+  it("atualizar a análise com o chat só liga incluir_chat quando pedido explicitamente", async () => {
+    cookieAtual.valor = assinarSessao(ANA);
+    const pedir = (corpo: unknown) =>
+      rotaAnalise.POST(new Request("http://x/api/analise", { method: "POST", body: JSON.stringify(corpo) }));
+
+    await pedir({ casoId: "caso-1", incluirChat: true });
+    expect(corpoChamado()).toEqual({ user_id: ANA, incluir_chat: true });
+
+    backend.mockClear();
+    await pedir({ casoId: "caso-1", incluirChat: "sim" });
+    expect(corpoChamado()).toEqual({ user_id: ANA });
+  });
+
   it("leituras passam o user_id da sessão e protegem os ids na URL", async () => {
     cookieAtual.valor = assinarSessao(ANA);
     await rotaChat.GET(new Request(`http://x/api/chat?casoId=../x&user_id=${BRUNO}`));

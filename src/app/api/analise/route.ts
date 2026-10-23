@@ -21,14 +21,14 @@ export async function GET(pedido: Request) {
 }
 
 export async function POST(pedido: Request) {
-  const corpo = (await pedido.json().catch(() => ({}))) as { casoId?: string };
+  const corpo = (await pedido.json().catch(() => ({}))) as { casoId?: string; incluirChat?: boolean };
   const casoId = (corpo.casoId ?? "").trim();
   const userId = await idDoUsuarioNaSessao();
   if (!userId) return Response.json({ erro: "Entre na sua conta para analisar o caso." }, { status: 401 });
   if (!casoId) return Response.json({ erro: "Informe o caso." }, { status: 400 });
   return repassarJson(
     `/analise/${encodeURIComponent(casoId)}`,
-    corpoJson({ user_id: userId }),
+    corpoJson({ user_id: userId, ...(corpo.incluirChat === true ? { incluir_chat: true } : {}) }),
     "Não foi possível gerar a análise. Confira se a API está na porta 8000.",
   );
 }

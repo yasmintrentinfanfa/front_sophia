@@ -99,6 +99,7 @@ def para_analise_front(registro: Dict[str, Any], caso_id: str) -> Dict[str, Any]
         "resumo": str(dados.get("resumo_caso") or ""),
         "insights": insights,
         "demonstracao": False,
+        "origem": "chat" if registro.get("origem") == "chat" else "relato",
     }
 
 

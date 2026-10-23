@@ -57,7 +57,8 @@ class Armazenamento:
 
     # ------------------------------------------------------------ análises
     async def salvar_analise(self, user_id: str, caso_id: str, analise: Dict[str, Any],
-                             documentos_meta: List[Dict[str, Any]], modelo: str) -> Dict[str, Any]:
+                             documentos_meta: List[Dict[str, Any]], modelo: str,
+                             origem: str = "relato", mensagens_consideradas: int = 0) -> Dict[str, Any]:
         await self.garantir_indices()
         for _ in range(3):  # duas análises simultâneas disputam a mesma versão
             ultima = await self.ultima_analise(user_id, caso_id)
@@ -66,6 +67,8 @@ class Armazenamento:
                 "versao": (ultima["versao"] if ultima else 0) + 1,
                 "gerada_em": agora(), "modelo": modelo,
                 "analise": analise, "documentos_meta": documentos_meta,
+                # "chat" = versão que incorporou as mensagens do advogado no chat.
+                "origem": origem, "mensagens_consideradas": mensagens_consideradas,
             }
             try:
                 await self.analises.insert_one(registro)

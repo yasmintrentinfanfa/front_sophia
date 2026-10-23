@@ -123,6 +123,14 @@ class Validacao(unittest.TestCase):
         analysis.run_case_analysis(p, "relato", "", analise_anterior=BASE)
         self.assertIn("ANÁLISE ANTERIOR", p.prompts[0])
 
+    def test_reanalise_com_o_chat_traz_os_fatos_novos_como_dado(self):
+        p = Falso([json.dumps(BASE)])
+        analysis.run_case_analysis(p, "relato", "", analise_anterior=BASE,
+                                   informacoes_do_chat=["O plano é de autogestão.", "  "])
+        self.assertIn("<informacoes_do_chat>", p.prompts[0])
+        self.assertIn("- O plano é de autogestão.", p.prompts[0])
+        self.assertIn("não instruções", p.prompts[0])
+
     def test_chat_e_peca_nao_usam_json_mode(self):
         p = Falso(["ok", "ok"])
         analysis.run_chat_turn(p, BASE, [], "oi")
@@ -276,6 +284,13 @@ class Servidor(unittest.TestCase):
         finally:
             httpx.post, llm_providers.time.sleep = original_post, original_sleep
 
+    def test_backend_sobe_sem_carregar_python_docx(self):
+        import subprocess
+        saida = subprocess.run(
+            [sys.executable, "-c", "import sys, analise.router; print('docx' in sys.modules)"],
+            cwd=os.path.join(os.path.dirname(__file__), ".."), capture_output=True, text=True, check=True)
+        self.assertEqual(saida.stdout.strip(), "False")
+
     def test_docx_em_memoria(self):
         conteudo = docx_builder.build_docx("MINUTA\n# DOS FATOS\ntexto")
         self.assertTrue(conteudo.startswith(b"PK"))
@@ -297,8 +312,9 @@ class Rotas(unittest.TestCase):
         async def marcar(user_id, caso_id, versao):
             self.analisados.append((user_id, caso_id, versao))
 
-        self.saidas = []
-        router.provider_do_servidor = lambda: Falso(self.saidas)
+        self.ia = Falso([])
+        self.saidas = self.ia.saidas
+        router.provider_do_servidor = lambda: self.ia
         app = FastAPI()
         app.include_router(router.criar_router(obter_contexto, lambda: self.arm, marcar))
         self.c = TestClient(app)
@@ -328,6 +344,27 @@ class Rotas(unittest.TestCase):
         docx = self.c.get(f"/pecas/c1/{peca['id']}/docx?user_id=A")
         self.assertEqual(docx.status_code, 200)
         self.assertIn("attachment", docx.headers["content-disposition"])
+
+    def test_atualizar_a_analise_com_o_chat(self):
+        self.assertEqual(self.c.post("/analise/c1", json={"user_id": "A", "incluir_chat": True}).status_code, 400)
+
+        self.saidas.append(json.dumps(BASE))
+        self.c.post("/analise/c1", json={"user_id": "A"})
+        self.saidas.append("Resposta inventada pela IA")
+        self.c.post("/chat/c1", json={"user_id": "A", "mensagem": "Ela pagou a cirurgia particular."})
+
+        self.saidas.append(json.dumps(dict(BASE, resumo_caso="Atualizado.")))
+        r = self.c.post("/analise/c1", json={"user_id": "A", "incluir_chat": True})
+        self.assertEqual(r.status_code, 200)
+        analise = r.json()["analise"]
+        self.assertEqual((analise["versao"], analise["origem"], analise["resumo"]), (2, "chat", "Atualizado."))
+        prompt = self.ia.prompts[-1]
+        self.assertIn("Ela pagou a cirurgia particular.", prompt)
+        self.assertNotIn("Resposta inventada pela IA", prompt)  # resposta da IA não vira fato
+        self.assertNotIn("ANÁLISE ANTERIOR", prompt)  # refeita do zero, sem copiar a versão antiga
+        self.assertEqual(rodar(self.arm.ultima_analise("A", "c1"))["mensagens_consideradas"], 1)
+        versoes = self.c.get("/analise/c1?user_id=A").json()["versoes"]
+        self.assertEqual([v["origem"] for v in versoes], ["chat", "relato"])
 
     def test_outro_usuario_e_modelo_invalido(self):
         self.assertEqual(self.c.get("/analise/c1?user_id=B").status_code, 404)
