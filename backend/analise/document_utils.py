@@ -7,8 +7,6 @@ import re
 from dataclasses import dataclass, field
 from typing import List
 
-import docx  # python-docx
-
 SUSPICIOUS_PATTERNS = [
     r"ignore\s+(all|as)?\s*(previous|anterior(es)?|acima)\s+instru[cç][oõ]es",
     r"ignor[ae]\s+((as|the)\s+)?instru[cç][oõ]es\s+(anterior(es)?|acima|previous)",
@@ -50,6 +48,8 @@ def detect_suspicious(text: str) -> List[str]:
 
 
 def extract_text_from_docx(file_bytes: bytes) -> str:
+    import docx  # python-docx: carregado só aqui, para o backend subir mesmo sem ele
+
     document = docx.Document(io.BytesIO(file_bytes))
     parts: List[str] = [p.text for p in document.paragraphs if p.text.strip()]
     for table in document.tables:
