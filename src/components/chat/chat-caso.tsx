@@ -88,8 +88,8 @@ function Chat({
       const novas = await api.enviarMensagem(casoId, pergunta);
       setMensagens((atuais) => [...atuais, ...novas]);
       setPergunta("");
-      campo.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-      campo.current?.focus();
+      // Só foca: a lista já rola sozinha, e scrollIntoView rolaria a página junto.
+      campo.current?.focus({ preventScroll: true });
     } catch {
       setErro("Não foi possível enviar a mensagem. Tente novamente.");
     } finally {
@@ -119,7 +119,7 @@ function Chat({
             key={assunto}
             onClick={() => {
               setPergunta(assunto);
-              campo.current?.focus();
+              campo.current?.focus({ preventScroll: true });
             }}
             className={cn(
               "bg-campo flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-medium",
@@ -139,7 +139,7 @@ function Chat({
           aria-label="Conversa com a IA"
           aria-live="polite"
           aria-busy={carregando || enviando}
-          className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto"
+          className="relative flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto"
         >
           {carregando ? (
             <p role="status" className="text-tinta-suave text-[13px]">
