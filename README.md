@@ -48,3 +48,15 @@ cd backend && ./venv/bin/python -m uvicorn main:app --reload --reload-exclude ve
 ```
 
 Abra [http://localhost:3000](http://localhost:3000). A raiz redireciona para `/login`. O cadastro grava na collection `users` do banco `sophia-data`. Sem a URI, a conta fica em `backend/data/` no mesmo formato, até o Atlas estar no `.env`.
+
+## Análise, chat e peças com IA (módulo `backend/analise`)
+
+A análise preliminar, o chat do caso e as minutas de peças rodam no mesmo backend FastAPI e
+guardam tudo no MongoDB. Para ligar:
+
+1. `pip install -r backend/requirements.txt` (inclui `python-docx` e `pypdf`).
+2. Em `backend/.env`: `GROQ_API_KEY` (ou outro provedor via `SOPHIA_LLM_PROVIDER`, ver `backend/env.exemplo`).
+3. Testes do módulo: `cd backend && python -m unittest discover -s tests -v`.
+
+Para usar a análise simulada no front, defina `NEXT_PUBLIC_ANALISE_REAL=false` no `.env.local`.
+Rotas e coleções estão em `docs/contrato-api.md`.

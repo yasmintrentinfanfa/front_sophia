@@ -11,6 +11,7 @@ export default function PaginaAnaliseRepositorio() {
           dados={dados}
           destinoVoltar={`/casos/${dados.casoId}/repositorio`}
           destinoChat={`/casos/${dados.casoId}/repositorio/chat`}
+          destinoPecas={`/casos/${dados.casoId}/repositorio/pecas`}
         />
       )}
     </ConteudoCaso>

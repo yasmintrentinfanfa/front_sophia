@@ -11,6 +11,7 @@ export default function PaginaAnalise() {
           dados={dados}
           destinoVoltar={`/casos/${dados.casoId}/gravacao`}
           destinoChat={`/casos/${dados.casoId}/chat`}
+          destinoPecas={`/casos/${dados.casoId}/pecas`}
         />
       )}
     </ConteudoCaso>

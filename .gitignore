@@ -38,7 +38,7 @@ yarn-error.log*
 
 # python (API em /backend)
 backend/venv/
-backend/__pycache__/
+__pycache__/
 backend/debug_audio/
 backend/transcricoes/
 backend/data/

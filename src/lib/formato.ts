@@ -31,3 +31,14 @@ export function formatarDuracao(totalSegundos: number) {
 export function formatarMoeda(centavos: number) {
   return moeda.format(centavos / 100);
 }
+
+/**
+ * Horário que o backend grava em Brasília sem fuso ("2026-10-22T14:05:00"):
+ * vira "22/10/2026 às 14:05" sem converter de fuso no navegador.
+ */
+export function formatarDataHora(isoLocal: string) {
+  const partes = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(isoLocal);
+  if (!partes) return isoLocal;
+  const [, ano, mes, dia, hora, minuto] = partes;
+  return `${dia}/${mes}/${ano} às ${hora}:${minuto}`;
+}

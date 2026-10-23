@@ -123,10 +123,11 @@ listarMensagens(casoId): Promise<MensagemChat[]>;
 enviarMensagem(casoId, conteudo): Promise<MensagemChat[]>; // [mensagem do advogado, resposta]
 ```
 
-Essas operações estão implementadas em `src/lib/api/mock/fluxo.ts` e são expostas
-pelo mesmo objeto `api` das telas existentes. A reanálise incrementa a versão e
-acrescenta um evento ao histórico; conversas são isoladas por `casoId`. Respostas
-novas identificam o modo de demonstração, sem simular uma consulta jurídica real.
+Fora dos testes, análise e chat são reais (`src/lib/api/analise-real.ts`, rotas
+`/api/analise` e `/api/chat`, módulo `backend/analise`). Nos testes, e com
+`NEXT_PUBLIC_ANALISE_REAL=false`, seguem o simulado de `src/lib/api/mock/fluxo.ts`. A
+reanálise incrementa a versão e acrescenta um evento ao histórico; conversas são isoladas
+por usuário e por `casoId`.
 
 Ao confirmar o fim da gravação, a sessão aguarda `finalizarSessao`, atualiza a
 lista e substitui a rota da sessão pela análise. Falhas mantêm a transcrição na
@@ -238,3 +239,48 @@ entre Next e backend (ex.: header `X-Sophia-Interno`).
 usuários, cookie forjado/adulterado e as rotas de conta. A API real deve cobrir os
 mesmos cenários com dois usuários A e B: B não lista, não abre, não altera e não
 exclui caso de A (`404`), e nada funciona sem sessão (`401`).
+
+## Análise, chat e minutas com IA (`backend/analise`)
+
+Módulo vindo do repositório `repotestesmerged`: prompts com as regras anti-alucinação,
+validação do JSON com uma nova tentativa, provedores de IA (Groq por padrão) e marcação
+de documentos anexados como dado não confiável. A chave da IA fica só no `backend/.env`.
+
+### Rotas
+
+| Next (cookie assinado) | Backend | O que faz |
+|---|---|---|
+| `POST /api/analise` `{ casoId }` | `POST /analise/{caso}` | Gera uma nova versão da análise com todos os relatos e documentos do caso |
+| `GET /api/analise?casoId=` | `GET /analise/{caso}` | Última versão e todas as versões |
+| `GET /api/chat?casoId=` | `GET /chat/{caso}` | Últimas 200 mensagens, em ordem |
+| `POST /api/chat` `{ casoId, mensagem }` | `POST /chat/{caso}` | Uma pergunta; devolve a pergunta e a resposta salvas |
+| `GET /api/pecas/modelos` | `GET /pecas/modelos` | Catálogo de modelos de peça (`modelos_pecas.py`) |
+| `GET /api/pecas?casoId=` | `GET /pecas/{caso}` | Minutas do caso, sem o texto |
+| `POST /api/pecas` `{ casoId, modeloId, instrucoes? }` | `POST /pecas/{caso}` | Gera uma minuta; exige análise (409 sem ela) |
+| `GET /api/pecas/{id}?casoId=` | `GET /pecas/{caso}/{id}` | Minuta com o texto |
+| `GET /api/pecas/{id}/docx?casoId=` | `GET /pecas/{caso}/{id}/docx` | `.docx` montado em memória |
+
+Toda rota do backend confere antes que o caso existe, é do usuário e não foi excluído
+(`in_system` diferente de `false`); caso alheio responde 404.
+
+### Onde cada coisa fica no MongoDB
+
+Cada registro é um documento próprio, inserido sem reescrever o caso. O documento do caso
+continua pequeno (o último relato em `transcript` e `analysis_version`) e nenhuma requisição
+manda o histórico inteiro:
+
+| Coleção | Um documento por | Campos principais |
+|---|---|---|
+| `analises` | versão da análise | `user_id`, `caso_id`, `versao` (único por caso), `gerada_em`, `modelo`, `analise` (JSON validado da IA), `documentos_meta` |
+| `mensagens` | mensagem do chat | `user_id`, `caso_id`, `papel` (`user`/`assistant`), `conteudo`, `criada_em` |
+| `pecas` | minuta gerada | `user_id`, `caso_id`, `modelo_id`, `titulo`, `texto`, `instrucoes`, `analise_versao`, `gerada_em` |
+| `relatos` | relato registrado | `user_id`, `caso_id`, `texto`, `duracao_segundos`, `criado_em` |
+
+- **Cards:** guardamos o JSON validado da IA, não os cards prontos. O `mapeador` monta os
+  cards na leitura, então mudar a forma de exibir não exige migrar dados antigos.
+- **Chat:** o front manda só a mensagem nova. O backend lê as últimas 10 mensagens (as
+  respostas longas entram resumidas), a última análise e um trecho do relato.
+- **Relatos:** cada gravação, áudio ou texto vira um documento; a análise considera todos,
+  em ordem cronológica, e os mais antigos saem primeiro se passarem do limite de tamanho.
+- **Limite do Groq gratuito:** 8 mil tokens por minuto. Ao receber 429, o backend espera o
+  tempo indicado e tenta de novo até 3 vezes.

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState, type FormEvent } from "react";
+import { Fragment, Suspense, useEffect, useRef, useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
@@ -52,7 +52,13 @@ function Chat({
   const [erro, setErro] = useState("");
   const [tentativa, setTentativa] = useState(0);
   const campo = useRef<HTMLInputElement>(null);
+  const conversa = useRef<HTMLDivElement>(null);
   const envioEmCurso = useRef(false);
+
+  // Respostas da IA são longas: a conversa sempre mostra a última mensagem.
+  useEffect(() => {
+    conversa.current?.scrollTo({ top: conversa.current.scrollHeight, behavior: "smooth" });
+  }, [mensagens, enviando]);
 
   useEffect(() => {
     let ativo = true;
@@ -82,8 +88,8 @@ function Chat({
       const novas = await api.enviarMensagem(casoId, pergunta);
       setMensagens((atuais) => [...atuais, ...novas]);
       setPergunta("");
-      campo.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-      campo.current?.focus();
+      // Só foca: a lista já rola sozinha, e scrollIntoView rolaria a página junto.
+      campo.current?.focus({ preventScroll: true });
     } catch {
       setErro("Não foi possível enviar a mensagem. Tente novamente.");
     } finally {
@@ -113,7 +119,7 @@ function Chat({
             key={assunto}
             onClick={() => {
               setPergunta(assunto);
-              campo.current?.focus();
+              campo.current?.focus({ preventScroll: true });
             }}
             className={cn(
               "bg-campo flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-medium",
@@ -128,11 +134,12 @@ function Chat({
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-3 px-7 pt-2 pb-6">
         <div
+          ref={conversa}
           role="log"
           aria-label="Conversa com a IA"
           aria-live="polite"
           aria-busy={carregando || enviando}
-          className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto"
+          className="relative flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto"
         >
           {carregando ? (
             <p role="status" className="text-tinta-suave text-[13px]">
@@ -147,16 +154,23 @@ function Chat({
             <div
               key={mensagem.id}
               className={cn(
-                "bg-campo flex min-h-12 w-full items-center rounded-[10px] px-4 py-3 text-[13px] leading-4 [overflow-wrap:anywhere]",
+                "bg-campo flex min-h-12 w-full shrink-0 items-center rounded-[10px] px-4 py-3 text-[13px] leading-relaxed [overflow-wrap:anywhere]",
                 mensagem.papel === "assistente" && "border-borda border",
               )}
             >
               <span className="sr-only">
                 {mensagem.papel === "assistente" ? "Sophia: " : "Você: "}
               </span>
-              <p className="whitespace-pre-wrap">{mensagem.conteudo}</p>
+              <p className="whitespace-pre-wrap">
+                <TextoComDestaques texto={mensagem.conteudo} />
+              </p>
             </div>
           ))}
+          {enviando ? (
+            <p role="status" className="text-tinta-suave shrink-0 text-[12px]">
+              A Sophia está analisando o caso para responder…
+            </p>
+          ) : null}
         </div>
         <form
           onSubmit={enviar}
@@ -204,5 +218,22 @@ function Chat({
         ) : null}
       </div>
     </div>
+  );
+}
+
+/** A IA às vezes marca trechos com **negrito**: vira negrito de verdade em vez de asteriscos. */
+function TextoComDestaques({ texto }: { texto: string }) {
+  return (
+    <>
+      {texto.split(/(\*\*[^*\n]+\*\*)/g).map((parte, i) =>
+        parte.startsWith("**") && parte.endsWith("**") && parte.length > 4 ? (
+          <strong key={i} className="font-semibold">
+            {parte.slice(2, -2)}
+          </strong>
+        ) : (
+          <Fragment key={i}>{parte.replace(/^#{1,6}\s+/gm, "")}</Fragment>
+        ),
+      )}
+    </>
   );
 }

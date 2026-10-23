@@ -30,6 +30,11 @@ const { POST: transcrever } = await import("@/app/api/transcricao/transcrever/ro
 const { POST: revisar } = await import("@/app/api/transcricao/revisar/route");
 const { GET: listarCasos, POST: criarCaso } = await import("@/app/api/casos/route");
 const { PATCH: atualizarCaso, DELETE: excluirCaso } = await import("@/app/api/casos/[casoId]/route");
+const rotaAnalise = await import("@/app/api/analise/route");
+const rotaChat = await import("@/app/api/chat/route");
+const rotaPecas = await import("@/app/api/pecas/route");
+const { GET: obterPeca } = await import("@/app/api/pecas/[pecaId]/route");
+const { GET: baixarPeca } = await import("@/app/api/pecas/[pecaId]/docx/route");
 
 let backend: ReturnType<typeof vi.fn<typeof fetch>>;
 
@@ -230,6 +235,64 @@ describe("dono vem sempre do cookie", () => {
       body: JSON.stringify({ plan_id: "pro", card_token: "tok_mock_visa_0002_1" }),
     });
     expect((await assinar(pedido)).status).toBe(402);
+    expect(backend).not.toHaveBeenCalled();
+  });
+});
+
+describe("análise, chat e minutas com IA", () => {
+  it("o dono vem do cookie, nunca do corpo, e o front só manda o que é novo", async () => {
+    cookieAtual.valor = assinarSessao(ANA);
+    await rotaAnalise.POST(
+      new Request("http://x/api/analise", { method: "POST", body: JSON.stringify({ casoId: "caso-1", user_id: BRUNO }) }),
+    );
+    expect(urlChamada()).toMatch(/\/analise\/caso-1$/);
+    expect(corpoChamado()).toEqual({ user_id: ANA });
+
+    backend.mockClear();
+    await rotaChat.POST(
+      new Request("http://x/api/chat", {
+        method: "POST",
+        body: JSON.stringify({ casoId: "caso-1", mensagem: " Quais riscos? ", user_id: BRUNO, historico: ["x"] }),
+      }),
+    );
+    expect(urlChamada()).toMatch(/\/chat\/caso-1$/);
+    expect(corpoChamado()).toEqual({ user_id: ANA, mensagem: "Quais riscos?" });
+
+    backend.mockClear();
+    await rotaPecas.POST(
+      new Request("http://x/api/pecas", {
+        method: "POST",
+        body: JSON.stringify({ casoId: "caso-1", modeloId: "contestacao", user_id: BRUNO }),
+      }),
+    );
+    expect(corpoChamado()).toEqual({ user_id: ANA, modelo_id: "contestacao" });
+  });
+
+  it("leituras passam o user_id da sessão e protegem os ids na URL", async () => {
+    cookieAtual.valor = assinarSessao(ANA);
+    await rotaChat.GET(new Request(`http://x/api/chat?casoId=../x&user_id=${BRUNO}`));
+    expect(urlChamada()).toMatch(/\/chat\/\.\.%2Fx\?user_id=/);
+    expect(new URL(urlChamada()).searchParams.get("user_id")).toBe(ANA);
+
+    backend.mockClear();
+    await obterPeca(new Request("http://x?casoId=caso-1"), { params: Promise.resolve({ pecaId: "p/1" }) });
+    expect(urlChamada()).toMatch(/\/pecas\/caso-1\/p%2F1\?user_id=/);
+
+    backend.mockClear();
+    backend.mockResolvedValueOnce(
+      new Response("PK", { headers: { "content-type": "application/vnd.openxmlformats", "content-disposition": "attachment" } }),
+    );
+    const download = await baixarPeca(new Request("http://x?casoId=caso-1"), { params: Promise.resolve({ pecaId: "p1" }) });
+    expect(download.status).toBe(200);
+    expect(download.headers.get("content-disposition")).toBe("attachment");
+  });
+
+  it("sem sessão → 401, sem chamar o backend", async () => {
+    const post = (corpo: unknown) => new Request("http://x", { method: "POST", body: JSON.stringify(corpo) });
+    expect((await rotaAnalise.POST(post({ casoId: "c" }))).status).toBe(401);
+    expect((await rotaChat.POST(post({ casoId: "c", mensagem: "oi" }))).status).toBe(401);
+    expect((await rotaPecas.POST(post({ casoId: "c", modeloId: "contestacao" }))).status).toBe(401);
+    expect((await rotaPecas.GET(new Request("http://x?casoId=c"))).status).toBe(401);
     expect(backend).not.toHaveBeenCalled();
   });
 });
