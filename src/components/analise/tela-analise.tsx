@@ -49,6 +49,9 @@ export function TelaAnalise({
           </div>
           <p className="text-tinta-suave text-[12px] leading-[15px]">
             Insights gerados a partir da transcrição e documentos
+            {analise && !analise.demonstracao
+              ? ` · versão ${analise.versao}${analise.origem === "chat" ? ", atualizada com o chat" : ""}`
+              : ""}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">

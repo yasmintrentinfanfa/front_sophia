@@ -251,6 +251,7 @@ de documentos anexados como dado não confiável. A chave da IA fica só no `bac
 | Next (cookie assinado) | Backend | O que faz |
 |---|---|---|
 | `POST /api/analise` `{ casoId }` | `POST /analise/{caso}` | Gera uma nova versão da análise com todos os relatos e documentos do caso |
+| `POST /api/analise` `{ casoId, incluirChat: true }` | `POST /analise/{caso}` `incluir_chat` | Botão "Atualizar análise com a conversa": refaz a análise com os relatos, os documentos e as últimas 20 mensagens do advogado no chat (`origem: "chat"`) |
 | `GET /api/analise?casoId=` | `GET /analise/{caso}` | Última versão e todas as versões |
 | `GET /api/chat?casoId=` | `GET /chat/{caso}` | Últimas 200 mensagens, em ordem |
 | `POST /api/chat` `{ casoId, mensagem }` | `POST /chat/{caso}` | Uma pergunta; devolve a pergunta e a resposta salvas |
@@ -271,7 +272,7 @@ manda o histórico inteiro:
 
 | Coleção | Um documento por | Campos principais |
 |---|---|---|
-| `analises` | versão da análise | `user_id`, `caso_id`, `versao` (único por caso), `gerada_em`, `modelo`, `analise` (JSON validado da IA), `documentos_meta` |
+| `analises` | versão da análise | `user_id`, `caso_id`, `versao` (único por caso), `gerada_em`, `modelo`, `analise` (JSON validado da IA), `documentos_meta`, `origem` (`relato` ou `chat`), `mensagens_consideradas` |
 | `mensagens` | mensagem do chat | `user_id`, `caso_id`, `papel` (`user`/`assistant`), `conteudo`, `criada_em` |
 | `pecas` | minuta gerada | `user_id`, `caso_id`, `modelo_id`, `titulo`, `texto`, `instrucoes`, `analise_versao`, `gerada_em` |
 | `relatos` | relato registrado | `user_id`, `caso_id`, `texto`, `duracao_segundos`, `criado_em` |
@@ -284,3 +285,9 @@ manda o histórico inteiro:
   em ordem cronológica, e os mais antigos saem primeiro se passarem do limite de tamanho.
 - **Limite do Groq gratuito:** 8 mil tokens por minuto. Ao receber 429, o backend espera o
   tempo indicado e tenta de novo até 3 vezes.
+- **Atualizar a análise pelo chat:** só as mensagens do advogado entram, como dado (nunca as
+  respostas da IA). A análise é refeita do zero com esses fatos, sem receber a versão
+  anterior: com ela, a IA tendia a copiar teses que os fatos novos derrubaram. As versões
+  anteriores continuam salvas.
+- **`python-docx`** só é carregado ao baixar a minuta: sem o pacote, o backend sobe e só o
+  download do `.docx` responde 503 com a instrução de instalação.

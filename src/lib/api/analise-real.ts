@@ -19,10 +19,13 @@ const rotuloVersao = (versao: number) => `Análise preliminar - versão ${versao
 export function criarAnaliseApi(base: SophiaApi): ApiAnalise {
   const consulta = (casoId: string) => `?casoId=${encodeURIComponent(casoId)}`;
 
-  async function solicitarAnalise(casoId: string): Promise<AnalisePreliminar> {
+  async function solicitarAnalise(
+    casoId: string,
+    opcoes: { incluirChat?: boolean } = {},
+  ): Promise<AnalisePreliminar> {
     const { analise } = await requisitarJson<{ analise: AnalisePreliminar }>("/api/analise", {
       method: "POST",
-      body: JSON.stringify({ casoId }),
+      body: JSON.stringify({ casoId, ...(opcoes.incluirChat ? { incluirChat: true } : {}) }),
     });
     return analise;
   }

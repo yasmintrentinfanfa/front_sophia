@@ -33,6 +33,8 @@ export interface AnalisePreliminar {
   resumo: string;
   insights: Insight[];
   demonstracao: boolean;
+  /** "chat": versão que incorporou o que o advogado contou no chat. */
+  origem?: "relato" | "chat";
 }
 
 export interface MensagemChat {

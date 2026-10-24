@@ -9,14 +9,24 @@ import io
 import re
 import unicodedata
 
-import docx
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.shared import Pt
-
 AVISO = "MINUTA GERADA POR IA — REVISAR ANTES DE PROTOCOLAR"
 
 
+class DocxIndisponivel(RuntimeError):
+    """python-docx não instalado no ambiente do backend."""
+
+
 def build_docx(rascunho: str) -> bytes:
+    # Carregado só no download: sem o pacote, o resto do backend continua funcionando.
+    try:
+        import docx
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.shared import Pt
+    except ImportError as e:
+        raise DocxIndisponivel(
+            "Download em .docx indisponível: instale as dependências com "
+            "backend/venv/Scripts/python -m pip install -r backend/requirements.txt") from e
+
     d = docx.Document()
     d.styles["Normal"].font.name = "Times New Roman"
     d.styles["Normal"].font.size = Pt(12)

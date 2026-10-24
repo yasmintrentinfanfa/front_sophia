@@ -23,7 +23,7 @@ from pydantic import BaseModel
 
 from .analysis import run_case_analysis, run_chat_turn, run_document_draft
 from .contexto import bloco_dos_documentos, texto_dos_relatos
-from .docx_builder import build_docx, nome_do_arquivo
+from .docx_builder import DocxIndisponivel, build_docx, nome_do_arquivo
 from .llm_providers import LLMError, provider_do_servidor
 from .mapeador import mensagem_front, modelo_front, para_analise_front, peca_front
 from .modelos_pecas import FASES, GRUPOS, MODELOS, obter_modelo
@@ -37,11 +37,14 @@ MarcarAnalisado = Callable[[str, str, int], Awaitable[None]]
 # Limite do Groq no plano gratuito: 8 mil tokens por minuto. O contexto do chat e da minuta
 # precisa caber nisso com folga; a análise já resume o relato.
 JANELA_CHAT = 10  # mensagens anteriores enviadas à IA a cada pergunta
+MENSAGENS_NA_REANALISE = 20  # últimas mensagens do advogado consideradas ao atualizar a análise
 LIMITE_RELATO_CHAT = 6_000
 
 
 class AnaliseIn(BaseModel):
     user_id: str
+    # Reanálise com o que o advogado contou no chat (botão "Atualizar análise com a conversa").
+    incluir_chat: bool = False
 
 
 class ChatIn(BaseModel):
@@ -93,15 +96,27 @@ def criar_router(obter_contexto: ObterContexto,
         if not transcricao and not documentos_bloco:
             return _erro("Registre o relato do caso antes de gerar a análise.", 404)
         anterior = await arm.ultima_analise(user_id, caso_id)
+        informacoes: list[str] = []
+        if body.incluir_chat:
+            # Só o que o advogado escreveu: respostas da IA não viram fato do caso.
+            mensagens = await arm.listar_mensagens(user_id, caso_id)
+            informacoes = [m["conteudo"] for m in mensagens if m["papel"] == "user"][-MENSAGENS_NA_REANALISE:]
+            if not informacoes:
+                return _erro("Envie no chat as informações novas antes de atualizar a análise.", 400)
         try:
             provider = provider_do_servidor()
             analise = await run_in_threadpool(
                 run_case_analysis, provider, transcricao, documentos_bloco, True,
-                anterior["analise"] if anterior else None)
+                # Com fatos novos do chat a análise é refeita do zero: recebendo a versão anterior,
+                # a IA tende a copiá-la e mantém teses que os fatos novos derrubaram. A versão
+                # anterior continua salva no histórico.
+                None if informacoes else (anterior["analise"] if anterior else None),
+                informacoes or None)
         except LLMError as e:
             return _erro(str(e), 502)
-        registro = await arm.salvar_analise(user_id, caso_id, analise, documentos_meta,
-                                            f"{provider.name}:{provider.model}")
+        registro = await arm.salvar_analise(
+            user_id, caso_id, analise, documentos_meta, f"{provider.name}:{provider.model}",
+            origem="chat" if informacoes else "relato", mensagens_consideradas=len(informacoes))
         await marcar_analisado(user_id, caso_id, registro["versao"])
         return {"analise": para_analise_front(registro, caso_id)}
 
@@ -180,8 +195,12 @@ def criar_router(obter_contexto: ObterContexto,
         peca = await arm.obter_peca(user_id.strip(), caso_id, peca_id)
         if not peca:
             return _erro("Minuta não encontrada.", 404)
+        try:
+            conteudo = build_docx(peca["texto"])
+        except DocxIndisponivel as e:
+            return _erro(str(e), 503)
         return Response(
-            content=build_docx(peca["texto"]),
+            content=conteudo,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             headers={"Content-Disposition": f'attachment; filename="{nome_do_arquivo(peca["titulo"])}"'})
 

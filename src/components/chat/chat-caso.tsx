@@ -1,7 +1,9 @@
 "use client";
 
 import { Fragment, Suspense, useEffect, useRef, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { RefreshCw } from "lucide-react";
 
 import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
 import { ConteudoCaso } from "@/components/fluxo/conteudo-caso";
@@ -54,6 +56,24 @@ function Chat({
   const campo = useRef<HTMLInputElement>(null);
   const conversa = useRef<HTMLDivElement>(null);
   const envioEmCurso = useRef(false);
+  const [atualizando, setAtualizando] = useState(false);
+  const [versaoAtualizada, setVersaoAtualizada] = useState<number | null>(null);
+  const temInformacoes = mensagens.some((mensagem) => mensagem.papel === "advogado");
+
+  /** Nova versão dos cards com o que o advogado contou na conversa; a anterior fica no histórico. */
+  async function atualizarAnalise() {
+    setAtualizando(true);
+    setErro("");
+    setVersaoAtualizada(null);
+    try {
+      const analise = await api.solicitarAnalise(casoId, { incluirChat: true });
+      setVersaoAtualizada(analise.versao);
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : "Não foi possível atualizar a análise. Tente novamente.");
+    } finally {
+      setAtualizando(false);
+    }
+  }
 
   // Respostas da IA são longas: a conversa sempre mostra a última mensagem.
   useEffect(() => {
@@ -100,15 +120,53 @@ function Chat({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <header className="flex w-full shrink-0 flex-col gap-1 px-7 pt-5 pb-2">
-        <div className="flex items-center gap-2">
-          <BotaoVoltar destino={destinoVoltar} />
-          <h1 className="text-[22px] leading-none font-bold">Chat com IA</h1>
+      <header className="flex w-full shrink-0 flex-wrap items-start justify-between gap-3 px-7 pt-5 pb-2">
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <BotaoVoltar destino={destinoVoltar} />
+            <h1 className="text-[22px] leading-none font-bold">Chat com IA</h1>
+          </div>
+          <p className="text-tinta-suave text-[13px]">
+            Tire dúvidas sobre o caso {titulo}
+          </p>
         </div>
-        <p className="text-tinta-suave text-[13px]">
-          Tire dúvidas sobre o caso {titulo}
-        </p>
+        <button
+          type="button"
+          onClick={() => void atualizarAnalise()}
+          disabled={!temInformacoes || atualizando || enviando || carregando}
+          title={
+            temInformacoes
+              ? "Gera uma nova versão dos cards com as informações que você mandou no chat"
+              : "Conte no chat as informações novas do caso para atualizar a análise"
+          }
+          className="pressionavel bg-campo border-borda flex h-8 items-center gap-1.5 rounded-[8px] border px-3 text-[12px] font-medium disabled:opacity-50"
+        >
+          <RefreshCw className={cn("size-3.5", atualizando && "animate-spin")} aria-hidden />
+          {atualizando ? "Atualizando análise…" : "Atualizar análise com a conversa"}
+        </button>
       </header>
+      {atualizando || versaoAtualizada ? (
+        <div className="shrink-0 px-7 pb-1">
+          <p
+            role="status"
+            className="bg-destaque-suave border-destaque/40 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-[10px] border px-4 py-2.5 text-[12px]"
+          >
+            {atualizando ? (
+              "A IA está refazendo a análise com o relato, os documentos e o que você contou aqui. Isso pode levar até um minuto."
+            ) : (
+              <>
+                <span>
+                  Análise atualizada para a versão {versaoAtualizada} com o que você contou no chat. A versão
+                  anterior fica no histórico.
+                </span>
+                <Link href={destinoVoltar} className="text-destaque font-semibold underline">
+                  Ver cards atualizados
+                </Link>
+              </>
+            )}
+          </p>
+        </div>
+      ) : null}
       <div
         className="flex shrink-0 flex-wrap items-start gap-2 px-7 pt-2 pb-2"
         aria-label="Assuntos sugeridos"

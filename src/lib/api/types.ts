@@ -138,7 +138,8 @@ export interface SophiaApi {
   excluirCaso(id: string): Promise<void>;
   obterCaso(casoId: string): Promise<ConteudoCaso>;
   finalizarSessao(casoId: string, transcricao: ConteudoCaso["transcricao"]): Promise<Caso>;
-  solicitarAnalise(casoId: string): Promise<AnalisePreliminar>;
+  /** `incluirChat`: nova versão com as informações que o advogado mandou no chat. */
+  solicitarAnalise(casoId: string, opcoes?: { incluirChat?: boolean }): Promise<AnalisePreliminar>;
   listarMensagens(casoId: string): Promise<MensagemChat[]>;
   enviarMensagem(casoId: string, conteudo: string): Promise<MensagemChat[]>;
 
