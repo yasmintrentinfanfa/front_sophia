@@ -17,12 +17,13 @@ import bcrypt
 import httpx
 from bson import ObjectId
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Response, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, File, Form, Response, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
 
+from analise.document_utils import extract_text
 from analise.router import criar_router as criar_router_analise
 from analise.storage import Armazenamento
 
@@ -46,7 +47,7 @@ mongo_client = AsyncIOMotorClient(MONGODB_URI) if MONGODB_URI else None
 mongo_db = mongo_client["sophia-data"] if mongo_client else None
 users_collection = mongo_db["users"] if mongo_db is not None else None
 case_collection = mongo_db["case"] if mongo_db is not None else None
-# Análises, chat, minutas e histórico de relatos (módulo `analise`), cada um na sua coleção.
+# Análises, chat e minutas (módulo `analise`), cada um na sua coleção. Relatos e documentos ficam só em `case`.
 armazenamento_ia = Armazenamento(mongo_db) if mongo_db is not None else None
 USERS_FILE = PASTA_BACK / "data" / "users.json"
 CASES_FILE = PASTA_BACK / "data" / "cases.json"
@@ -381,9 +382,21 @@ def _mesmo_caso(documento: dict, caso_id: str) -> bool:
     return _id_do_caso(documento) == caso_id or str(documento.get("_id") or "") == caso_id
 
 
+ORIGENS_TRANSCRIPT = {"audio", "manual"}
+
+
+def _entradas_transcript(documento: dict) -> list[dict]:
+    """`transcript` do caso como lista. Casos antigos guardam um objeto único: vira lista de um item."""
+    bruto = documento.get("transcript")
+    if isinstance(bruto, dict):
+        bruto = [bruto]
+    if not isinstance(bruto, list):
+        return []
+    return [item for item in bruto if isinstance(item, dict) and str(item.get("text") or "").strip()]
+
+
 def _caso_publico(documento: dict) -> dict:
-    transcricao = documento.get("transcript") if isinstance(documento.get("transcript"), dict) else {}
-    texto = str((transcricao or {}).get("text") or "").strip()
+    texto = " ".join(str(item.get("text") or "").strip() for item in _entradas_transcript(documento))
     status = documento.get("status")
     if status not in STATUS_CASO:
         status = "em_analise" if texto else "gravacao_pendente"
@@ -651,6 +664,7 @@ async def obter_caso(user_id: str = "", caso_id: str = ""):
         return JSONResponse({"erro": "Caso não encontrado."}, status_code=404)
 
     documento["_id"] = str(documento["_id"])
+    documento["transcript"] = _entradas_transcript(documento)
     return documento
 
 
@@ -728,6 +742,7 @@ async def criar_caso(payload: dict):
                 "status": "gravacao_pendente",
                 "folder": "ativo",
                 "documents": [],
+                "transcript": [],
                 "created_at": agora,
             })
         _gravar_cases_arquivo(lista)
@@ -742,6 +757,7 @@ async def criar_caso(payload: dict):
                 "status": "gravacao_pendente",
                 "folder": "ativo",
                 "documents": [],
+                "transcript": [],
                 "created_at": agora,
             },
         },
@@ -824,23 +840,47 @@ def _duracao_audio(valor) -> int | None:
     return segundos
 
 
-def _transcript(texto: str, momento: str, duracao_segundos: int | None) -> dict:
-    transcricao = {"text": texto, "created_at": momento}
+def _transcript(texto: str, momento: str, duracao_segundos: int | None, origem: str = "audio") -> dict:
+    """Um item de `case.transcript`. `source`: "audio" (transcrição) ou "manual" (escrito à mão)."""
+    entrada = {"id": str(uuid.uuid4()), "text": texto, "source": origem, "created_at": momento}
     if duracao_segundos is not None:
-        transcricao["duration_seconds"] = duracao_segundos
-    return transcricao
+        entrada["duration_seconds"] = duracao_segundos
+    return entrada
+
+
+async def _anexar_transcript(filtro: dict, entrada: dict, momento: str) -> bool:
+    """Acrescenta um item em `transcript` (o array só cresce). Devolve False se o caso não existe.
+
+    Casos antigos têm `transcript` como objeto único (ou nulo): vira array antes do push.
+    """
+    atual = await case_collection.find_one(filtro, {"transcript": 1})
+    if atual is None:
+        return False
+    bruto = atual.get("transcript")
+    if not isinstance(bruto, list):
+        legado = [bruto] if isinstance(bruto, dict) and str(bruto.get("text") or "").strip() else []
+        await case_collection.update_one(
+            {"$and": [filtro, {"transcript": {"$not": {"$type": "array"}}}]},
+            {"$set": {"transcript": legado}},
+        )
+    await case_collection.update_one(
+        filtro, {"$push": {"transcript": entrada}, "$set": {"updated_at": momento}}
+    )
+    return True
 
 
 @app.post("/salvar-transcricao")
 async def salvar_transcricao(payload: dict):
-    """Cria um caso na collection case, com a transcrição embutida.
+    """Acrescenta um relato em `transcript` do caso, na collection case.
 
-    O ``_id`` é o ObjectId gerado pelo Mongo. O documento fica com user_id,
-    transcript, documents, created_at e updated_at.
+    `transcript` é um array: cada item tem id, text, source ("audio" ou "manual", este para o
+    relato escrito à mão), created_at e, no áudio, duration_seconds. Nada é gravado em outra
+    collection; os documentos anexados ficam em `documents`.
     """
     texto = (payload.get("texto") or "").strip()
     user_id = (payload.get("user_id") or "").strip()
     caso_id = (payload.get("caso_id") or "").strip()
+    origem = (payload.get("origem") or "audio").strip().lower()
     duracao_segundos = _duracao_audio(payload.get("duracao_segundos"))
     if not texto:
         return {"erro": "Texto vazio, nada para salvar."}
@@ -849,6 +889,10 @@ async def salvar_transcricao(payload: dict):
             {"erro": "Informe o usuário para vincular a transcrição."},
             status_code=400,
         )
+    if origem not in ORIGENS_TRANSCRIPT:
+        return JSONResponse({"erro": "Origem do relato inválida."}, status_code=400)
+    if origem == "manual":
+        duracao_segundos = None
 
     agora = time.strftime("%Y-%m-%d_%H-%M-%S")
     momento = agora_iso()
@@ -859,11 +903,11 @@ async def salvar_transcricao(payload: dict):
         f.write(texto)
 
     resultado = {"arquivo_txt": nome_arquivo_txt}
+    entrada = _transcript(texto, momento, duracao_segundos, origem)
 
     if case_collection is not None:
         try:
             if caso_id:
-                # Caso criado pela aplicação: o relato fica no próprio documento do caso.
                 # Único por (usuário, caso) só onde há caso_id: documentos antigos da
                 # coleção não têm o campo e, como duplicados de caso_id nulo, faziam a
                 # criação do índice — e com ela todo salvamento — falhar.
@@ -872,19 +916,16 @@ async def salvar_transcricao(payload: dict):
                     unique=True,
                     partialFilterExpression={"caso_id": {"$type": "string"}},
                 )
+                filtro = {"user_id": user_id, "caso_id": caso_id}
                 await case_collection.update_one(
-                    {"user_id": user_id, "caso_id": caso_id},
+                    filtro,
                     {
-                        "$set": {
-                            "user_id": user_id,
-                            "caso_id": caso_id,
-                            "transcript": _transcript(texto, momento, duracao_segundos),
-                            "updated_at": momento,
-                        },
-                        "$setOnInsert": {"created_at": momento, "documents": []},
+                        "$set": {"user_id": user_id, "caso_id": caso_id},
+                        "$setOnInsert": {"created_at": momento, "documents": [], "transcript": []},
                     },
                     upsert=True,
                 )
+                await _anexar_transcript(filtro, entrada, momento)
                 await case_collection.update_one(
                     {
                         "user_id": user_id,
@@ -897,14 +938,12 @@ async def salvar_transcricao(payload: dict):
                     },
                     {"$set": {"status": "em_analise"}},
                 )
-                salvo = await case_collection.find_one({"user_id": user_id, "caso_id": caso_id})
+                salvo = await case_collection.find_one(filtro)
                 resultado["case_id"] = str(salvo["_id"]) if salvo else caso_id
-                if armazenamento_ia is not None:
-                    await armazenamento_ia.adicionar_relato(user_id, caso_id, texto, momento, duracao_segundos)
             else:
                 caso = {
                     "user_id": user_id,
-                    "transcript": _transcript(texto, momento, duracao_segundos),
+                    "transcript": [entrada],
                     "documents": [],
                     "created_at": momento,
                     "updated_at": momento,
@@ -919,7 +958,15 @@ async def salvar_transcricao(payload: dict):
     return resultado
 
 
-TIPOS_DOCUMENTO = {"pdf", "doc", "docx", "txt"}
+TIPOS_DOCUMENTO = {"pdf", "docx", "txt"}
+MAX_DOCUMENTOS_CASO = 10
+TAMANHO_MAX_DOCUMENTO = 15 * 1024 * 1024
+# Assinatura dos arquivos: confere o conteúdo real, não só a extensão.
+ASSINATURAS_DOCUMENTO = {"pdf": b"%PDF", "docx": b"PK"}
+
+
+class _LimiteDocumentos(Exception):
+    pass
 
 
 def _anexar_documento_arquivo(user_id: str, caso_id: str, documento: dict, momento: str) -> bool:
@@ -927,6 +974,8 @@ def _anexar_documento_arquivo(user_id: str, caso_id: str, documento: dict, momen
     caso = next((item for item in lista if item.get("user_id") == user_id and _mesmo_caso(item, caso_id)), None)
     if not caso:
         return False
+    if len(caso.get("documents") or []) >= MAX_DOCUMENTOS_CASO:
+        raise _LimiteDocumentos()
     caso.setdefault("documents", []).append(documento)
     caso["updated_at"] = momento
     if caso.get("status") in (None, "gravacao_pendente"):
@@ -937,7 +986,7 @@ def _anexar_documento_arquivo(user_id: str, caso_id: str, documento: dict, momen
 
 @app.post("/salvar-documento")
 async def salvar_documento(payload: dict):
-    """Anexa um arquivo lido (PDF, Word, DOC ou TXT) em documents do caso.
+    """Anexa um texto já extraído (PDF, DOCX ou TXT) em documents do caso.
 
     Não grava em transcript: no repositório o arquivo fica na aba Documentos.
     """
@@ -949,7 +998,7 @@ async def salvar_documento(payload: dict):
     if not user_id or not _caso_id_valido(caso_id):
         return JSONResponse({"erro": "Informe o caso para anexar o documento."}, status_code=400)
     if tipo not in TIPOS_DOCUMENTO:
-        return JSONResponse({"erro": "Envie um PDF, Word, DOC ou TXT."}, status_code=400)
+        return JSONResponse({"erro": "Envie um PDF, DOCX ou TXT."}, status_code=400)
     if len(texto) < 20:
         return JSONResponse({"erro": "Não foi possível ler texto suficiente neste arquivo."}, status_code=400)
     if len(texto) > 500_000 or len(nome) > 180:
@@ -965,11 +1014,18 @@ async def salvar_documento(payload: dict):
     }
     try:
         if case_collection is not None:
+            filtro = _filtro_caso(user_id, caso_id)
+            # O limite entra no próprio filtro: o push só acontece se ainda há vaga (sem corrida).
             resultado = await case_collection.update_one(
-                _filtro_caso(user_id, caso_id),
+                {"$and": [filtro, {f"documents.{MAX_DOCUMENTOS_CASO - 1}": {"$exists": False}}]},
                 {"$push": {"documents": documento}, "$set": {"updated_at": momento}},
             )
             if resultado.matched_count == 0:
+                if await case_collection.find_one(filtro, {"_id": 1}):
+                    return JSONResponse(
+                        {"erro": f"Limite de {MAX_DOCUMENTOS_CASO} documentos por caso atingido."},
+                        status_code=409,
+                    )
                 return JSONResponse({"erro": "Caso não encontrado."}, status_code=404)
             await case_collection.update_one(
                 {
@@ -988,9 +1044,50 @@ async def salvar_documento(payload: dict):
             )
         elif not _anexar_documento_arquivo(user_id, caso_id, documento, momento):
             return JSONResponse({"erro": "Caso não encontrado."}, status_code=404)
+    except _LimiteDocumentos:
+        return JSONResponse(
+            {"erro": f"Limite de {MAX_DOCUMENTOS_CASO} documentos por caso atingido."}, status_code=409
+        )
     except Exception as exc:  # noqa: BLE001
         return JSONResponse({"erro": str(exc)}, status_code=500)
     return {"documento": {"id": documento["id"], "name": documento["name"], "type": documento["type"]}}
+
+
+@app.post("/anexar-documento")
+async def anexar_documento(
+    user_id: str = Form(""),
+    caso_id: str = Form(""),
+    arquivo: UploadFile = File(...),
+):
+    """Recebe PDF, DOCX ou TXT, extrai só o texto aqui no servidor e anexa em documents do caso."""
+    nome = (arquivo.filename or "").strip()
+    tipo = nome.rsplit(".", 1)[-1].lower() if "." in nome else ""
+    if tipo not in TIPOS_DOCUMENTO:
+        return JSONResponse({"erro": "Envie um PDF, DOCX ou TXT."}, status_code=415)
+
+    conteudo = await arquivo.read(TAMANHO_MAX_DOCUMENTO + 1)
+    if len(conteudo) > TAMANHO_MAX_DOCUMENTO:
+        return JSONResponse({"erro": "O arquivo passa de 15 MB."}, status_code=413)
+    assinatura = ASSINATURAS_DOCUMENTO.get(tipo)
+    if assinatura and not conteudo.startswith(assinatura):
+        return JSONResponse({"erro": f"O arquivo não parece ser um {tipo.upper()} válido."}, status_code=400)
+
+    try:
+        extraido = await asyncio.to_thread(extract_text, nome, conteudo)
+    except Exception as exc:  # noqa: BLE001
+        return JSONResponse({"erro": f"Não foi possível ler o arquivo: {exc}"}, status_code=422)
+    if len(extraido.text) < 20:
+        return JSONResponse(
+            {"erro": "Não encontrei texto neste arquivo. Se for um PDF escaneado (imagem), ele precisa de OCR antes."},
+            status_code=422,
+        )
+
+    resposta = await salvar_documento(
+        {"user_id": user_id, "caso_id": caso_id, "nome": nome, "tipo": tipo, "texto": extraido.text}
+    )
+    if isinstance(resposta, JSONResponse):
+        return resposta
+    return {**resposta, "texto": extraido.text}
 
 
 # ---------------------------------------------------------------------------
@@ -1003,13 +1100,11 @@ async def contexto_do_caso(user_id: str, caso_id: str) -> dict | None:
     documento = await _buscar_caso_do_usuario(user_id, caso_id)
     if not documento or documento.get("in_system") is False:
         return None
-    relatos = []
-    if armazenamento_ia is not None:
-        relatos = await armazenamento_ia.listar_relatos(user_id, _id_do_caso(documento))
-    transcricao = documento.get("transcript") if isinstance(documento.get("transcript"), dict) else {}
-    if not relatos and str((transcricao or {}).get("text") or "").strip():
-        # Caso salvo antes do histórico de relatos existir: usa o relato guardado no próprio caso.
-        relatos = [{"texto": transcricao["text"], "criado_em": transcricao.get("created_at")}]
+    # Os relatos vêm só do próprio caso: cada item de `transcript`, em ordem cronológica.
+    relatos = [
+        {"texto": item["text"], "criado_em": item.get("created_at"), "origem": item.get("source")}
+        for item in _entradas_transcript(documento)
+    ]
     return {
         "titulo": documento.get("title") or "",
         "cliente": documento.get("client_name") or "",

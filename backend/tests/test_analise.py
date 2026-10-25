@@ -205,7 +205,7 @@ class Armazenamento_(unittest.TestCase):
         self.assertEqual([m["conteudo"] for m in janela], ["p2", "r2"])
         self.assertEqual(rodar(self.arm.listar_mensagens("B", "c1")), [])
 
-    def test_pecas_e_relatos(self):
+    def test_pecas(self):
         modelo = modelos_pecas.obter_modelo("contestacao")
         peca = rodar(self.arm.salvar_peca("A", "c1", modelo, "texto", None, 1))
         lista = rodar(self.arm.listar_pecas("A", "c1"))
@@ -214,9 +214,6 @@ class Armazenamento_(unittest.TestCase):
         self.assertEqual(rodar(self.arm.obter_peca("A", "c1", peca["id"]))["texto"], "texto")
         self.assertIsNone(rodar(self.arm.obter_peca("B", "c1", peca["id"])))
         self.assertIsNone(rodar(self.arm.obter_peca("A", "c1", "../x")))
-        rodar(self.arm.adicionar_relato("A", "c1", "primeiro", "2026-10-01T10:00:00"))
-        rodar(self.arm.adicionar_relato("A", "c1", "segundo", "2026-10-02T10:00:00"))
-        self.assertEqual([r["texto"] for r in rodar(self.arm.listar_relatos("A", "c1"))], ["primeiro", "segundo"])
 
 
 class Contexto(unittest.TestCase):
@@ -228,6 +225,13 @@ class Contexto(unittest.TestCase):
         self.assertNotIn("a" * 50, curto)
         self.assertIn("b" * 50, curto)
         self.assertEqual(contexto.texto_dos_relatos([{"texto": " único "}]), "único")
+
+    def test_relato_escrito_a_mao_vai_identificado(self):
+        relatos = [{"texto": "falado", "criado_em": "d1", "origem": "audio"},
+                   {"texto": "digitado", "criado_em": "d2", "origem": "manual"}]
+        texto = contexto.texto_dos_relatos(relatos)
+        self.assertIn("escrito à mão, registrado em d2", texto)
+        self.assertNotIn("escrito à mão, registrado em d1", texto)
 
     def test_documento_com_instrucao_escondida_vai_marcado(self):
         bloco, meta = contexto.bloco_dos_documentos([

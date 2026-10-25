@@ -66,7 +66,19 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
     except ImportError:
         from PyPDF2 import PdfReader  # type: ignore
     reader = PdfReader(io.BytesIO(file_bytes))
+    if reader.is_encrypted:
+        raise ValueError("O PDF está protegido por senha.")
     return "\n".join(page.extract_text() or "" for page in reader.pages)
+
+
+def decode_txt(file_bytes: bytes) -> str:
+    """TXT em UTF-8 (com ou sem BOM); se falhar, assume Windows-1252 (comum em arquivos do Word/Bloco de Notas)."""
+    for encoding in ("utf-8-sig", "cp1252"):
+        try:
+            return file_bytes.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return file_bytes.decode("latin-1", errors="replace")
 
 
 def extract_text(filename: str, file_bytes: bytes) -> ExtractedDocument:
@@ -76,10 +88,10 @@ def extract_text(filename: str, file_bytes: bytes) -> ExtractedDocument:
     elif lower.endswith(".pdf"):
         text = extract_text_from_pdf(file_bytes)
     elif lower.endswith(".txt"):
-        text = file_bytes.decode("utf-8", errors="replace")
+        text = decode_txt(file_bytes)
     else:
         raise ValueError(f"Formato não suportado: {filename}")
-    text = re.sub(r"[ \t]+", " ", text).strip()
+    text = re.sub(r"[ \t]+", " ", text.replace("\x00", "")).strip()
     matches = detect_suspicious(text)
     return ExtractedDocument(
         filename=filename, text=text,

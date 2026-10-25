@@ -1,5 +1,5 @@
 """
-Persistência no MongoDB (banco `sophia-data`) da análise, do chat, das minutas e dos relatos.
+Persistência no MongoDB (banco `sophia-data`) da análise, do chat e das minutas.
 
 Cada coisa tem sua coleção e cada registro é um documento próprio, inserido sem reescrever
 o caso. Assim o documento do caso continua pequeno, nada se perde quando algo novo chega e
@@ -9,8 +9,9 @@ nenhuma requisição precisa mandar o histórico inteiro:
   derivados na leitura pelo `mapeador`, então mudar a forma de exibir não exige migração.
 - `mensagens`: uma mensagem do chat por documento, só acrescentada.
 - `pecas`: uma minuta gerada por documento.
-- `relatos`: cada relato registrado (gravação, áudio ou texto); o caso guarda só o último
-  em `transcript`, como as telas já esperam.
+
+Os relatos (transcrições de áudio e textos escritos à mão) e os documentos anexados não têm
+collection própria: ficam no próprio caso, em `case.transcript` e `case.documents`.
 
 Toda leitura e escrita filtra por (user_id, caso_id): o isolamento por usuário vale aqui.
 """
@@ -39,7 +40,6 @@ class Armazenamento:
         self.analises = db["analises"]
         self.mensagens = db["mensagens"]
         self.pecas = db["pecas"]
-        self.relatos = db["relatos"]
         self._indices_prontos = False
 
     async def garantir_indices(self) -> None:
@@ -51,8 +51,6 @@ class Armazenamento:
             [("user_id", ASCENDING), ("caso_id", ASCENDING), ("criada_em", ASCENDING), ("_id", ASCENDING)])
         await self.pecas.create_index(
             [("user_id", ASCENDING), ("caso_id", ASCENDING), ("gerada_em", DESCENDING)])
-        await self.relatos.create_index(
-            [("user_id", ASCENDING), ("caso_id", ASCENDING), ("criado_em", ASCENDING)])
         self._indices_prontos = True
 
     # ------------------------------------------------------------ análises
@@ -135,18 +133,3 @@ class Armazenamento:
             return None
         doc = await self.pecas.find_one({"_id": ObjectId(peca_id), "user_id": user_id, "caso_id": caso_id})
         return self._peca(doc) if doc else None
-
-    # ------------------------------------------------------------ relatos
-    async def adicionar_relato(self, user_id: str, caso_id: str, texto: str, criado_em: str,
-                               duracao_segundos: Optional[int] = None) -> None:
-        await self.garantir_indices()
-        doc = {"user_id": user_id, "caso_id": caso_id, "texto": texto, "criado_em": criado_em}
-        if duracao_segundos is not None:
-            doc["duracao_segundos"] = duracao_segundos
-        await self.relatos.insert_one(doc)
-
-    async def listar_relatos(self, user_id: str, caso_id: str) -> List[Dict[str, Any]]:
-        """Ordem cronológica (o mais antigo primeiro)."""
-        cursor = (self.relatos.find({"user_id": user_id, "caso_id": caso_id})
-                  .sort([("criado_em", ASCENDING), ("_id", ASCENDING)]))
-        return [_sem_id(d) for d in await cursor.to_list(length=500)]
