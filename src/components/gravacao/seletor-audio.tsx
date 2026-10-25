@@ -13,7 +13,6 @@ const ACEITOS = [
   "video/webm",
   "video/3gpp",
   "application/pdf",
-  "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "text/plain",
   ...EXTENSOES,
@@ -42,7 +41,7 @@ export function SeletorAudio({
     if (!escolhido) return;
     const nome = escolhido.name.toLowerCase();
     if (!EXTENSOES.some((extensao) => nome.endsWith(extensao))) {
-      setErro("Formato não suportado. Envie um áudio, PDF, Word, DOC ou TXT.");
+      setErro("Formato não suportado. Envie um áudio, PDF, DOCX ou TXT.");
       return;
     }
     setErro("");
@@ -104,7 +103,7 @@ export function SeletorAudio({
           <FileText className="size-5" aria-hidden />
         </span>
         <p className="text-[13px] font-semibold">Arraste o arquivo aqui ou clique para escolher</p>
-        <p className="text-tinta-suave text-[11px]">Áudio, PDF, Word, DOC ou TXT</p>
+        <p className="text-tinta-suave text-[11px]">Áudio, PDF, DOCX ou TXT</p>
       </label>
       {erro ? (
         <p role="alert" className="text-destructive text-[12px]">

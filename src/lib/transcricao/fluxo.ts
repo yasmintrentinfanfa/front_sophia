@@ -30,12 +30,20 @@ export async function revisarTranscricao(texto: string): Promise<{ texto: string
   return { texto: revisado, revisado: true };
 }
 
-export async function salvarTranscricaoDoCaso(casoId: string, texto: string, duracaoSegundos?: number) {
+/** Origem do relato em `case.transcript`: transcrição de áudio ou texto escrito à mão. */
+export type OrigemRelato = "audio" | "manual";
+
+export async function salvarTranscricaoDoCaso(
+  casoId: string,
+  texto: string,
+  duracaoSegundos?: number,
+  origem: OrigemRelato = "audio",
+) {
   const duracao = duracaoParaSalvar(duracaoSegundos);
   const res = await fetch("/api/transcricao/salvar", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ casoId, texto, ...(duracao === undefined ? {} : { duracaoSegundos: duracao }) }),
+    body: JSON.stringify({ casoId, texto, origem, ...(duracao === undefined ? {} : { duracaoSegundos: duracao }) }),
   });
   const dados = (await res.json().catch(() => ({}))) as {
     erro?: string;
@@ -53,16 +61,19 @@ export async function salvarTranscricaoDoCaso(casoId: string, texto: string, dur
   return dados.case_id;
 }
 
-export async function salvarDocumentoDoCaso(casoId: string, nome: string, tipo: string, texto: string) {
+/** Envia o PDF/DOCX/TXT; o servidor extrai o texto, grava em `documents` e devolve o texto lido. */
+export async function salvarDocumentoDoCaso(casoId: string, arquivo: File) {
+  const form = new FormData();
+  form.append("arquivo", arquivo, arquivo.name);
   const res = await fetch(`/api/casos/${encodeURIComponent(casoId)}/documentos`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ casoId, nome, tipo, texto }),
+    body: form,
   });
-  const dados = (await res.json().catch(() => ({}))) as { erro?: string };
+  const dados = (await res.json().catch(() => ({}))) as { erro?: string; texto?: string };
   if (!res.ok) {
     throw new Error(dados.erro ?? "Não foi possível salvar o documento no caso.");
   }
+  return (dados.texto ?? "").trim();
 }
 
 export interface DocumentoSalvo {
@@ -72,21 +83,38 @@ export interface DocumentoSalvo {
   texto: string;
 }
 
+/** Um item de `case.transcript`. */
+export interface RelatoSalvo {
+  id: string;
+  texto: string;
+  origem: OrigemRelato;
+  duracaoSegundos: number | null;
+}
+
 export async function obterSalvoDoCaso(casoId: string) {
   const vazio = {
-    texto: "",
-    duracaoSegundos: null as number | null,
+    relatos: [] as RelatoSalvo[],
     documentos: [] as DocumentoSalvo[],
   };
   const res = await fetch(`/api/transcricao/caso?casoId=${encodeURIComponent(casoId)}`);
   if (res.status === 404) return vazio;
   const dados = (await res.json().catch(() => ({}))) as {
     erro?: string;
-    transcript?: { text?: string; duration_seconds?: number };
+    transcript?: { id?: string; text?: string; source?: string; duration_seconds?: number }[];
     documents?: { id?: string; name?: string; type?: string; text?: string }[];
   };
   if (!res.ok) return vazio;
-  const duracao = dados.transcript?.duration_seconds;
+  const relatos = (Array.isArray(dados.transcript) ? dados.transcript : [])
+    .filter((item) => (item.text ?? "").trim())
+    .map((item, indice) => ({
+      id: item.id || `${casoId}-transcricao-${indice}`,
+      texto: (item.text ?? "").trim(),
+      origem: (item.source === "manual" ? "manual" : "audio") as OrigemRelato,
+      duracaoSegundos:
+        typeof item.duration_seconds === "number" && Number.isFinite(item.duration_seconds)
+          ? item.duration_seconds
+          : null,
+    }));
   const documentos = (dados.documents ?? [])
     .filter((item) => (item.text ?? "").trim() || (item.name ?? "").trim())
     .map((item, indice) => ({
@@ -95,16 +123,7 @@ export async function obterSalvoDoCaso(casoId: string) {
       tipo: (item.type ?? "").trim().toUpperCase() || "Arquivo",
       texto: (item.text ?? "").trim(),
     }));
-  return {
-    texto: (dados.transcript?.text ?? "").trim(),
-    duracaoSegundos: typeof duracao === "number" && Number.isFinite(duracao) ? duracao : null,
-    documentos,
-  };
-}
-
-export async function obterTranscricaoDoCaso(casoId: string) {
-  const salvo = await obterSalvoDoCaso(casoId);
-  return { texto: salvo.texto, duracaoSegundos: salvo.duracaoSegundos };
+  return { relatos, documentos };
 }
 
 function duracaoParaSalvar(segundos?: number) {
@@ -150,6 +169,6 @@ export async function processarRelatoEscrito(
   const relato = texto.trim();
   if (!relato) throw new Error("Escreva o relato antes de gerar a análise.");
   aoEtapa?.("salvando");
-  await salvarTranscricaoDoCaso(casoId, relato);
+  await salvarTranscricaoDoCaso(casoId, relato, undefined, "manual");
   return { texto: relato, revisado: false };
 }

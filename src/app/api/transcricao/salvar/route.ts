@@ -2,12 +2,19 @@ import { urlDoBack } from "@/lib/servidor/back";
 import { idDoUsuarioNaSessao } from "@/lib/servidor/sessao-usuario";
 
 export async function POST(pedido: Request) {
-  const corpo = (await pedido.json()) as { casoId?: string; texto?: string; duracaoSegundos?: number };
+  const corpo = (await pedido.json()) as {
+    casoId?: string;
+    texto?: string;
+    duracaoSegundos?: number;
+    origem?: string;
+  };
   const casoId = (corpo.casoId ?? "").trim();
   const texto = (corpo.texto ?? "").trim();
   const duracao = Number(corpo.duracaoSegundos);
   const duracaoSegundos =
     Number.isFinite(duracao) && duracao > 0 ? Math.min(Math.round(duracao), 360_000) : undefined;
+  // "audio" = transcrição; "manual" = relato escrito à mão.
+  const origem = corpo.origem === "manual" ? "manual" : "audio";
   const userId = await idDoUsuarioNaSessao();
   if (!userId) {
     return Response.json({ erro: "Entre na sua conta para salvar a transcrição." }, { status: 401 });
@@ -24,6 +31,7 @@ export async function POST(pedido: Request) {
         texto,
         user_id: userId,
         caso_id: casoId,
+        origem,
         ...(duracaoSegundos === undefined ? {} : { duracao_segundos: duracaoSegundos }),
       }),
     });
