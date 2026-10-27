@@ -266,23 +266,27 @@ Toda rota do backend confere antes que o caso existe, é do usuário e não foi 
 
 ### Onde cada coisa fica no MongoDB
 
-Cada registro é um documento próprio, inserido sem reescrever o caso. O documento do caso
-continua pequeno (o último relato em `transcript` e `analysis_version`) e nenhuma requisição
-manda o histórico inteiro:
+Análises, mensagens e minutas são documentos próprios, inseridos sem reescrever o caso.
+Relatos e documentos anexados ficam só no próprio caso (collection `case`), sem collection
+paralela:
 
 | Coleção | Um documento por | Campos principais |
 |---|---|---|
 | `analises` | versão da análise | `user_id`, `caso_id`, `versao` (único por caso), `gerada_em`, `modelo`, `analise` (JSON validado da IA), `documentos_meta`, `origem` (`relato` ou `chat`), `mensagens_consideradas` |
 | `mensagens` | mensagem do chat | `user_id`, `caso_id`, `papel` (`user`/`assistant`), `conteudo`, `criada_em` |
 | `pecas` | minuta gerada | `user_id`, `caso_id`, `modelo_id`, `titulo`, `texto`, `instrucoes`, `analise_versao`, `gerada_em` |
-| `relatos` | relato registrado | `user_id`, `caso_id`, `texto`, `duracao_segundos`, `criado_em` |
 
 - **Cards:** guardamos o JSON validado da IA, não os cards prontos. O `mapeador` monta os
   cards na leitura, então mudar a forma de exibir não exige migrar dados antigos.
 - **Chat:** o front manda só a mensagem nova. O backend lê as últimas 10 mensagens (as
   respostas longas entram resumidas), a última análise e um trecho do relato.
-- **Relatos:** cada gravação, áudio ou texto vira um documento; a análise considera todos,
-  em ordem cronológica, e os mais antigos saem primeiro se passarem do limite de tamanho.
+- **Relatos (`case.transcript`):** array; cada gravação, áudio ou texto vira um item
+  `{ id, text, source, created_at, duration_seconds? }`. `source` é `"audio"` (transcrição) ou
+  `"manual"` (relato escrito à mão). A análise considera todos, em ordem cronológica, e os
+  mais antigos saem primeiro se passarem do limite de tamanho. Casos antigos, com `transcript`
+  em objeto único, são lidos como array de um item e convertidos no próximo relato salvo.
+- **Documentos (`case.documents`):** array; um item `{ id, name, type, text, created_at }` por
+  PDF, DOCX ou TXT anexado (o texto é extraído no backend, em `POST /anexar-documento`).
 - **Limite do Groq gratuito:** 8 mil tokens por minuto. Ao receber 429, o backend espera o
   tempo indicado e tenta de novo até 3 vezes.
 - **Atualizar a análise pelo chat:** só as mensagens do advogado entram, como dado (nunca as

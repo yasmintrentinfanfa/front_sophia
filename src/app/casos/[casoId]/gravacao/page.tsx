@@ -1,24 +1,26 @@
 "use client";
 
-import { useId, useState, type ComponentType } from "react";
+import { useEffect, useId, useState, type ComponentType } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { FileAudio, Mic, PenLine } from "lucide-react";
+import { FileAudio, FileText, Mic, PenLine } from "lucide-react";
 
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
 import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
 import { ProgressoProcessamento } from "@/components/gravacao/progresso-processamento";
-import { SeletorAudio } from "@/components/gravacao/seletor-audio";
+import { SeletorArquivos, idDoArquivo, type ItemFila } from "@/components/gravacao/seletor-arquivos";
 import type { ConteudoCaso } from "@/lib/api/analise";
 import { duracaoDoAudio } from "@/lib/arquivos/duracao-audio";
-import { ehAudio, lerTextoDeArquivo, tipoDocumento } from "@/lib/arquivos/ler-documento";
+import { ehAudio, ehDocumento } from "@/lib/arquivos/ler-documento";
 import { formatarDuracao } from "@/lib/formato";
 import { api } from "@/lib/api";
 import {
   ETAPAS_AUDIO,
   ETAPAS_TEXTO,
+  obterSalvoDoCaso,
   processarEntrevista,
   processarRelatoEscrito,
   salvarDocumentoDoCaso,
+  type DocumentoSalvo,
   type EtapaProcessamento,
   type ResultadoRelato,
 } from "@/lib/transcricao/fluxo";
@@ -27,6 +29,7 @@ import { cn } from "@/lib/utils";
 type ModoRelato = "ao_vivo" | "arquivo" | "texto";
 
 const MINIMO_RELATO = 50;
+const MAXIMO_DOCUMENTOS = 10;
 
 const MODOS: { valor: ModoRelato; titulo: string; descricao: string; Icone: ComponentType<{ className?: string }> }[] = [
   {
@@ -38,7 +41,7 @@ const MODOS: { valor: ModoRelato; titulo: string; descricao: string; Icone: Comp
   {
     valor: "arquivo",
     titulo: "Enviar áudio/Arquivo",
-    descricao: "Envie um áudio ou um arquivo em PDF, Word, DOC ou TXT.",
+    descricao: "Envie um áudio ou um arquivo em PDF, Word (DOCX) ou TXT.",
     Icone: FileAudio,
   },
   {
@@ -55,7 +58,10 @@ export default function PaginaGravacao() {
   const { casoId } = useParams<{ casoId: string }>();
   const { casos, carregando, finalizarSessao } = useListaCasos();
   const [modo, setModo] = useState<ModoRelato>("ao_vivo");
-  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [fila, setFila] = useState<ItemFila[]>([]);
+  const [anexados, setAnexados] = useState<DocumentoSalvo[]>([]);
+  const [progressoDocs, setProgressoDocs] = useState("");
+  const [okDocs, setOkDocs] = useState("");
   const [relato, setRelato] = useState("");
   const [etapa, setEtapa] = useState<EtapaProcessamento | null>(null);
   const [resultado, setResultado] = useState<ResultadoRelato | null>(null);
@@ -63,6 +69,110 @@ export default function PaginaGravacao() {
   const [erro, setErro] = useState("");
   const caso = casos.find((item) => item.id === casoId);
   const processando = etapa !== null;
+
+  useEffect(() => {
+    let ativo = true;
+    obterSalvoDoCaso(casoId)
+      .then((salvo) => {
+        if (ativo) setAnexados(salvo.documentos);
+      })
+      .catch(() => {});
+    return () => {
+      ativo = false;
+    };
+  }, [casoId]);
+
+  const vagas = MAXIMO_DOCUMENTOS - anexados.length - fila.filter((item) => !ehAudio(item.arquivo)).length;
+
+  /** Soma arquivos à fila sem perder os que já estão nela. Áudio é um por vez e não mistura com documentos. */
+  function adicionarArquivos(escolhidos: File[]) {
+    setErro("");
+    setOkDocs("");
+    const invalidos = escolhidos.filter((item) => !ehAudio(item) && !ehDocumento(item));
+    const validos = escolhidos.filter((item) => ehAudio(item) || ehDocumento(item));
+    const audios = validos.filter(ehAudio);
+    const documentos = validos.filter((item) => !ehAudio(item));
+    const avisos: string[] = [];
+    if (invalidos.length) {
+      avisos.push(`Formato não suportado: ${invalidos.map((item) => item.name).join(", ")}. Envie um áudio, PDF, DOCX ou TXT.`);
+    }
+
+    if (audios.length) {
+      const temDocumentoNaFila = fila.some((item) => !ehAudio(item.arquivo));
+      if (validos.length > 1 || temDocumentoNaFila) {
+        avisos.push("Envie um áudio por vez, separado dos documentos.");
+      } else {
+        setFila([{ id: idDoArquivo(audios[0]), arquivo: audios[0] }]);
+      }
+    } else if (documentos.length) {
+      if (fila.some((item) => ehAudio(item.arquivo))) {
+        avisos.push("Remova o áudio da lista antes de anexar documentos.");
+      } else {
+        const jaNaFila = new Set(fila.map((item) => item.id));
+        const unicos = documentos.filter((item) => !jaNaFila.has(idDoArquivo(item)));
+        const cabem = Math.max(0, vagas);
+        if (unicos.length > cabem) avisos.push(`Limite de ${MAXIMO_DOCUMENTOS} documentos por caso.`);
+        const novos = unicos.slice(0, cabem).map((item) => ({ id: idDoArquivo(item), arquivo: item }));
+        if (novos.length) setFila((atual) => [...atual, ...novos]);
+      }
+    }
+    if (avisos.length) setErro(avisos.join(" "));
+  }
+
+  function removerDaFila(id: string) {
+    setErro("");
+    setOkDocs("");
+    setFila((atual) => atual.filter((item) => item.id !== id));
+  }
+
+  /** Envia os documentos da fila um a um (cada um vira um item em `documents`) e gera a análise uma vez. */
+  async function anexarDocumentos() {
+    const itens = fila.filter((item) => !ehAudio(item.arquivo));
+    if (!itens.length) return;
+    setVeioDeAudio(false);
+    setErro("");
+    setOkDocs("");
+    setResultado(null);
+    setFila((atual) => atual.map((item) => ({ ...item, erro: undefined })));
+    const falhas = new Map<string, string>();
+    let enviados = 0;
+    setEtapa("salvando");
+    for (let indice = 0; indice < itens.length; indice += 1) {
+      const item = itens[indice];
+      setProgressoDocs(`Anexando arquivo ${indice + 1} de ${itens.length}: ${item.arquivo.name}`);
+      try {
+        await salvarDocumentoDoCaso(casoId, item.arquivo);
+        enviados += 1;
+      } catch (falha) {
+        falhas.set(item.id, falha instanceof Error ? falha.message : "Não foi possível anexar o arquivo.");
+      }
+    }
+    if (enviados > 0) {
+      setProgressoDocs("");
+      setEtapa("analisando");
+      try {
+        await api.solicitarAnalise(casoId);
+      } catch {
+        // Os documentos já estão salvos. A análise pode ser gerada de novo na tela de análise.
+      }
+    }
+    try {
+      setAnexados((await obterSalvoDoCaso(casoId)).documentos);
+    } catch {
+      // A lista de anexados só é atualizada na próxima abertura da tela.
+    }
+    setFila((atual) =>
+      atual.filter((item) => falhas.has(item.id)).map((item) => ({ ...item, erro: falhas.get(item.id) })),
+    );
+    if (enviados) setOkDocs(`${enviados} ${enviados === 1 ? "documento anexado" : "documentos anexados"} ao caso.`);
+    if (falhas.size) {
+      setErro(
+        `${falhas.size} ${falhas.size === 1 ? "arquivo não foi anexado" : "arquivos não foram anexados"}. Veja o motivo na lista.`,
+      );
+    }
+    setProgressoDocs("");
+    setEtapa(null);
+  }
 
   /** Salva o relato (áudio ou texto) no caso e mostra o texto final antes de abrir a análise. */
   async function registrarRelato(
@@ -83,6 +193,7 @@ export default function PaginaGravacao() {
         // A fala já foi salva no banco. O status local não impede abrir a análise.
       }
       setResultado(final);
+      setFila([]);
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : "Não foi possível registrar o relato. Tente novamente.");
     } finally {
@@ -184,7 +295,7 @@ export default function PaginaGravacao() {
               aviso={
                 modo === "arquivo" && veioDeAudio
                   ? "A primeira transcrição pode levar alguns minutos. Mantenha esta tela aberta."
-                  : undefined
+                  : progressoDocs || undefined
               }
             />
           ) : resultado ? (
@@ -216,7 +327,12 @@ export default function PaginaGravacao() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setResultado(null)}
+                  onClick={() => {
+                    setResultado(null);
+                    setFila([]);
+                    setRelato("");
+                    setErro("");
+                  }}
                   className="pressionavel border-borda bg-campo flex h-10 items-center rounded-[8px] border px-4 text-[13px] font-semibold"
                 >
                   Registrar outro relato
@@ -244,56 +360,79 @@ export default function PaginaGravacao() {
           ) : modo === "arquivo" ? (
             <>
               <div className="flex flex-col gap-1">
-                <h3 className="text-[14px] font-semibold">Áudio ou arquivo</h3>
+                <h3 className="text-[14px] font-semibold">Áudio ou arquivos</h3>
                 <p className="text-tinta-suave text-[12px]">
-                  O áudio é transcrito e revisado. PDF, Word, DOC e TXT são lidos e salvos no caso antes da análise.
+                  O áudio é transcrito e revisado. Documentos (PDF, DOCX e TXT) são lidos e somados ao caso, até{" "}
+                  {MAXIMO_DOCUMENTOS} por caso, e você pode adicionar mais a qualquer momento.
                 </p>
               </div>
-              <SeletorAudio arquivo={arquivo} aoEscolher={setArquivo} />
+
+              {anexados.length ? (
+                <div className="border-borda flex flex-col gap-1.5 rounded-[10px] border px-4 py-3">
+                  <p className="text-[12px] font-semibold">
+                    Já anexados neste caso ({anexados.length}/{MAXIMO_DOCUMENTOS})
+                  </p>
+                  <ul className="flex flex-col gap-1">
+                    {anexados.map((documento) => (
+                      <li key={documento.id} className="flex items-center gap-2 text-[12px]">
+                        <FileText className="text-tinta-suave size-3.5 shrink-0" aria-hidden />
+                        <span className="min-w-0 flex-1 truncate">{documento.nome}</span>
+                        <span className="text-tinta-suave text-[11px]">{documento.tipo}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              <SeletorArquivos
+                fila={fila}
+                aoAdicionar={adicionarArquivos}
+                aoRemover={removerDaFila}
+                vagas={vagas}
+                maximo={MAXIMO_DOCUMENTOS}
+              />
+
+              {okDocs ? (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p role="status" className="text-destaque text-[12px] font-medium">
+                    {okDocs}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/casos/${casoId}/analise`)}
+                    className="pressionavel border-borda bg-campo flex h-9 items-center rounded-[8px] border px-3 text-[12px] font-semibold"
+                  >
+                    Ver análise
+                  </button>
+                </div>
+              ) : null}
+
               <button
                 type="button"
-                disabled={!arquivo}
+                disabled={fila.length === 0}
                 onClick={() => {
-                  if (!arquivo) return;
-                  const escolhido = arquivo;
-                  const audio = ehAudio(escolhido);
-                  setVeioDeAudio(audio);
-                  if (audio) {
-                    void (async () => {
-                      const duracao = await duracaoDoAudio(escolhido).catch(() => 0);
-                      await registrarRelato(
-                        (aoEtapa) => processarEntrevista(casoId, escolhido, escolhido.name, aoEtapa, duracao),
-                        duracao > 0 ? formatarDuracao(duracao) : "00:00",
-                      );
-                    })();
+                  const primeiro = fila[0]?.arquivo;
+                  if (!primeiro) return;
+                  if (!ehAudio(primeiro)) {
+                    void anexarDocumentos();
                     return;
                   }
+                  setVeioDeAudio(true);
                   void (async () => {
-                    setErro("");
-                    setResultado(null);
-                    try {
-                      setEtapa("salvando");
-                      const texto = await lerTextoDeArquivo(escolhido);
-                      await salvarDocumentoDoCaso(casoId, escolhido.name, tipoDocumento(escolhido), texto);
-                      setEtapa("analisando");
-                      try {
-                        await api.solicitarAnalise(casoId);
-                      } catch {
-                        // O arquivo já está em documentos. A análise local pode falhar sem impedir o salvamento.
-                      }
-                      setResultado({ texto, revisado: false });
-                    } catch (falha) {
-                      setErro(
-                        falha instanceof Error ? falha.message : "Não foi possível registrar o arquivo. Tente novamente.",
-                      );
-                    } finally {
-                      setEtapa(null);
-                    }
+                    const duracao = await duracaoDoAudio(primeiro).catch(() => 0);
+                    await registrarRelato(
+                      (aoEtapa) => processarEntrevista(casoId, primeiro, primeiro.name, aoEtapa, duracao),
+                      duracao > 0 ? formatarDuracao(duracao) : "00:00",
+                    );
                   })();
                 }}
                 className="pressionavel bg-acao text-acao-tinta flex h-10 w-fit items-center rounded-[8px] px-4 text-[13px] font-semibold disabled:opacity-40"
               >
-                Processar arquivo e gerar análise
+                {fila[0] && ehAudio(fila[0].arquivo)
+                  ? "Processar áudio e gerar análise"
+                  : fila.length > 1
+                    ? `Anexar ${fila.length} documentos e gerar análise`
+                    : "Anexar documento e gerar análise"}
               </button>
             </>
           ) : (

@@ -43,17 +43,19 @@ function CarregarConteudo({
       .obterCaso(casoId)
       .then(async (carregado) => {
         const salva = await obterSalvoDoCaso(casoId);
-        if (salva.texto) {
+        if (salva.relatos.length) {
           const tempoLocal = carregado.transcricao.find((fala) => fala.tempo && fala.tempo !== "00:00")?.tempo;
-          carregado.transcricao = [
-            {
-              id: `${casoId}-transcricao`,
-              tempo:
-                salva.duracaoSegundos != null ? formatarDuracao(salva.duracaoSegundos) : (tempoLocal ?? "00:00"),
-              texto: salva.texto,
-              papel: "cliente",
-            },
-          ];
+          carregado.transcricao = salva.relatos.map((relato) => ({
+            id: relato.id,
+            tempo:
+              relato.origem === "manual"
+                ? "Escrito à mão"
+                : relato.duracaoSegundos != null
+                  ? formatarDuracao(relato.duracaoSegundos)
+                  : (tempoLocal ?? "00:00"),
+            texto: relato.texto,
+            papel: "cliente" as const,
+          }));
         }
         if (salva.documentos.length) {
           carregado.documentos = salva.documentos.map((item) => ({

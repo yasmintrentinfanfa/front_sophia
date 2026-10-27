@@ -15,13 +15,17 @@ LIMITE_DOCUMENTO = 20_000
 LIMITE_DOCUMENTOS = 60_000
 
 
+def _origem(relato: Dict[str, Any]) -> str:
+    return "escrito à mão, " if relato.get("origem") == "manual" else ""
+
+
 def texto_dos_relatos(relatos: List[Dict[str, Any]], limite: int = LIMITE_RELATOS) -> str:
     """Um relato vai como está; vários ganham cabeçalho com a data. Se passar do limite,
     os mais antigos saem primeiro (o relato mais recente é o que reflete o caso hoje)."""
     validos = [r for r in relatos if str(r.get("texto") or "").strip()]
     if len(validos) == 1:
         return validos[0]["texto"].strip()[-limite:]
-    blocos = [f"--- Relato {i + 1} (registrado em {r.get('criado_em') or 'data não informada'}) ---\n"
+    blocos = [f"--- Relato {i + 1} ({_origem(r)}registrado em {r.get('criado_em') or 'data não informada'}) ---\n"
               f"{r['texto'].strip()}" for i, r in enumerate(validos)]
     escolhidos: List[str] = []
     total = 0
