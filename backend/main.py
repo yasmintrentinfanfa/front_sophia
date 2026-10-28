@@ -1102,8 +1102,14 @@ async def contexto_do_caso(user_id: str, caso_id: str) -> dict | None:
         return None
     # Os relatos vêm só do próprio caso: cada item de `transcript`, em ordem cronológica.
     relatos = [
-        {"texto": item["text"], "criado_em": item.get("created_at"), "origem": item.get("source")}
+        {
+            "id": item.get("id"),
+            "texto": item["text"],
+            "criado_em": item.get("created_at"),
+            "origem": item.get("source"),
+        }
         for item in _entradas_transcript(documento)
+        if str(item.get("text") or "").strip()
     ]
     return {
         "titulo": documento.get("title") or "",

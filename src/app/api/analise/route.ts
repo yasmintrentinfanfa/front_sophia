@@ -21,14 +21,25 @@ export async function GET(pedido: Request) {
 }
 
 export async function POST(pedido: Request) {
-  const corpo = (await pedido.json().catch(() => ({}))) as { casoId?: string; incluirChat?: boolean };
+  const corpo = (await pedido.json().catch(() => ({}))) as {
+    casoId?: string;
+    incluirChat?: boolean;
+    fonteTipo?: string;
+    fonteId?: string;
+  };
   const casoId = (corpo.casoId ?? "").trim();
+  const fonteTipo = (corpo.fonteTipo ?? "").trim();
+  const fonteId = (corpo.fonteId ?? "").trim();
   const userId = await idDoUsuarioNaSessao();
   if (!userId) return Response.json({ erro: "Entre na sua conta para analisar o caso." }, { status: 401 });
   if (!casoId) return Response.json({ erro: "Informe o caso." }, { status: 400 });
   return repassarJson(
     `/analise/${encodeURIComponent(casoId)}`,
-    corpoJson({ user_id: userId, ...(corpo.incluirChat === true ? { incluir_chat: true } : {}) }),
+    corpoJson({
+      user_id: userId,
+      ...(corpo.incluirChat === true ? { incluir_chat: true } : {}),
+      ...(fonteTipo ? { fonte_tipo: fonteTipo, ...(fonteId ? { fonte_id: fonteId } : {}) } : {}),
+    }),
     "Não foi possível gerar a análise. Confira se a API está na porta 8000.",
   );
 }

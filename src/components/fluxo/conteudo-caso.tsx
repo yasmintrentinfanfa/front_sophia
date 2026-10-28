@@ -44,9 +44,9 @@ function CarregarConteudo({
       .then(async (carregado) => {
         const salva = await obterSalvoDoCaso(casoId);
         if (salva.relatos.length) {
-          const tempoLocal = carregado.transcricao.find((fala) => fala.tempo && fala.tempo !== "00:00")?.tempo;
-          carregado.transcricao = salva.relatos.map((relato) => ({
-            id: relato.id,
+          const tempoLocal = (carregado.transcricao ?? []).find((fala) => fala.tempo && fala.tempo !== "00:00")?.tempo;
+          carregado.transcricao = salva.relatos.map((relato, indice) => ({
+            id: relato.id || `${casoId}-transcricao-${indice}`,
             tempo:
               relato.origem === "manual"
                 ? "Escrito à mão"

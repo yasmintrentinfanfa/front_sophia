@@ -4,10 +4,19 @@ import { useState } from "react";
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 
-import { ColunasAnalise } from "@/components/analise/colunas-analise";
+import { ListaAnalises } from "@/components/analise/lista-analises";
 import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
 import { api } from "@/lib/api";
 import type { ConteudoCaso as DadosCaso } from "@/lib/api/analise";
+
+/** Arquivo que o usuário só gravou no repositório, sem pedir análise na hora. */
+function arquivosSoNoRepositorio(dados: DadosCaso, analises: DadosCaso["versoesAnalise"]) {
+  const atual = analises.at(-1);
+  if (!atual) return false;
+  const ids = new Set([...(atual.fontesIds ?? []), atual.fonteId].filter(Boolean) as string[]);
+  if (!ids.size) return false;
+  return (dados.documentos ?? []).some((documento) => documento.id && !ids.has(documento.id));
+}
 
 export function TelaAnalise({
   dados,
@@ -20,16 +29,22 @@ export function TelaAnalise({
   destinoChat: string;
   destinoPecas: string;
 }) {
-  const [analise, setAnalise] = useState(dados.analise);
+  const [analises, setAnalises] = useState(dados.versoesAnalise ?? []);
   const [gerando, setGerando] = useState(false);
   const [erro, setErro] = useState("");
-  const temRelato = dados.transcricao.some((fala) => fala.texto.trim()) || dados.documentos.length > 0;
+  const [atualizou, setAtualizou] = useState(false);
+  const temRelato =
+    (dados.transcricao ?? []).some((fala) => fala.texto.trim()) || (dados.documentos ?? []).length > 0;
+  const arquivoPendente = !atualizou && arquivosSoNoRepositorio(dados, analises);
+  const visivel = analises.at(-1) ?? null;
 
   async function gerarAnalise() {
     setGerando(true);
     setErro("");
     try {
-      setAnalise(await api.solicitarAnalise(dados.casoId));
+      const lista = await api.solicitarAnalise(dados.casoId);
+      setAnalises(lista);
+      setAtualizou(true);
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : "Não foi possível gerar a análise. Tente novamente.");
     } finally {
@@ -49,9 +64,10 @@ export function TelaAnalise({
           </div>
           <p className="text-tinta-suave text-[12px] leading-[15px]">
             Insights gerados a partir da transcrição e documentos
-            {analise && !analise.demonstracao
-              ? ` · versão ${analise.versao}${analise.origem === "chat" ? ", atualizada com o chat" : ""}`
+            {visivel && !visivel.demonstracao
+              ? ` · versão ${visivel.versao}${visivel.origem === "chat" ? ", atualizada com o chat" : ""}`
               : ""}
+            . Se um arquivo novo foi só gravado no repositório, você pode atualizar os cards depois.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -70,24 +86,20 @@ export function TelaAnalise({
         </div>
       </header>
       <div className="flex flex-1 flex-col gap-[14px] px-8 pt-1 pb-5 max-[700px]:px-4">
-        <section className="border-borda bg-campo flex min-h-[88px] flex-col gap-2 rounded-[10px] border px-[14px] py-3">
-          <h2 className="text-[13px] leading-4 font-semibold">
-            Transcrição do áudio do cliente e documentos juntados
-          </h2>
-          <p className="text-tinta-suave text-[11px] leading-[13px]">
-            {analise?.resumo ?? "Nenhuma análise disponível para este caso."}
-          </p>
-        </section>
-        {analise ? (
-          <ColunasAnalise analise={analise} destinoChat={destinoChat} />
-        ) : temRelato ? (
+        {temRelato && (arquivoPendente || !analises.length) ? (
           <section className="bg-destaque-suave border-destaque/40 flex w-full max-w-[880px] flex-wrap items-center justify-between gap-3 rounded-[12px] border px-5 py-4">
             <div className="flex min-w-0 flex-col gap-0.5">
-              <h2 className="text-[14px] font-semibold">O relato está salvo, falta a análise</h2>
+              <h2 className="text-[14px] font-semibold">
+                {arquivoPendente
+                  ? "Há um arquivo novo. Deseja atualizar a análise?"
+                  : "O relato está salvo, falta a análise"}
+              </h2>
               <p className="text-tinta-suave text-[12px]">
                 {gerando
-                  ? "A IA está lendo o relato e os documentos. Isso pode levar até um minuto."
-                  : "Gere os cards de teses, jurisprudência, perguntas e necessidades a partir do relato."}
+                  ? "A IA está atualizando os cards com o arquivo que estava só no repositório. Isso pode levar até um minuto."
+                  : arquivoPendente
+                    ? "Esse arquivo foi só gravado no repositório. Se quiser, os cards passam a considerá-lo."
+                    : "Gere os cards de teses, jurisprudência, perguntas e necessidades a partir do relato."}
               </p>
               {erro ? (
                 <p role="alert" className="text-destructive mt-1 text-[12px] font-medium">
@@ -102,17 +114,18 @@ export function TelaAnalise({
               className="pressionavel bg-acao text-acao-tinta flex h-10 shrink-0 items-center gap-2 rounded-[8px] px-4 text-[13px] font-semibold disabled:opacity-60"
             >
               <Sparkles className={gerando ? "size-4 animate-pulse" : "size-4"} aria-hidden />
-              {gerando ? "Gerando análise…" : "Gerar análise"}
+              {gerando ? "Gerando análise…" : analises.length ? "Gerar nova análise" : "Gerar análise"}
             </button>
           </section>
-        ) : (
+        ) : !analises.length ? (
           <Link
             href={`/casos/${dados.casoId}/gravacao`}
             className="text-destaque self-start text-[13px] underline"
           >
             Ir para a gravação
           </Link>
-        )}
+        ) : null}
+        {visivel ? <ListaAnalises analises={[visivel]} destinoChat={destinoChat} /> : null}
       </div>
     </>
   );

@@ -69,11 +69,20 @@ export async function salvarDocumentoDoCaso(casoId: string, arquivo: File) {
     method: "POST",
     body: form,
   });
-  const dados = (await res.json().catch(() => ({}))) as { erro?: string; texto?: string };
+  const dados = (await res.json().catch(() => ({}))) as {
+    erro?: string;
+    texto?: string;
+    documento?: { id?: string; name?: string; type?: string };
+  };
   if (!res.ok) {
     throw new Error(dados.erro ?? "Não foi possível salvar o documento no caso.");
   }
-  return (dados.texto ?? "").trim();
+  return {
+    id: dados.documento?.id ?? "",
+    nome: dados.documento?.name ?? arquivo.name,
+    tipo: (dados.documento?.type ?? "").trim().toUpperCase() || "Arquivo",
+    texto: (dados.texto ?? "").trim(),
+  };
 }
 
 export interface DocumentoSalvo {

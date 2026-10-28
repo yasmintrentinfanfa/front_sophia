@@ -25,9 +25,24 @@ export interface Insight {
   meta?: [string, string];
 }
 
+export type FonteAnaliseTipo = "transcricao" | "documento";
+
+export interface FonteAnalise {
+  tipo: FonteAnaliseTipo;
+  id?: string;
+}
+
+export interface OpcoesAnalise {
+  incluirChat?: boolean;
+  tipo?: FonteAnaliseTipo;
+  id?: string;
+}
+
 export interface AnalisePreliminar {
   id: string;
   casoId: string;
+  /** Posição estável no banco: 0 a primeira fonte, 1 a segunda, e assim por diante. */
+  indice: number;
   versao: number;
   geradaEm: string;
   resumo: string;
@@ -35,6 +50,11 @@ export interface AnalisePreliminar {
   demonstracao: boolean;
   /** "chat": versão que incorporou o que o advogado contou no chat. */
   origem?: "relato" | "chat";
+  fonteTipo?: FonteAnaliseTipo;
+  fonteId?: string;
+  fonteNome?: string;
+  /** Fontes já incorporadas nesta versão da análise geral. */
+  fontesIds?: string[];
 }
 
 export interface MensagemChat {

@@ -31,7 +31,7 @@ export function ColunasAnalise({
     <>
       <div className={styles.colunas}>
         {COLUNAS.map((coluna) => {
-          const itens = analise.insights.filter((item) =>
+          const itens = (analise.insights ?? []).filter((item) =>
             coluna.categorias.includes(item.categoria),
           );
           return (

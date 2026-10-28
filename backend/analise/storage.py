@@ -5,8 +5,8 @@ Cada coisa tem sua coleção e cada registro é um documento próprio, inserido 
 o caso. Assim o documento do caso continua pequeno, nada se perde quando algo novo chega e
 nenhuma requisição precisa mandar o histórico inteiro:
 
-- `analises`: uma versão da análise por documento (JSON validado da IA). Os cards são
-  derivados na leitura pelo `mapeador`, então mudar a forma de exibir não exige migração.
+- `analises`: cada pedido vira um documento novo (`indice`/`versao`). `origem` "chat" quando
+  incorporou mensagens do advogado; `fontes_ids` lista o que já entrou nos cards.
 - `mensagens`: uma mensagem do chat por documento, só acrescentada.
 - `pecas`: uma minuta gerada por documento.
 
@@ -47,6 +47,8 @@ class Armazenamento:
             return
         await self.analises.create_index(
             [("user_id", ASCENDING), ("caso_id", ASCENDING), ("versao", DESCENDING)], unique=True)
+        await self.analises.create_index(
+            [("user_id", ASCENDING), ("caso_id", ASCENDING), ("fonte_id", ASCENDING)])
         await self.mensagens.create_index(
             [("user_id", ASCENDING), ("caso_id", ASCENDING), ("criada_em", ASCENDING), ("_id", ASCENDING)])
         await self.pecas.create_index(
@@ -54,19 +56,34 @@ class Armazenamento:
         self._indices_prontos = True
 
     # ------------------------------------------------------------ análises
+    @staticmethod
+    def _indice_de(registro: Optional[Dict[str, Any]]) -> int:
+        if not registro:
+            return -1
+        if registro.get("indice") is not None:
+            return int(registro["indice"])
+        return max(int(registro.get("versao") or 1) - 1, -1)
+
     async def salvar_analise(self, user_id: str, caso_id: str, analise: Dict[str, Any],
                              documentos_meta: List[Dict[str, Any]], modelo: str,
-                             origem: str = "relato", mensagens_consideradas: int = 0) -> Dict[str, Any]:
+                             origem: str = "relato", mensagens_consideradas: int = 0,
+                             fonte_tipo: Optional[str] = None, fonte_id: Optional[str] = None,
+                             fonte_nome: Optional[str] = None,
+                             fontes_ids: Optional[List[str]] = None) -> Dict[str, Any]:
         await self.garantir_indices()
-        for _ in range(3):  # duas análises simultâneas disputam a mesma versão
+        for _ in range(3):  # duas análises simultâneas disputam o mesmo índice
             ultima = await self.ultima_analise(user_id, caso_id)
+            indice = self._indice_de(ultima) + 1
             registro = {
                 "user_id": user_id, "caso_id": caso_id,
-                "versao": (ultima["versao"] if ultima else 0) + 1,
+                "indice": indice,
+                "versao": indice + 1,
                 "gerada_em": agora(), "modelo": modelo,
                 "analise": analise, "documentos_meta": documentos_meta,
                 # "chat" = versão que incorporou as mensagens do advogado no chat.
                 "origem": origem, "mensagens_consideradas": mensagens_consideradas,
+                "fonte_tipo": fonte_tipo, "fonte_id": fonte_id, "fonte_nome": fonte_nome,
+                "fontes_ids": list(fontes_ids or []),
             }
             try:
                 await self.analises.insert_one(registro)
@@ -83,6 +100,25 @@ class Armazenamento:
     async def ultima_analise(self, user_id: str, caso_id: str) -> Optional[Dict[str, Any]]:
         doc = await self.analises.find_one({"user_id": user_id, "caso_id": caso_id},
                                            sort=[("versao", DESCENDING)])
+        return _sem_id(doc) if doc else None
+
+    @staticmethod
+    def ids_cobertos(registro: Optional[Dict[str, Any]]) -> List[str]:
+        if not registro:
+            return []
+        ids = registro.get("fontes_ids")
+        if isinstance(ids, list) and ids:
+            return [str(item) for item in ids if item]
+        if registro.get("fonte_id"):
+            return [str(registro["fonte_id"])]
+        return []
+
+    async def analise_da_fonte(self, user_id: str, caso_id: str, fonte_id: str) -> Optional[Dict[str, Any]]:
+        if not fonte_id:
+            return None
+        doc = await self.analises.find_one(
+            {"user_id": user_id, "caso_id": caso_id, "fonte_id": fonte_id},
+            sort=[("versao", DESCENDING)])
         return _sem_id(doc) if doc else None
 
     # ------------------------------------------------------------ chat

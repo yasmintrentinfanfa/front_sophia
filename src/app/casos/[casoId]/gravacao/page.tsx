@@ -4,6 +4,7 @@ import { useEffect, useId, useState, type ComponentType } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { FileAudio, FileText, Mic, PenLine } from "lucide-react";
 
+import { ModalConfirmar } from "@/components/casos/modal-confirmar";
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
 import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
 import { ProgressoProcessamento } from "@/components/gravacao/progresso-processamento";
@@ -66,9 +67,28 @@ export default function PaginaGravacao() {
   const [etapa, setEtapa] = useState<EtapaProcessamento | null>(null);
   const [resultado, setResultado] = useState<ResultadoRelato | null>(null);
   const [veioDeAudio, setVeioDeAudio] = useState(false);
+  const [documentoNovoId, setDocumentoNovoId] = useState("");
+  const [gerandoAnalise, setGerandoAnalise] = useState(false);
+  const [temAnalise, setTemAnalise] = useState(false);
+  const [perguntarAtualizacao, setPerguntarAtualizacao] = useState(false);
   const [erro, setErro] = useState("");
   const caso = casos.find((item) => item.id === casoId);
-  const processando = etapa !== null;
+  const processando = etapa !== null || gerandoAnalise;
+
+  useEffect(() => {
+    let ativo = true;
+    api
+      .obterCaso(casoId)
+      .then((conteudo) => {
+        if (ativo) setTemAnalise(Boolean(conteudo.analise || conteudo.versoesAnalise.length));
+      })
+      .catch(() => {
+        if (ativo) setTemAnalise(false);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [casoId]);
 
   useEffect(() => {
     let ativo = true;
@@ -125,7 +145,7 @@ export default function PaginaGravacao() {
     setFila((atual) => atual.filter((item) => item.id !== id));
   }
 
-  /** Envia os documentos da fila um a um (cada um vira um item em `documents`) e gera a análise uma vez. */
+  /** Envia os documentos da fila um a um (cada um vira um item em `documents`). A análise só roda se o usuário pedir. */
   async function anexarDocumentos() {
     const itens = fila.filter((item) => !ehAudio(item.arquivo));
     if (!itens.length) return;
@@ -136,24 +156,17 @@ export default function PaginaGravacao() {
     setFila((atual) => atual.map((item) => ({ ...item, erro: undefined })));
     const falhas = new Map<string, string>();
     let enviados = 0;
+    let ultimoId = "";
     setEtapa("salvando");
     for (let indice = 0; indice < itens.length; indice += 1) {
       const item = itens[indice];
       setProgressoDocs(`Anexando arquivo ${indice + 1} de ${itens.length}: ${item.arquivo.name}`);
       try {
-        await salvarDocumentoDoCaso(casoId, item.arquivo);
+        const salvo = await salvarDocumentoDoCaso(casoId, item.arquivo);
         enviados += 1;
+        if (salvo.id) ultimoId = salvo.id;
       } catch (falha) {
         falhas.set(item.id, falha instanceof Error ? falha.message : "Não foi possível anexar o arquivo.");
-      }
-    }
-    if (enviados > 0) {
-      setProgressoDocs("");
-      setEtapa("analisando");
-      try {
-        await api.solicitarAnalise(casoId);
-      } catch {
-        // Os documentos já estão salvos. A análise pode ser gerada de novo na tela de análise.
       }
     }
     try {
@@ -164,7 +177,15 @@ export default function PaginaGravacao() {
     setFila((atual) =>
       atual.filter((item) => falhas.has(item.id)).map((item) => ({ ...item, erro: falhas.get(item.id) })),
     );
-    if (enviados) setOkDocs(`${enviados} ${enviados === 1 ? "documento anexado" : "documentos anexados"} ao caso.`);
+    if (enviados) {
+      setDocumentoNovoId(ultimoId);
+      setPerguntarAtualizacao(temAnalise);
+      setOkDocs(`${enviados} ${enviados === 1 ? "documento anexado" : "documentos anexados"} ao caso.`);
+      setResultado({
+        texto: `${enviados} ${enviados === 1 ? "documento anexado" : "documentos anexados"} ao caso.`,
+        revisado: false,
+      });
+    }
     if (falhas.size) {
       setErro(
         `${falhas.size} ${falhas.size === 1 ? "arquivo não foi anexado" : "arquivos não foram anexados"}. Veja o motivo na lista.`,
@@ -181,23 +202,52 @@ export default function PaginaGravacao() {
   ) {
     setErro("");
     setResultado(null);
+    const jaTinhaAnalise = temAnalise;
     try {
       const final = await processar(setEtapa);
       const transcricao: ConteudoCaso["transcricao"] = [
-        { id: `${casoId}-transcricao`, tempo, texto: final.texto, papel: "cliente" },
+        { id: `${casoId}-transcricao-${Date.now()}`, tempo, texto: final.texto, papel: "cliente" },
       ];
       setEtapa("analisando");
       try {
-        await finalizarSessao(casoId, transcricao);
+        await finalizarSessao(casoId, transcricao, !jaTinhaAnalise);
+        if (!jaTinhaAnalise) setTemAnalise(true);
       } catch {
         // A fala já foi salva no banco. O status local não impede abrir a análise.
       }
+      setPerguntarAtualizacao(jaTinhaAnalise);
       setResultado(final);
       setFila([]);
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : "Não foi possível registrar o relato. Tente novamente.");
     } finally {
       setEtapa(null);
+    }
+  }
+
+  const escolherDestino =
+    !!resultado && (perguntarAtualizacao || (modo === "arquivo" && !veioDeAudio));
+
+  async function atualizarAnalise() {
+    setErro("");
+    setGerandoAnalise(true);
+    try {
+      await api.solicitarAnalise(
+        casoId,
+        modo === "arquivo" && !veioDeAudio && documentoNovoId
+          ? { tipo: "documento", id: documentoNovoId }
+          : undefined,
+      );
+      setTemAnalise(true);
+      router.push(`/casos/${casoId}/analise`);
+    } catch (falha) {
+      setErro(
+        falha instanceof Error
+          ? falha.message
+          : "O material já está salvo. Não foi possível atualizar a análise agora.",
+      );
+    } finally {
+      setGerandoAnalise(false);
     }
   }
 
@@ -236,7 +286,7 @@ export default function PaginaGravacao() {
           <div className="flex flex-col gap-0.5">
             <h2 className="text-[15px] font-semibold">Como você quer registrar o relato?</h2>
             <p className="text-tinta-suave text-[12px]">
-              Qualquer um dos caminhos gera a mesma análise preliminar do caso.
+              Cada arquivo ou gravação nova entra no repositório sem apagar o que já estava lá.
             </p>
           </div>
 
@@ -318,24 +368,30 @@ export default function PaginaGravacao() {
                 {resultado.texto}
               </p>
               <div className="flex flex-wrap items-center gap-2">
+                {!escolherDestino ? (
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/casos/${casoId}/analise`)}
+                    className="pressionavel bg-acao text-acao-tinta flex h-10 items-center rounded-[8px] px-4 text-[13px] font-semibold"
+                  >
+                    Ver análise
+                  </button>
+                ) : null}
                 <button
                   type="button"
-                  onClick={() => router.push(`/casos/${casoId}/analise`)}
-                  className="pressionavel bg-acao text-acao-tinta flex h-10 items-center rounded-[8px] px-4 text-[13px] font-semibold"
-                >
-                  Ver análise
-                </button>
-                <button
-                  type="button"
+                  disabled={gerandoAnalise}
                   onClick={() => {
                     setResultado(null);
+                    setDocumentoNovoId("");
+                    setPerguntarAtualizacao(false);
                     setFila([]);
                     setRelato("");
                     setErro("");
+                    setOkDocs("");
                   }}
-                  className="pressionavel border-borda bg-campo flex h-10 items-center rounded-[8px] border px-4 text-[13px] font-semibold"
+                  className="pressionavel border-borda bg-campo flex h-10 items-center rounded-[8px] border px-4 text-[13px] font-semibold disabled:opacity-40"
                 >
-                  Registrar outro relato
+                  {modo === "arquivo" ? "Enviar outro" : "Registrar outro relato"}
                 </button>
               </div>
             </>
@@ -363,7 +419,7 @@ export default function PaginaGravacao() {
                 <h3 className="text-[14px] font-semibold">Áudio ou arquivos</h3>
                 <p className="text-tinta-suave text-[12px]">
                   O áudio é transcrito e revisado. Documentos (PDF, DOCX e TXT) são lidos e somados ao caso, até{" "}
-                  {MAXIMO_DOCUMENTOS} por caso, e você pode adicionar mais a qualquer momento.
+                  {MAXIMO_DOCUMENTOS} por caso. Depois você escolhe se gera uma nova análise.
                 </p>
               </div>
 
@@ -429,10 +485,10 @@ export default function PaginaGravacao() {
                 className="pressionavel bg-acao text-acao-tinta flex h-10 w-fit items-center rounded-[8px] px-4 text-[13px] font-semibold disabled:opacity-40"
               >
                 {fila[0] && ehAudio(fila[0].arquivo)
-                  ? "Processar áudio e gerar análise"
+                  ? "Processar áudio"
                   : fila.length > 1
-                    ? `Anexar ${fila.length} documentos e gerar análise`
-                    : "Anexar documento e gerar análise"}
+                    ? `Anexar ${fila.length} documentos`
+                    : "Anexar documento"}
               </button>
             </>
           ) : (
@@ -472,13 +528,31 @@ export default function PaginaGravacao() {
             </>
           )}
 
-          {erro ? (
+          {erro && !escolherDestino ? (
             <p role="alert" className="bg-destructive/10 text-destructive rounded-[8px] px-3 py-2.5 text-[12px] font-medium">
               {erro}
             </p>
           ) : null}
         </section>
       </div>
+      <ModalConfirmar
+        className="max-w-[400px]"
+        aberto={escolherDestino}
+        titulo={perguntarAtualizacao ? "Atualizar a análise?" : "Gerar análise?"}
+        descricao="Deseja atualizar os cards da análise com ele, ou só gravar no repositório do caso?"
+        confirmar={
+          gerandoAnalise
+            ? "Atualizando…"
+            : perguntarAtualizacao
+              ? "Atualizar análise"
+              : "Gerar análise"
+        }
+        dispensar="Só gravar no repositório"
+        processando={gerandoAnalise}
+        erro={erro}
+        aoFechar={() => router.push(`/casos/${casoId}/repositorio`)}
+        aoConfirmar={() => void atualizarAnalise()}
+      />
     </>
   );
 }

@@ -63,8 +63,8 @@ export default function LayoutCasos({ children }: { children: ReactNode }) {
     () => ({
       casos,
       carregando,
-      async finalizarSessao(id: string, transcricao: ConteudoCaso["transcricao"]) {
-        const atualizado = await api.finalizarSessao(id, transcricao);
+      async finalizarSessao(id: string, transcricao: ConteudoCaso["transcricao"], analisar = true) {
+        const atualizado = await api.finalizarSessao(id, transcricao, analisar);
         setCasos((lista) => lista.map((item) => item.id === id ? atualizado : item));
       },
       async criarCaso(dados: DadosNovoCaso) {
