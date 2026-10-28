@@ -275,6 +275,10 @@ html[data-destaque] .tela-login .bg-acao {
   .telefone-toque {
     animation: toque-telefone 3.2s ease-in-out infinite;
   }
+  /* Destaque do passo atual nas cenas do tutorial de primeiro acesso. */
+  .tutorial-pulso {
+    animation: tutorial-pulso 1.7s ease-in-out infinite;
+  }
 }
 
 @keyframes toque-telefone {
@@ -297,8 +301,21 @@ html[data-destaque] .tela-login .bg-acao {
   }
 }
 
+@keyframes tutorial-pulso {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.07);
+    opacity: 0.85;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .telefone-toque {
+  .telefone-toque,
+  .tutorial-pulso {
     animation: none;
   }
 }
