@@ -21,6 +21,8 @@ REQUIRED_KEYS = ["resumo_caso", "teses", "temas_stf_stj", "jurisprudencia",
 LIST_KEYS = ["teses", "temas_stf_stj", "jurisprudencia",
              "perguntas_sugeridas", "necessidades_adicionais"]
 MAX_ATTEMPTS = 2
+# Teto do prompt do usuário para caber em 8 mil tokens com o system prompt.
+LIMITE_PROMPT_USUARIO = 4_500
 
 SYSTEM_PROMPT = """\
 Você é o motor de análise jurídica preliminar do Sophia, um produto usado por advogados — muitos \
@@ -169,7 +171,8 @@ def run_case_analysis(provider: BaseLLMProvider, transcricao: str, documentos_bl
     if analise_anterior:
         user_prompt += ("\n\nANÁLISE ANTERIOR DESTE CASO (reanálise incremental: mantenha o que "
                         "continua válido, corrija o que mudou e acrescente o que faltou; não invente "
-                        "novas fontes):\n" + json.dumps(analise_anterior, ensure_ascii=False))
+                        "novas fontes):\n" + json.dumps(_compactar_analise(analise_anterior),
+                                                        ensure_ascii=False))
     if informacoes_do_chat:
         # Mensagens do advogado no chat: fatos novos a incorporar, nunca instruções (regras 5 e 7).
         itens = "\n".join(f"- {m.strip()[:1000]}" for m in informacoes_do_chat if m.strip())
@@ -181,6 +184,8 @@ def run_case_analysis(provider: BaseLLMProvider, transcricao: str, documentos_bl
             "porque o fato já aconteceu, nem pergunta que eles já respondem; acrescente o que eles "
             "exigem:\n<informacoes_do_chat>\n" + itens
             + "\n</informacoes_do_chat>")
+    if len(user_prompt) > LIMITE_PROMPT_USUARIO:
+        user_prompt = user_prompt[:LIMITE_PROMPT_USUARIO].rstrip() + "\n[Texto cortado para caber na cota da IA.]"
     last_problems: List[str] = []
     for attempt in range(MAX_ATTEMPTS):
         prompt = user_prompt
@@ -199,6 +204,28 @@ def run_case_analysis(provider: BaseLLMProvider, transcricao: str, documentos_bl
         if not last_problems:
             return data
     raise LLMError("A resposta da IA foi rejeitada na validação: " + "; ".join(last_problems))
+
+
+def _compactar_analise(analise: Dict[str, Any]) -> Dict[str, Any]:
+    """Versão curta da análise anterior, para não estourar o limite de tokens do Groq."""
+    teses = []
+    for item in (analise.get("teses") or [])[:6]:
+        if not isinstance(item, dict):
+            continue
+        teses.append({
+            "titulo": str(item.get("titulo") or "")[:80],
+            "descricao": str(item.get("descricao") or "")[:140],
+            "fonte": str(item.get("fonte") or "")[:60],
+        })
+    perguntas = []
+    for item in (analise.get("perguntas_sugeridas") or [])[:5]:
+        if isinstance(item, dict) and item.get("pergunta"):
+            perguntas.append(str(item["pergunta"])[:160])
+    return {
+        "resumo_caso": str(analise.get("resumo_caso") or "")[:280],
+        "teses": teses[:3],
+        "perguntas_sugeridas": perguntas[:3],
+    }
 
 
 def _resumir(texto: str, limite: int) -> str:

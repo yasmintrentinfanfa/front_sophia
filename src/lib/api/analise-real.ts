@@ -57,7 +57,7 @@ export function criarAnaliseApi(base: SophiaApi): ApiAnalise {
       let falha: unknown = null;
       if (analisar) {
         try {
-          await solicitarAnalise(casoId, { tipo: "transcricao" });
+          await solicitarAnalise(casoId);
         } catch (erro) {
           falha = erro;
         }

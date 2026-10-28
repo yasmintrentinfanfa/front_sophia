@@ -248,6 +248,15 @@ class Contexto(unittest.TestCase):
         self.assertEqual(len(meta), 1)
         self.assertTrue(meta[0]["suspeito"])
 
+    def test_arquivo_novo_entra_primeiro_e_so_ele_fica_coberto_se_o_limite_cortar(self):
+        antigo = {"id": "velho", "name": "antigo.txt", "text": "A" * 2000}
+        novo = {"id": "novo", "name": "novo.txt", "text": "B" * 2000}
+        bloco, meta = contexto.bloco_dos_documentos([antigo, novo], ids_primeiro=["novo"])
+        self.assertEqual(meta[0]["id"], "novo")
+        self.assertIn("novo.txt", bloco)
+        # Com o teto atual, o arquivo velho pode ficar de fora; o novo não.
+        self.assertTrue(any(item.get("id") == "novo" for item in meta))
+
 
 class Servidor(unittest.TestCase):
     def test_chave_so_no_servidor(self):
@@ -395,7 +404,7 @@ class Rotas(unittest.TestCase):
         self.assertEqual(len(r.json()["analises"]), 1)
         self.assertEqual(r.json()["analise"]["indice"], 0)
         self.assertNotIn("ANÁLISE ANTERIOR", provedor.prompts[0])
-        r2 = self.c.post("/analise/c1", json={"user_id": "A"})
+        r2 = self.c.post("/analise/c1", json={"user_id": "A", "fonte_tipo": "documento", "fonte_id": "d1"})
         self.assertEqual(len(r2.json()["analises"]), 1)
         self.casos[("A", "c1")]["documentos"].append(
             {"id": "d3", "name": "laudo.txt", "text": "O laudo aponta vício oculto no bem entregue em fevereiro."})
@@ -404,6 +413,28 @@ class Rotas(unittest.TestCase):
         self.assertEqual([a["indice"] for a in r3.json()["analises"]], [0, 1])
         self.assertEqual(r3.json()["analise"]["fonteNome"], "laudo.txt")
         self.assertIn("ANÁLISE ANTERIOR", provedor.prompts[-1])
+
+        provedor.saidas.append(json.dumps(dict(BASE, resumo_caso="Geral.")))
+        r4 = self.c.post("/analise/c1", json={"user_id": "A"})
+        self.assertEqual(r4.status_code, 200)
+        self.assertEqual(r4.json()["analise"]["resumo"], "Geral.")
+        self.assertEqual(len(r4.json()["analises"]), 3)
+
+    def test_atualizar_depois_de_gravar_gera_de_novo(self):
+        self.saidas.append(json.dumps(BASE))
+        self.c.post("/analise/c1", json={"user_id": "A"})
+        self.casos[("A", "c1")]["relatos"].append(
+            {"id": "r2", "texto": "O cliente foi demitido sem justa causa em março.", "criado_em": "d2"})
+        self.saidas.append(json.dumps(dict(BASE, resumo_caso="Com a nova gravação.")))
+        r = self.c.post("/analise/c1", json={"user_id": "A", "fonte_tipo": "transcricao"})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual((r.json()["analise"]["versao"], r.json()["analise"]["resumo"]), (2, "Com a nova gravação."))
+        self.assertIn("demitido sem justa causa", self.ia.prompts[-1])
+        self.assertNotIn("ANÁLISE ANTERIOR", self.ia.prompts[-1])
+
+        self.saidas.append(json.dumps(dict(BASE, resumo_caso="Refeita.")))
+        r2 = self.c.post("/analise/c1", json={"user_id": "A", "fonte_tipo": "transcricao"})
+        self.assertEqual(r2.json()["analise"]["versao"], 3)
 
 
 if __name__ == "__main__":

@@ -9,12 +9,13 @@ import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
 import { api } from "@/lib/api";
 import type { ConteudoCaso as DadosCaso } from "@/lib/api/analise";
 
-function fontesPendentes(dados: DadosCaso, analises: DadosCaso["versoesAnalise"]) {
+/** Arquivo que o usuário só gravou no repositório, sem pedir análise na hora. */
+function arquivosSoNoRepositorio(dados: DadosCaso, analises: DadosCaso["versoesAnalise"]) {
   const atual = analises.at(-1);
-  const temConteudo = dados.transcricao.some((fala) => fala.texto.trim()) || dados.documentos.length > 0;
-  if (!atual) return temConteudo;
+  if (!atual) return false;
   const ids = new Set([...(atual.fontesIds ?? []), atual.fonteId].filter(Boolean) as string[]);
-  return dados.documentos.some((documento) => !ids.has(documento.id));
+  if (!ids.size) return false;
+  return (dados.documentos ?? []).some((documento) => documento.id && !ids.has(documento.id));
 }
 
 export function TelaAnalise({
@@ -28,18 +29,22 @@ export function TelaAnalise({
   destinoChat: string;
   destinoPecas: string;
 }) {
-  const [analises, setAnalises] = useState(dados.versoesAnalise);
+  const [analises, setAnalises] = useState(dados.versoesAnalise ?? []);
   const [gerando, setGerando] = useState(false);
   const [erro, setErro] = useState("");
-  const temRelato = dados.transcricao.some((fala) => fala.texto.trim()) || dados.documentos.length > 0;
-  const faltam = fontesPendentes(dados, analises);
+  const [atualizou, setAtualizou] = useState(false);
+  const temRelato =
+    (dados.transcricao ?? []).some((fala) => fala.texto.trim()) || (dados.documentos ?? []).length > 0;
+  const arquivoPendente = !atualizou && arquivosSoNoRepositorio(dados, analises);
   const visivel = analises.at(-1) ?? null;
 
   async function gerarAnalise() {
     setGerando(true);
     setErro("");
     try {
-      setAnalises(await api.solicitarAnalise(dados.casoId));
+      const lista = await api.solicitarAnalise(dados.casoId);
+      setAnalises(lista);
+      setAtualizou(true);
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : "Não foi possível gerar a análise. Tente novamente.");
     } finally {
@@ -62,7 +67,7 @@ export function TelaAnalise({
             {visivel && !visivel.demonstracao
               ? ` · versão ${visivel.versao}${visivel.origem === "chat" ? ", atualizada com o chat" : ""}`
               : ""}
-            . Os cards se atualizam quando você pede uma nova análise após incluir um arquivo.
+            . Se um arquivo novo foi só gravado no repositório, você pode atualizar os cards depois.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -81,18 +86,19 @@ export function TelaAnalise({
         </div>
       </header>
       <div className="flex flex-1 flex-col gap-[14px] px-8 pt-1 pb-5 max-[700px]:px-4">
-        {visivel ? <ListaAnalises analises={[visivel]} destinoChat={destinoChat} /> : null}
-        {temRelato && (faltam || !analises.length) ? (
+        {temRelato && (arquivoPendente || !analises.length) ? (
           <section className="bg-destaque-suave border-destaque/40 flex w-full max-w-[880px] flex-wrap items-center justify-between gap-3 rounded-[12px] border px-5 py-4">
             <div className="flex min-w-0 flex-col gap-0.5">
               <h2 className="text-[14px] font-semibold">
-                {analises.length ? "Há um arquivo novo. Deseja atualizar a análise?" : "O relato está salvo, falta a análise"}
+                {arquivoPendente
+                  ? "Há um arquivo novo. Deseja atualizar a análise?"
+                  : "O relato está salvo, falta a análise"}
               </h2>
               <p className="text-tinta-suave text-[12px]">
                 {gerando
-                  ? "A IA está atualizando os cards com o que entrou agora. Isso pode levar até um minuto."
-                  : analises.length
-                    ? "Se quiser, gere uma nova análise. Os cards passam a considerar o arquivo novo."
+                  ? "A IA está atualizando os cards com o arquivo que estava só no repositório. Isso pode levar até um minuto."
+                  : arquivoPendente
+                    ? "Esse arquivo foi só gravado no repositório. Se quiser, os cards passam a considerá-lo."
                     : "Gere os cards de teses, jurisprudência, perguntas e necessidades a partir do relato."}
               </p>
               {erro ? (
@@ -119,6 +125,7 @@ export function TelaAnalise({
             Ir para a gravação
           </Link>
         ) : null}
+        {visivel ? <ListaAnalises analises={[visivel]} destinoChat={destinoChat} /> : null}
       </div>
     </>
   );

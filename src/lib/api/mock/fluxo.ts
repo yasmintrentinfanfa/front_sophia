@@ -46,7 +46,7 @@ export function criarMockFluxo({ encontrarCaso, salvarCaso, escopo }: Dependenci
       }
       const conteudo = obterConteudo(casoId);
       conteudo.transcricao.push(...structuredClone(transcricao));
-      if (analisar) await this.solicitarAnalise(casoId, { tipo: "transcricao" });
+      if (analisar) await this.solicitarAnalise(casoId);
       const caso: Caso = {
         ...encontrarCaso(casoId)!,
         status: "em_analise",
@@ -84,8 +84,9 @@ export function criarMockFluxo({ encontrarCaso, salvarCaso, escopo }: Dependenci
       }
       const cobertos = new Set(conteudo.versoesAnalise.flatMap((item) => (item.fonteId ? [item.fonteId] : [])));
       const documento = fonte?.id ? conteudo.documentos.find((item) => item.id === fonte.id) : undefined;
-      const novaFonteId = fonte?.id ?? documento?.id;
-      if (!conteudo.analise || (novaFonteId && !cobertos.has(novaFonteId))) {
+      const novaFonteId = fonte?.id;
+      const pedidoGeral = !fonte?.id && !opcoes?.incluirChat;
+      if (pedidoGeral || !conteudo.analise || (novaFonteId && !cobertos.has(novaFonteId))) {
         const indice = conteudo.versoesAnalise.length;
         const fonteNome =
           fonte?.tipo === "documento"

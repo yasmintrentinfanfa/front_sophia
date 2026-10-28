@@ -103,8 +103,7 @@ def criar_router(obter_contexto: ObterContexto,
             return erro
         fontes = fontes_do_caso(ctx["relatos"], ctx["documentos"])
         transcricao = texto_dos_relatos(ctx["relatos"])
-        documentos_bloco, documentos_meta = bloco_dos_documentos(ctx["documentos"])
-        if not transcricao and not documentos_bloco:
+        if not transcricao and not bloco_dos_documentos(ctx["documentos"])[0]:
             return _erro("Registre o relato do caso ou anexe um arquivo antes de gerar a análise.", 404)
         if body.fonte_tipo and not escolher_fontes(fontes, body.fonte_tipo, body.fonte_id):
             return _erro("Não encontramos essa transcrição ou esse arquivo no caso.", 404)
@@ -123,19 +122,34 @@ def criar_router(obter_contexto: ObterContexto,
         novos = [fonte for fonte in fontes if fonte["id"] not in cobertos]
         if body.fonte_id:
             novos = [fonte for fonte in novos if fonte["id"] == body.fonte_id.strip()]
-        if ultima and not novos and not informacoes:
+        # Sem arquivo específico o pedido é o mesmo da primeira geração: corre a IA
+        # de novo. Vale para o botão "Gerar análise" e para "Atualizar análise"
+        # depois de gravar (`fonte_tipo=transcricao` sem id). Só um `fonte_id` já
+        # coberto (o mesmo PDF de novo) reaproveita a versão existente.
+        pedido_geral = not body.fonte_id and not informacoes
+        if ultima and not novos and not informacoes and not pedido_geral:
             await marcar_analisado(user_id, caso_id, ultima["versao"])
             return await _resposta_analises(arm, user_id, caso_id, ultima)
         gatilho = novos[-1] if novos else (fontes[-1] if fontes else None)
+        documentos_bloco, documentos_meta = bloco_dos_documentos(
+            ctx["documentos"], [fonte["id"] for fonte in novos if fonte["tipo"] == "documento"])
+        ids_no_prompt = {str(item["id"]) for item in documentos_meta if item.get("id")}
+        if transcricao:
+            ids_no_prompt.update(fonte["id"] for fonte in fontes if fonte["tipo"] == "transcricao")
+        # Só marca como coberto o que de fato entrou no pedido desta vez.
+        ids_atuais_set = set(ids_atuais)
+        fontes_ids = [item for item in list(cobertos) + [fonte["id"] for fonte in fontes if fonte["id"] in ids_no_prompt]
+                      if item in ids_atuais_set]
+        fontes_ids = list(dict.fromkeys(fontes_ids))
+        relato_novo = any(fonte["tipo"] == "transcricao" for fonte in novos)
 
         try:
             provider = provider_do_servidor()
             analise = await run_in_threadpool(
                 run_case_analysis, provider, transcricao, documentos_bloco, True,
-                # Com fatos novos do chat a análise é refeita do zero: recebendo a versão anterior,
-                # a IA tende a copiá-la e mantém teses que os fatos novos derrubaram. A versão
-                # anterior continua salva no histórico.
-                None if informacoes else (ultima["analise"] if ultima else None),
+                # Chat, geração explícita ou relato novo: a IA refaz do zero. Com a
+                # versão anterior no prompt ela copia as teses e o card não muda.
+                None if informacoes or pedido_geral or relato_novo else (ultima["analise"] if ultima else None),
                 informacoes or None)
         except LLMError as e:
             return _erro(str(e), 502)
@@ -145,7 +159,7 @@ def criar_router(obter_contexto: ObterContexto,
             fonte_tipo=gatilho["tipo"] if gatilho else None,
             fonte_id=gatilho["id"] if gatilho else None,
             fonte_nome=gatilho["nome"] if gatilho else None,
-            fontes_ids=ids_atuais)
+            fontes_ids=fontes_ids)
         await marcar_analisado(user_id, caso_id, registro["versao"])
         return await _resposta_analises(arm, user_id, caso_id, registro)
 

@@ -234,11 +234,9 @@ export default function PaginaGravacao() {
     try {
       await api.solicitarAnalise(
         casoId,
-        modo === "arquivo" && !veioDeAudio
-          ? documentoNovoId
-            ? { tipo: "documento", id: documentoNovoId }
-            : { tipo: "documento" }
-          : { tipo: "transcricao" },
+        modo === "arquivo" && !veioDeAudio && documentoNovoId
+          ? { tipo: "documento", id: documentoNovoId }
+          : undefined,
       );
       setTemAnalise(true);
       router.push(`/casos/${casoId}/analise`);

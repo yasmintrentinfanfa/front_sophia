@@ -10,9 +10,11 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .document_utils import ExtractedDocument, detect_suspicious
 
-LIMITE_RELATOS = 80_000
-LIMITE_DOCUMENTO = 20_000
-LIMITE_DOCUMENTOS = 60_000
+# Groq on_demand desta org: 8 mil tokens por pedido. Português + JSON gastam ~1,2
+# caractere por token; o sistema já leva ~3 mil caracteres.
+LIMITE_RELATOS = 2_000
+LIMITE_DOCUMENTO = 800
+LIMITE_DOCUMENTOS = 2_800
 
 
 def _origem(relato: Dict[str, Any]) -> str:
@@ -38,23 +40,39 @@ def texto_dos_relatos(relatos: List[Dict[str, Any]], limite: int = LIMITE_RELATO
     return "\n\n".join(reversed(escolhidos))
 
 
-def bloco_dos_documentos(documentos: List[Dict[str, Any]]) -> Tuple[str, List[Dict[str, Any]]]:
-    """Devolve o bloco rotulado para o prompt e os metadados que ficam salvos na análise."""
+def bloco_dos_documentos(documentos: List[Dict[str, Any]],
+                         ids_primeiro: Optional[List[str]] = None
+                         ) -> Tuple[str, List[Dict[str, Any]]]:
+    """Devolve o bloco rotulado para o prompt e os metadados que ficam salvos na análise.
+
+    `ids_primeiro`: arquivos ainda sem análise entram antes, para não serem cortados
+    pelo limite de tamanho.
+    """
+    prioridade = {str(item) for item in (ids_primeiro or []) if item}
+    ordenados = sorted(
+        documentos,
+        key=lambda doc: 0 if str(doc.get("id") or "") in prioridade else 1,
+    )
     extraidos: List[ExtractedDocument] = []
+    meta: List[Dict[str, Any]] = []
     total = 0
-    for doc in documentos:
+    for doc in ordenados:
         texto = str(doc.get("text") or "").strip()
         if not texto or total >= LIMITE_DOCUMENTOS:
             continue
         texto = texto[:min(LIMITE_DOCUMENTO, LIMITE_DOCUMENTOS - total)]
         total += len(texto)
         suspeitos = detect_suspicious(texto)
-        extraidos.append(ExtractedDocument(
+        extraido = ExtractedDocument(
             filename=str(doc.get("name") or "documento"), text=texto,
             sha256=hashlib.sha256(texto.encode("utf-8")).hexdigest(),
-            suspicious=bool(suspeitos), suspicious_matches=suspeitos))
+            suspicious=bool(suspeitos), suspicious_matches=suspeitos)
+        extraidos.append(extraido)
+        item = {"nome": extraido.filename, "sha256": extraido.sha256, "suspeito": extraido.suspicious}
+        if doc.get("id"):
+            item["id"] = str(doc["id"])
+        meta.append(item)
     bloco = "\n\n".join(d.as_untrusted_block(i + 1) for i, d in enumerate(extraidos))
-    meta = [{"nome": d.filename, "sha256": d.sha256, "suspeito": d.suspicious} for d in extraidos]
     return bloco, meta
 
 

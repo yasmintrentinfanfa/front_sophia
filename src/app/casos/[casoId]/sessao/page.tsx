@@ -177,7 +177,7 @@ export default function PaginaSessaoAtiva() {
       setRevisado(resultado.revisado);
       const transcricao: ConteudoCaso["transcricao"] = [
         {
-          id: `${casoId}-transcricao`,
+          id: `${casoId}-transcricao-${Date.now()}`,
           tempo: formatarDuracao(duracao),
           texto: resultado.texto,
           papel: "cliente",
@@ -374,7 +374,7 @@ export default function PaginaSessaoAtiva() {
             setGerandoAnalise(true);
             setErro("");
             try {
-              await api.solicitarAnalise(casoId, { tipo: "transcricao" });
+              await api.solicitarAnalise(casoId);
               setTemAnalise(true);
               router.push(`/casos/${casoId}/analise`);
             } catch (falha) {

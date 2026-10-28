@@ -133,6 +133,10 @@ class GroqProvider(BaseLLMProvider):
                 continue
             if r.status_code == 429:
                 raise LLMError("A IA atingiu o limite de uso por minuto. Aguarde alguns segundos e tente de novo.")
+            if r.status_code == 413:
+                raise LLMError(
+                    "O caso ficou grande demais para a cota da IA. Os arquivos entram resumidos; tente de novo."
+                )
             if r.status_code != 200:
                 raise LLMError(f"Groq retornou status {r.status_code}: {r.text[:300]}")
             return r.json()["choices"][0]["message"]["content"] or ""
