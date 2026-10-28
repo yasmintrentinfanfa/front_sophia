@@ -231,6 +231,7 @@ export default function PaginaGravacao() {
   async function atualizarAnalise() {
     setErro("");
     setGerandoAnalise(true);
+    setEtapa("analisando");
     try {
       await api.solicitarAnalise(
         casoId,
@@ -248,6 +249,7 @@ export default function PaginaGravacao() {
       );
     } finally {
       setGerandoAnalise(false);
+      setEtapa(null);
     }
   }
 
@@ -341,7 +343,7 @@ export default function PaginaGravacao() {
           {processando ? (
             <ProgressoProcessamento
               etapas={etapas}
-              atual={etapa}
+              atual={etapa ?? "analisando"}
               aviso={
                 modo === "arquivo" && veioDeAudio
                   ? "A primeira transcrição pode levar alguns minutos. Mantenha esta tela aberta."
