@@ -66,8 +66,8 @@ function Chat({
     setErro("");
     setVersaoAtualizada(null);
     try {
-      const analise = await api.solicitarAnalise(casoId, { incluirChat: true });
-      setVersaoAtualizada(analise.versao);
+      const lista = await api.solicitarAnalise(casoId, { incluirChat: true });
+      setVersaoAtualizada(lista.at(-1)?.versao ?? null);
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : "Não foi possível atualizar a análise. Tente novamente.");
     } finally {

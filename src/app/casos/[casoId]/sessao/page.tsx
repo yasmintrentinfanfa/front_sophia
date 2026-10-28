@@ -9,6 +9,7 @@ import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
 import { ProgressoProcessamento } from "@/components/gravacao/progresso-processamento";
 import type { ConteudoCaso } from "@/lib/api/analise";
 import { formatarDuracao } from "@/lib/formato";
+import { api } from "@/lib/api";
 import { ETAPAS_AUDIO, processarEntrevista, type EtapaProcessamento } from "@/lib/transcricao/fluxo";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +35,10 @@ export default function PaginaSessaoAtiva() {
   const [pronta, setPronta] = useState(false);
   const [erro, setErro] = useState("");
   const [texto, setTexto] = useState("");
+  const [temAnalise, setTemAnalise] = useState(false);
+  const [perguntarAtualizacao, setPerguntarAtualizacao] = useState(false);
+  const [gerandoAnalise, setGerandoAnalise] = useState(false);
+  const jaTinhaAnalise = useRef(false);
   const envioEmCurso = useRef(false);
   const encerrou = useRef(false);
   const estadoAntesDoFim = useRef<EstadoGravacao>("gravando");
@@ -59,6 +64,27 @@ export default function PaginaSessaoAtiva() {
   function retomarGravador() {
     if (gravador.current?.state === "paused") gravador.current.resume();
   }
+
+  useEffect(() => {
+    let ativo = true;
+    api
+      .obterCaso(casoId)
+      .then((conteudo) => {
+        if (!ativo) return;
+        const existe = Boolean(conteudo.analise || conteudo.versoesAnalise.length);
+        setTemAnalise(existe);
+        jaTinhaAnalise.current = existe;
+      })
+      .catch(() => {
+        if (ativo) {
+          setTemAnalise(false);
+          jaTinhaAnalise.current = false;
+        }
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [casoId]);
 
   useEffect(() => {
     let cancelado = false;
@@ -159,13 +185,15 @@ export default function PaginaSessaoAtiva() {
       ];
       setEtapa("analisando");
       try {
-        await finalizarSessao(casoId, transcricao);
+        await finalizarSessao(casoId, transcricao, !jaTinhaAnalise.current);
+        if (!jaTinhaAnalise.current) setTemAnalise(true);
       } catch {
         // A fala já foi salva no banco. O status local não impede abrir a análise.
       }
       encerrou.current = true;
       setEstado("encerrada");
       setConfirmarAnalise(false);
+      setPerguntarAtualizacao(jaTinhaAnalise.current);
       setPronta(true);
     } catch (falha) {
       setErro(
@@ -293,7 +321,7 @@ export default function PaginaSessaoAtiva() {
                   {erro}
                 </p>
               ) : null}
-              {pronta ? (
+              {pronta && !perguntarAtualizacao ? (
                 <button
                   type="button"
                   onClick={() => router.push(`/casos/${casoId}/analise`)}
@@ -314,9 +342,13 @@ export default function PaginaSessaoAtiva() {
 
       <ModalConfirmar
         aberto={confirmarAnalise}
-        titulo="Gerar análise de IA"
-        descricao="Finalizar a gravação, transcrever e gerar a análise preliminar deste caso?"
-        confirmar={processando ? "Transcrevendo…" : "Gerar análise"}
+        titulo={temAnalise ? "Finalizar gravação" : "Gerar análise de IA"}
+        descricao={
+          temAnalise
+            ? "A transcrição será gravada no repositório sem apagar as anteriores. Depois você escolhe se atualiza a análise."
+            : "Finalizar a gravação, transcrever e gerar a análise preliminar deste caso?"
+        }
+        confirmar={processando ? "Transcrevendo…" : temAnalise ? "Salvar transcrição" : "Gerar análise"}
         processando={processando}
         erro={erro}
         aoFechar={() => {
@@ -326,6 +358,36 @@ export default function PaginaSessaoAtiva() {
           if (estadoAntesDoFim.current === "gravando") retomarGravador();
         }}
         aoConfirmar={() => void encerrarSessao()}
+      />
+      <ModalConfirmar
+        className="max-w-[400px]"
+        aberto={pronta && perguntarAtualizacao}
+        titulo="Atualizar a análise?"
+        descricao="Deseja atualizar os cards da análise com ele, ou só gravar no repositório do caso?"
+        confirmar={gerandoAnalise ? "Atualizando…" : "Atualizar análise"}
+        dispensar="Só gravar no repositório"
+        processando={gerandoAnalise}
+        erro={erro}
+        aoFechar={() => router.push(`/casos/${casoId}/repositorio`)}
+        aoConfirmar={() => {
+          void (async () => {
+            setGerandoAnalise(true);
+            setErro("");
+            try {
+              await api.solicitarAnalise(casoId, { tipo: "transcricao" });
+              setTemAnalise(true);
+              router.push(`/casos/${casoId}/analise`);
+            } catch (falha) {
+              setErro(
+                falha instanceof Error
+                  ? falha.message
+                  : "A transcrição já está salva. Não foi possível atualizar a análise agora.",
+              );
+            } finally {
+              setGerandoAnalise(false);
+            }
+          })();
+        }}
       />
       <ModalConfirmar
         aberto={confirmarSaida}

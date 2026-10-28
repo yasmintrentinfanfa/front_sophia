@@ -22,7 +22,7 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
 from .analysis import run_case_analysis, run_chat_turn, run_document_draft
-from .contexto import bloco_dos_documentos, texto_dos_relatos
+from .contexto import bloco_dos_documentos, escolher_fontes, fontes_do_caso, texto_dos_relatos
 from .docx_builder import DocxIndisponivel, build_docx, nome_do_arquivo
 from .llm_providers import LLMError, provider_do_servidor
 from .mapeador import mensagem_front, modelo_front, para_analise_front, peca_front
@@ -45,6 +45,8 @@ class AnaliseIn(BaseModel):
     user_id: str
     # Reanálise com o que o advogado contou no chat (botão "Atualizar análise com a conversa").
     incluir_chat: bool = False
+    fonte_tipo: Optional[str] = None
+    fonte_id: Optional[str] = None
 
 
 class ChatIn(BaseModel):
@@ -84,6 +86,14 @@ def criar_router(obter_contexto: ObterContexto,
             return None, None, _erro("Caso não encontrado.", 404)
         return arm, ctx, None
 
+    async def _resposta_analises(arm: Armazenamento, user_id: str, caso_id: str, destaque=None):
+        registros = await arm.listar_analises(user_id, caso_id)
+        por_indice = sorted(registros, key=lambda item: arm._indice_de(item))
+        analises = [para_analise_front(item, caso_id) for item in por_indice]
+        versoes = [para_analise_front(item, caso_id) for item in registros]
+        escolhida = para_analise_front(destaque, caso_id) if destaque else (analises[-1] if analises else None)
+        return {"analise": escolhida, "analises": analises, "versoes": versoes}
+
     # ------------------------------------------------------------ análise
     @router.post("/analise/{caso_id}")
     async def solicitar_analise(caso_id: str, body: AnaliseIn):
@@ -91,11 +101,15 @@ def criar_router(obter_contexto: ObterContexto,
         arm, ctx, erro = await _preparar(user_id, caso_id)
         if erro:
             return erro
+        fontes = fontes_do_caso(ctx["relatos"], ctx["documentos"])
         transcricao = texto_dos_relatos(ctx["relatos"])
         documentos_bloco, documentos_meta = bloco_dos_documentos(ctx["documentos"])
         if not transcricao and not documentos_bloco:
-            return _erro("Registre o relato do caso antes de gerar a análise.", 404)
-        anterior = await arm.ultima_analise(user_id, caso_id)
+            return _erro("Registre o relato do caso ou anexe um arquivo antes de gerar a análise.", 404)
+        if body.fonte_tipo and not escolher_fontes(fontes, body.fonte_tipo, body.fonte_id):
+            return _erro("Não encontramos essa transcrição ou esse arquivo no caso.", 404)
+
+        ultima = await arm.ultima_analise(user_id, caso_id)
         informacoes: list[str] = []
         if body.incluir_chat:
             # Só o que o advogado escreveu: respostas da IA não viram fato do caso.
@@ -103,6 +117,17 @@ def criar_router(obter_contexto: ObterContexto,
             informacoes = [m["conteudo"] for m in mensagens if m["papel"] == "user"][-MENSAGENS_NA_REANALISE:]
             if not informacoes:
                 return _erro("Envie no chat as informações novas antes de atualizar a análise.", 400)
+
+        cobertos = set(arm.ids_cobertos(ultima))
+        ids_atuais = [fonte["id"] for fonte in fontes]
+        novos = [fonte for fonte in fontes if fonte["id"] not in cobertos]
+        if body.fonte_id:
+            novos = [fonte for fonte in novos if fonte["id"] == body.fonte_id.strip()]
+        if ultima and not novos and not informacoes:
+            await marcar_analisado(user_id, caso_id, ultima["versao"])
+            return await _resposta_analises(arm, user_id, caso_id, ultima)
+        gatilho = novos[-1] if novos else (fontes[-1] if fontes else None)
+
         try:
             provider = provider_do_servidor()
             analise = await run_in_threadpool(
@@ -110,23 +135,26 @@ def criar_router(obter_contexto: ObterContexto,
                 # Com fatos novos do chat a análise é refeita do zero: recebendo a versão anterior,
                 # a IA tende a copiá-la e mantém teses que os fatos novos derrubaram. A versão
                 # anterior continua salva no histórico.
-                None if informacoes else (anterior["analise"] if anterior else None),
+                None if informacoes else (ultima["analise"] if ultima else None),
                 informacoes or None)
         except LLMError as e:
             return _erro(str(e), 502)
         registro = await arm.salvar_analise(
             user_id, caso_id, analise, documentos_meta, f"{provider.name}:{provider.model}",
-            origem="chat" if informacoes else "relato", mensagens_consideradas=len(informacoes))
+            origem="chat" if informacoes else "relato", mensagens_consideradas=len(informacoes),
+            fonte_tipo=gatilho["tipo"] if gatilho else None,
+            fonte_id=gatilho["id"] if gatilho else None,
+            fonte_nome=gatilho["nome"] if gatilho else None,
+            fontes_ids=ids_atuais)
         await marcar_analisado(user_id, caso_id, registro["versao"])
-        return {"analise": para_analise_front(registro, caso_id)}
+        return await _resposta_analises(arm, user_id, caso_id, registro)
 
     @router.get("/analise/{caso_id}")
     async def obter_analises(caso_id: str, user_id: str = ""):
         arm, _ctx, erro = await _preparar(user_id, caso_id)
         if erro:
             return erro
-        versoes = [para_analise_front(v, caso_id) for v in await arm.listar_analises(user_id.strip(), caso_id)]
-        return {"analise": versoes[0] if versoes else None, "versoes": versoes}
+        return await _resposta_analises(arm, user_id.strip(), caso_id)
 
     # ------------------------------------------------------------ chat
     @router.get("/chat/{caso_id}")

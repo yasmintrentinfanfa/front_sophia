@@ -6,7 +6,7 @@ modelo sem cortar no meio de uma palavra qualquer.
 from __future__ import annotations
 
 import hashlib
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .document_utils import ExtractedDocument, detect_suspicious
 
@@ -56,3 +56,45 @@ def bloco_dos_documentos(documentos: List[Dict[str, Any]]) -> Tuple[str, List[Di
     bloco = "\n\n".join(d.as_untrusted_block(i + 1) for i, d in enumerate(extraidos))
     meta = [{"nome": d.filename, "sha256": d.sha256, "suspeito": d.suspicious} for d in extraidos]
     return bloco, meta
+
+
+def fontes_do_caso(relatos: List[Dict[str, Any]], documentos: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Uma fonte por relato e por arquivo. O índice da análise é gravado na coleção `analises`."""
+    fontes: List[Dict[str, Any]] = []
+    relatos_validos = [r for r in relatos if str(r.get("texto") or "").strip()]
+    varios = len(relatos_validos) > 1
+    for i, relato in enumerate(relatos_validos):
+        fontes.append({
+            "tipo": "transcricao",
+            "id": str(relato.get("id") or f"relato-{i}"),
+            "nome": f"Transcrição {i + 1}" if varios else "Transcrição",
+            "texto": str(relato["texto"]).strip(),
+            "documento": None,
+        })
+    for doc in documentos:
+        texto = str(doc.get("text") or "").strip()
+        if not texto:
+            continue
+        fontes.append({
+            "tipo": "documento",
+            "id": str(doc.get("id") or f"documento-{len(fontes)}"),
+            "nome": str(doc.get("name") or "Documento"),
+            "texto": texto,
+            "documento": doc,
+        })
+    return fontes
+
+
+def escolher_fontes(fontes: List[Dict[str, Any]], tipo: Optional[str], fonte_id: Optional[str]) -> List[Dict[str, Any]]:
+    """Filtra a fonte pedida. Sem tipo, devolve todas para gerar o que ainda falta."""
+    tipo = (tipo or "").strip().lower()
+    fonte_id = (fonte_id or "").strip()
+    if tipo and fonte_id:
+        return [fonte for fonte in fontes if fonte["tipo"] == tipo and fonte["id"] == fonte_id]
+    if tipo == "transcricao":
+        relatos = [fonte for fonte in fontes if fonte["tipo"] == "transcricao"]
+        return relatos[-1:] if relatos else []
+    if tipo == "documento":
+        docs = [fonte for fonte in fontes if fonte["tipo"] == "documento"]
+        return docs[-1:] if docs else []
+    return fontes

@@ -6,7 +6,7 @@
  * em `./analise.ts`. O contrato compartilhado está em `docs/contrato-api.md`.
  */
 
-import type { AnalisePreliminar, ConteudoCaso, MensagemChat } from "./analise";
+import type { AnalisePreliminar, ConteudoCaso, MensagemChat, OpcoesAnalise } from "./analise";
 
 /** Estados exibidos na lista de casos do protótipo. */
 export type StatusCaso = "gravacao_pendente" | "em_analise" | "concluido";
@@ -137,9 +137,9 @@ export interface SophiaApi {
   moverCaso(id: string, pasta: PastaCaso): Promise<Caso>;
   excluirCaso(id: string): Promise<void>;
   obterCaso(casoId: string): Promise<ConteudoCaso>;
-  finalizarSessao(casoId: string, transcricao: ConteudoCaso["transcricao"]): Promise<Caso>;
-  /** `incluirChat`: nova versão com as informações que o advogado mandou no chat. */
-  solicitarAnalise(casoId: string, opcoes?: { incluirChat?: boolean }): Promise<AnalisePreliminar>;
+  finalizarSessao(casoId: string, transcricao: ConteudoCaso["transcricao"], analisar?: boolean): Promise<Caso>;
+  /** Sem `analisar`, só grava o relato. `incluirChat` gera uma nova versão com o que o advogado mandou no chat. */
+  solicitarAnalise(casoId: string, opcoes?: OpcoesAnalise): Promise<AnalisePreliminar[]>;
   listarMensagens(casoId: string): Promise<MensagemChat[]>;
   enviarMensagem(casoId: string, conteudo: string): Promise<MensagemChat[]>;
 

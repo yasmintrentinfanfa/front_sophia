@@ -123,9 +123,9 @@ export const mockApi: SophiaApi = {
     return usuario;
   },
 
-  async finalizarSessao(casoId, transcricao) {
+  async finalizarSessao(casoId, transcricao, analisar = true) {
     await garantirDono();
-    const caso = await fluxo.finalizarSessao(casoId, transcricao);
+    const caso = await fluxo.finalizarSessao(casoId, transcricao, analisar);
     if (casosNoBanco()) await atualizarCasoNoBanco(casoId, { status: "em_analise" });
     return caso;
   },
@@ -135,9 +135,9 @@ export const mockApi: SophiaApi = {
     return fluxo.obterCaso(casoId);
   },
 
-  async solicitarAnalise(casoId) {
+  async solicitarAnalise(casoId, opcoes) {
     await garantirDono();
-    return fluxo.solicitarAnalise(casoId);
+    return fluxo.solicitarAnalise(casoId, opcoes);
   },
 
   async listarMensagens(casoId) {

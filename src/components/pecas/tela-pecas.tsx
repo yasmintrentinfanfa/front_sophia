@@ -69,7 +69,7 @@ function Pecas({
   const [modeloAberto, setModeloAberto] = useState<ModeloPeca | null>(null);
   const [pecaAberta, setPecaAberta] = useState<PecaGerada | null>(null);
   const [abrindo, setAbrindo] = useState<string | null>(null);
-  const podeGerar = dados.analise !== null;
+  const podeGerar = dados.analise !== null || dados.versoesAnalise.length > 0;
 
   useEffect(() => {
     let ativo = true;

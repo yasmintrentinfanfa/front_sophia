@@ -8,7 +8,7 @@ import type { ConteudoCaso } from "@/lib/api/analise";
 interface ValorListaCasos {
   casos: Caso[];
   carregando: boolean;
-  finalizarSessao: (id: string, transcricao: ConteudoCaso["transcricao"]) => Promise<void>;
+  finalizarSessao: (id: string, transcricao: ConteudoCaso["transcricao"], analisar?: boolean) => Promise<void>;
   criarCaso: (dados: DadosNovoCaso) => Promise<Caso>;
   moverCaso: (id: string, pasta: PastaCaso) => Promise<void>;
   excluirCaso: (id: string) => Promise<void>;

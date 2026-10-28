@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Tabs } from "@base-ui/react/tabs";
 
-import { ColunasAnalise } from "@/components/analise/colunas-analise";
+import { ListaAnalises } from "@/components/analise/lista-analises";
 import { ConteudoCaso } from "@/components/fluxo/conteudo-caso";
 import { ModalFluxo } from "@/components/fluxo/modal-fluxo";
 import type {
@@ -17,7 +17,6 @@ const ABAS = [
   { id: "transcricao", titulo: "Transcrição" },
   { id: "documentos", titulo: "Documentos" },
   { id: "analise", titulo: "Análise" },
-  { id: "historico", titulo: "Histórico" },
 ];
 
 export default function PaginaRepositorio() {
@@ -70,16 +69,24 @@ function Repositorio({ dados }: { dados: DadosCaso }) {
           className="flex flex-col gap-[10px] px-7 pt-4 pb-6"
         >
           {dados.transcricao.length ? (
-            dados.transcricao.map((fala) => (
-              <p
+            dados.transcricao.map((fala, indice) => (
+              <article
                 key={fala.id}
-                className={cn(
-                  "bg-campo border-borda flex min-h-12 items-center rounded-[10px] border px-4 py-3 text-[13px] leading-4",
-                  fala.papel === "cliente" && "text-tinta-suave",
-                )}
+                className="bg-campo border-borda flex flex-col gap-2 rounded-[10px] border px-4 py-3"
               >
-                [{fala.tempo}] {fala.texto}
-              </p>
+                <p className="text-[12px] font-semibold">
+                  Transcrição {indice + 1}
+                  {fala.tempo && fala.tempo !== "00:00" ? ` · ${fala.tempo}` : ""}
+                </p>
+                <p
+                  className={cn(
+                    "text-[13px] leading-5 whitespace-pre-wrap",
+                    fala.papel === "cliente" && "text-tinta-suave",
+                  )}
+                >
+                  {fala.texto}
+                </p>
+              </article>
             ))
           ) : (
             <p className="text-tinta-suave text-[13px]">
@@ -121,39 +128,13 @@ function Repositorio({ dados }: { dados: DadosCaso }) {
           className="flex flex-col gap-4 px-7 pt-4 pb-6"
         >
           {dados.analise ? (
-            <ColunasAnalise analise={dados.analise} destinoChat={`/casos/${dados.casoId}/repositorio/chat`} />
+            <ListaAnalises
+              analises={[dados.analise]}
+              destinoChat={`/casos/${dados.casoId}/repositorio/chat`}
+            />
           ) : (
             <p className="text-tinta-suave text-[13px]">
               Nenhuma análise neste caso.
-            </p>
-          )}
-        </Tabs.Panel>
-        <Tabs.Panel
-          value="historico"
-          className="flex flex-col gap-[10px] px-7 pt-4 pb-6"
-        >
-          {dados.historico.length ? (
-            dados.historico.map((evento) => (
-              <div
-                key={evento.id}
-                className="border-borda bg-campo flex min-h-12 flex-wrap items-center justify-between gap-2 rounded-[10px] border px-4 py-3 text-[13px]"
-              >
-                <p>{evento.descricao}</p>
-                <time
-                  dateTime={evento.data}
-                  className="text-tinta-suave text-[11px]"
-                >
-                  {new Intl.DateTimeFormat("pt-BR", {
-                    dateStyle: "short",
-                    timeStyle: "short",
-                    timeZone: "America/Sao_Paulo",
-                  }).format(new Date(evento.data))}
-                </time>
-              </div>
-            ))
-          ) : (
-            <p className="text-tinta-suave text-[13px]">
-              Nenhum evento neste caso.
             </p>
           )}
         </Tabs.Panel>

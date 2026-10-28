@@ -5,7 +5,7 @@
  * mudam. Desligado nos testes e com `NEXT_PUBLIC_ANALISE_REAL=false` (ver `./index.ts`).
  */
 
-import type { AnalisePreliminar, MensagemChat } from "./analise";
+import type { AnalisePreliminar, OpcoesAnalise, MensagemChat } from "./analise";
 import { requisitarJson } from "./conta";
 import type { SophiaApi } from "./types";
 
@@ -14,36 +14,55 @@ type ApiAnalise = Pick<
   "obterCaso" | "finalizarSessao" | "solicitarAnalise" | "listarMensagens" | "enviarMensagem"
 >;
 
-const rotuloVersao = (versao: number) => `Análise preliminar - versão ${versao}`;
+const rotuloAnalise = (item: AnalisePreliminar) =>
+  item.fonteNome ? `Análise ${item.indice + 1} · ${item.fonteNome}` : `Análise ${item.indice + 1}`;
+
+function listaDeAnalises(
+  analise: AnalisePreliminar | null | undefined,
+  analises?: AnalisePreliminar[],
+  versoes?: AnalisePreliminar[],
+) {
+  if (analises?.length) return analises;
+  if (versoes?.length) return [...versoes].sort((a, b) => a.indice - b.indice);
+  return analise ? [analise] : [];
+}
 
 export function criarAnaliseApi(base: SophiaApi): ApiAnalise {
   const consulta = (casoId: string) => `?casoId=${encodeURIComponent(casoId)}`;
 
   async function solicitarAnalise(
     casoId: string,
-    opcoes: { incluirChat?: boolean } = {},
-  ): Promise<AnalisePreliminar> {
-    const { analise } = await requisitarJson<{ analise: AnalisePreliminar }>("/api/analise", {
+    opcoes: OpcoesAnalise = {},
+  ): Promise<AnalisePreliminar[]> {
+    const { analise, analises, versoes } = await requisitarJson<{
+      analise: AnalisePreliminar | null;
+      analises?: AnalisePreliminar[];
+      versoes?: AnalisePreliminar[];
+    }>("/api/analise", {
       method: "POST",
-      body: JSON.stringify({ casoId, ...(opcoes.incluirChat ? { incluirChat: true } : {}) }),
+      body: JSON.stringify({
+        casoId,
+        ...(opcoes.incluirChat ? { incluirChat: true } : {}),
+        ...(opcoes.tipo ? { fonteTipo: opcoes.tipo, ...(opcoes.id ? { fonteId: opcoes.id } : {}) } : {}),
+      }),
     });
-    return analise;
+    return listaDeAnalises(analise, analises, versoes);
   }
 
   return {
     solicitarAnalise,
 
-    async finalizarSessao(casoId, transcricao) {
-      // O relato já foi salvo no MongoDB antes desta chamada. A análise real roda primeiro, mas
-      // o status do caso avança de qualquer jeito: se a IA falhar, a tela de análise oferece
-      // "Gerar análise" para tentar de novo, e o erro volta para quem chamou.
+    async finalizarSessao(casoId, transcricao, analisar = true) {
+      // O relato já foi salvo no MongoDB antes desta chamada. A análise só roda se pedirem.
       let falha: unknown = null;
-      try {
-        await solicitarAnalise(casoId);
-      } catch (erro) {
-        falha = erro;
+      if (analisar) {
+        try {
+          await solicitarAnalise(casoId, { tipo: "transcricao" });
+        } catch (erro) {
+          falha = erro;
+        }
       }
-      const caso = await base.finalizarSessao(casoId, transcricao);
+      const caso = await base.finalizarSessao(casoId, transcricao, false);
       if (falha) throw falha;
       return caso;
     },
@@ -51,21 +70,23 @@ export function criarAnaliseApi(base: SophiaApi): ApiAnalise {
     async obterCaso(casoId) {
       const conteudo = await base.obterCaso(casoId);
       try {
-        const { analise, versoes } = await requisitarJson<{
+        const { analise, analises, versoes } = await requisitarJson<{
           analise: AnalisePreliminar | null;
-          versoes: AnalisePreliminar[];
+          analises?: AnalisePreliminar[];
+          versoes?: AnalisePreliminar[];
         }>(`/api/analise${consulta(casoId)}`);
-        const eventosReais = versoes.map((versao) => ({
-          id: versao.id,
-          descricao: rotuloVersao(versao.versao),
-          data: versao.geradaEm,
+        const lista = listaDeAnalises(analise, analises, versoes);
+        const eventosReais = lista.map((item) => ({
+          id: item.id,
+          descricao: rotuloAnalise(item),
+          data: item.geradaEm,
         }));
         // Os eventos de análise do adapter de base usam os mesmos ids; ficam só os reais.
         const outros = conteudo.historico.filter((evento) => !evento.id.includes("-analise-"));
         return {
           ...conteudo,
-          analise,
-          versoesAnalise: versoes,
+          analise: lista.at(-1) ?? analise,
+          versoesAnalise: lista,
           historico: [...eventosReais, ...outros].sort((a, b) => b.data.localeCompare(a.data)),
         };
       } catch {

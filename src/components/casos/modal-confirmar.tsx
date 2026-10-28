@@ -13,6 +13,7 @@ interface ModalConfirmarProps {
   aoConfirmar: () => void;
   processando?: boolean;
   erro?: string;
+  className?: string;
 }
 
 export function ModalConfirmar({
@@ -25,6 +26,7 @@ export function ModalConfirmar({
   aoConfirmar,
   processando = false,
   erro,
+  className = "max-w-[320px]",
 }: ModalConfirmarProps) {
   return (
     <Modal
@@ -33,10 +35,10 @@ export function ModalConfirmar({
       titulo={titulo}
       descricao={descricao}
       bloqueado={processando}
-      className="max-w-[320px]"
+      className={className}
     >
       {erro ? <p role="alert" className="mt-2 text-[12px] text-red-600 dark:text-red-400">{erro}</p> : null}
-      <div className="mt-4 flex justify-end gap-2">
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
         <button
           type="button"
           disabled={processando}

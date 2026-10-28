@@ -179,7 +179,7 @@ class Mapeador(unittest.TestCase):
         self.assertEqual(a["insights"][1]["fontes"][0]["url"], "https://stj.jus.br/x")
         self.assertEqual(a["insights"][2]["fontes"][0]["data"], "2021-03-12")
         self.assertEqual(a["insights"][2]["posicaoJurisprudencial"], "em_analise")
-        self.assertEqual((a["versao"], a["id"], a["demonstracao"]), (2, "caso1-analise-2", False))
+        self.assertEqual((a["versao"], a["indice"], a["id"], a["demonstracao"]), (2, 1, "caso1-analise-2", False))
         self.assertNotIn("instrucao", a)
         self.assertEqual(len({i["id"] for i in a["insights"]}), len(a["insights"]))
 
@@ -191,7 +191,7 @@ class Armazenamento_(unittest.TestCase):
     def test_versoes_e_isolamento_por_usuario(self):
         v1 = rodar(self.arm.salvar_analise("A", "c1", BASE, [], "m"))
         v2 = rodar(self.arm.salvar_analise("A", "c1", BASE, [], "m"))
-        self.assertEqual((v1["versao"], v2["versao"]), (1, 2))
+        self.assertEqual((v1["versao"], v2["versao"], v1["indice"], v2["indice"]), (1, 2, 0, 1))
         self.assertEqual(rodar(self.arm.ultima_analise("A", "c1"))["versao"], 2)
         self.assertEqual([v["versao"] for v in rodar(self.arm.listar_analises("A", "c1"))], [2, 1])
         self.assertIsNone(rodar(self.arm.ultima_analise("B", "c1")))  # outro usuário não enxerga
@@ -225,6 +225,12 @@ class Contexto(unittest.TestCase):
         self.assertNotIn("a" * 50, curto)
         self.assertIn("b" * 50, curto)
         self.assertEqual(contexto.texto_dos_relatos([{"texto": " único "}]), "único")
+        fontes = contexto.fontes_do_caso(
+            [{"id": "r1", "texto": "relato"}],
+            [{"id": "d1", "name": "contrato.txt", "text": "cláusula"}, {"name": "vazio.txt", "text": "  "}])
+        self.assertEqual([(f["tipo"], f["id"], f["nome"]) for f in fontes],
+                         [("transcricao", "r1", "Transcrição"), ("documento", "d1", "contrato.txt")])
+        self.assertEqual(contexto.escolher_fontes(fontes, "documento", "d1")[0]["id"], "d1")
 
     def test_relato_escrito_a_mao_vai_identificado(self):
         relatos = [{"texto": "falado", "criado_em": "d1", "origem": "audio"},
@@ -307,11 +313,11 @@ class Rotas(unittest.TestCase):
     def setUp(self):
         self.arm = Armazenamento(_Banco())
         self.analisados = []
-        casos = {("A", "c1"): {"titulo": "Caso", "cliente": "Ana", "area": "civil", "documentos": [],
-                               "relatos": [{"texto": "relato do cliente", "criado_em": "d1"}]}}
+        self.casos = {("A", "c1"): {"titulo": "Caso", "cliente": "Ana", "area": "civil", "documentos": [],
+                                    "relatos": [{"id": "r1", "texto": "relato do cliente", "criado_em": "d1"}]}}
 
         async def obter_contexto(user_id, caso_id):
-            return casos.get((user_id, caso_id))
+            return self.casos.get((user_id, caso_id))
 
         async def marcar(user_id, caso_id, versao):
             self.analisados.append((user_id, caso_id, versao))
@@ -376,6 +382,28 @@ class Rotas(unittest.TestCase):
         self.assertEqual(self.c.get("/pecas/c1?user_id=B").status_code, 404)
         self.assertEqual(self.c.post("/pecas/c1", json={"user_id": "A", "modelo_id": "x"}).status_code, 400)
         self.assertEqual(len(self.c.get("/pecas/modelos").json()["modelos"]), len(modelos_pecas.MODELOS))
+
+    def test_analise_geral_incremental_com_historico(self):
+        self.casos[("A", "c1")]["documentos"] = [
+            {"id": "d1", "name": "contrato.txt", "text": "O contrato prevê multa de um salário e prazo de 30 dias."},
+            {"id": "d2", "name": "email.txt", "text": "O cliente cobrou o atraso por e-mail em março e não houve resposta."},
+        ]
+        provedor = Falso([json.dumps(BASE), json.dumps(dict(BASE, resumo_caso="Atualizado."))])
+        router.provider_do_servidor = lambda: provedor
+        r = self.c.post("/analise/c1", json={"user_id": "A"})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.json()["analises"]), 1)
+        self.assertEqual(r.json()["analise"]["indice"], 0)
+        self.assertNotIn("ANÁLISE ANTERIOR", provedor.prompts[0])
+        r2 = self.c.post("/analise/c1", json={"user_id": "A"})
+        self.assertEqual(len(r2.json()["analises"]), 1)
+        self.casos[("A", "c1")]["documentos"].append(
+            {"id": "d3", "name": "laudo.txt", "text": "O laudo aponta vício oculto no bem entregue em fevereiro."})
+        r3 = self.c.post("/analise/c1", json={"user_id": "A", "fonte_tipo": "documento", "fonte_id": "d3"})
+        self.assertEqual(r3.status_code, 200)
+        self.assertEqual([a["indice"] for a in r3.json()["analises"]], [0, 1])
+        self.assertEqual(r3.json()["analise"]["fonteNome"], "laudo.txt")
+        self.assertIn("ANÁLISE ANTERIOR", provedor.prompts[-1])
 
 
 if __name__ == "__main__":
