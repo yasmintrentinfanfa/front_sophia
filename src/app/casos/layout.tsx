@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { BarraLateralCasos } from "@/components/casos/barra-lateral-casos";
 import { ProvedorListaCasos } from "@/components/casos/contexto-lista-casos";
+import { ProvedorTutorial } from "@/components/tutorial/contexto-tutorial";
 import type { ConteudoCaso } from "@/lib/api/analise";
 import { api } from "@/lib/api";
 import type { Caso, DadosNovoCaso, PastaCaso } from "@/lib/api/types";
@@ -19,6 +20,7 @@ export default function LayoutCasos({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [liberado, setLiberado] = useState(false);
+  const [usuarioId, setUsuarioId] = useState<string | null>(null);
   const [casos, setCasos] = useState<Caso[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erroLista, setErroLista] = useState("");
@@ -34,6 +36,7 @@ export default function LayoutCasos({ children }: { children: ReactNode }) {
           router.replace(destino);
           return;
         }
+        setUsuarioId(usuario?.id ?? null);
         setLiberado(true);
         return api.listarCasos().then((lista) => {
           if (ativo) setCasos(lista);
@@ -94,6 +97,7 @@ export default function LayoutCasos({ children }: { children: ReactNode }) {
 
   return (
     <ProvedorListaCasos value={contexto}>
+      <ProvedorTutorial usuarioId={usuarioId}>
       <div className="bg-fundo flex h-dvh overflow-hidden">
         <BarraLateralCasos casos={casos} carregando={carregando} />
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -108,6 +112,7 @@ export default function LayoutCasos({ children }: { children: ReactNode }) {
           )}
         </main>
       </div>
+      </ProvedorTutorial>
     </ProvedorListaCasos>
   );
 }

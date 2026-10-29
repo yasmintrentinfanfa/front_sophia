@@ -7,6 +7,7 @@ import { X } from "lucide-react";
 import { IconeTelefone } from "@/components/casos/icones-trilha";
 import { BotaoTema } from "@/components/tema/botao-tema";
 import { SeletorDestaque } from "@/components/tema/seletor-destaque";
+import { useTutorial } from "@/components/tutorial/contexto-tutorial";
 import { Modal } from "@/components/ui/modal";
 import { api } from "@/lib/api";
 import type { ResumoAssinatura } from "@/lib/api/types";
@@ -23,12 +24,13 @@ export function ModalConfiguracoes({
   aoFechar,
   aoPedirSaida,
 }: ModalConfiguracoesProps) {
+  const { abrirTutorial } = useTutorial();
   return (
     <Modal
       aberto={aberto}
       aoFechar={aoFechar}
       titulo="Configurações"
-      descricao="Tema, cor, pagamento e sessão"
+      descricao="Tema, cor, pagamento, tutorial e sessão"
       className="relative max-w-[340px]"
     >
       <button
@@ -54,6 +56,23 @@ export function ModalConfiguracoes({
         <SeletorDestaque />
 
         <CartaoPagamento />
+
+        <div className="border-borda flex items-center justify-between rounded-[10px] border px-3 py-2.5">
+          <div className="flex flex-col gap-0.5">
+            <p className="text-[13px] font-semibold">Tutorial</p>
+            <p className="text-tinta-suave text-[12px]">Rever o passo a passo da Sophia</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              aoFechar();
+              abrirTutorial();
+            }}
+            className="pressionavel border-borda bg-campo flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-semibold"
+          >
+            Ver
+          </button>
+        </div>
 
         <div className="border-borda flex items-center justify-between rounded-[10px] border px-3 py-2.5">
           <div className="flex flex-col gap-0.5">
