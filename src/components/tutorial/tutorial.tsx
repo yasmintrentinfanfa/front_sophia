@@ -84,10 +84,9 @@ const PASSOS: Passo[] = [
     titulo: "Tudo do caso num só lugar",
     texto: "Com o caso aberto, clique no ícone de pasta da barra lateral para abrir o Repositório:",
     itens: [
-      { nome: "Transcrição", detalhe: "todos os relatos" },
+      { nome: "Transcrição", detalhe: "todos os relatos, numerados" },
       { nome: "Documentos", detalhe: "arquivos anexados" },
       { nome: "Análise", detalhe: "os cards do caso" },
-      { nome: "Histórico", detalhe: "versões da análise e eventos" },
     ],
     Cena: CenaRepositorio,
   },

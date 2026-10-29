@@ -346,11 +346,11 @@ export function CenaCasos() {
 }
 
 // ------------------------------------------------------------------- 7. repositório
+// Mesmas abas do repositório (src/app/casos/[casoId]/repositorio/page.tsx).
 const ABAS = [
-  { titulo: "Transcrição", conteudo: "Todos os relatos do caso, em ordem" },
-  { titulo: "Documentos", conteudo: "Arquivos anexados (PDF, DOCX e TXT)" },
-  { titulo: "Análise", conteudo: "Os cards da versão mais recente" },
-  { titulo: "Histórico", conteudo: "Versões da análise e eventos do caso" },
+  { titulo: "Transcrição", conteudo: "Todos os relatos do caso, em ordem", itens: ["Transcrição 1", "Transcrição 2", "Transcrição 3"] },
+  { titulo: "Documentos", conteudo: "Arquivos anexados ao caso", itens: ["contrato.pdf", "negativa.pdf", "laudo.docx"] },
+  { titulo: "Análise", conteudo: "Os cards da análise mais recente", itens: ["Teses jurídicas", "Jurisprudência", "Perguntas sugeridas"] },
 ];
 
 export function CenaRepositorio() {
@@ -373,12 +373,12 @@ export function CenaRepositorio() {
       </div>
       <div key={atual} className="animate-in fade-in slide-in-from-right-2 flex flex-1 flex-col gap-2 duration-500">
         <p className="text-[11px] font-semibold">{ABAS[atual].conteudo}</p>
-        {[0, 1, 2].map((item) => (
+        {ABAS[atual].itens.map((item) => (
           <span key={item} className="bg-campo border-borda flex items-center gap-2 rounded-[8px] border px-2.5 py-2">
             <FileText className="text-destaque size-3.5 shrink-0" aria-hidden />
             <span className="flex flex-1 flex-col gap-1">
+              <span className="text-[10px] font-semibold">{item}</span>
               <Linha className="w-2/3" />
-              <Linha className="w-1/3" />
             </span>
           </span>
         ))}
