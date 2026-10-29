@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { ModalClausulas } from "@/components/casos/modal-clausulas";
+import { contaApi } from "@/lib/api/conta";
 import { gravarAceiteClausulas } from "@/lib/clausulas";
 
 import { CampoConta } from "./campo-conta";
@@ -17,6 +18,20 @@ export function FormularioCriarConta() {
   /** Conta já criada: falta só aceitar os termos para seguir ao plano e ao cartão. */
   const [contaCriada, setContaCriada] = useState(false);
   const [clausulasAbertas, setClausulasAbertas] = useState(false);
+
+  /** O aceite fica gravado na conta: os termos não aparecem de novo em nenhum navegador. */
+  async function aceitarTermos() {
+    setErro("");
+    try {
+      await contaApi.aceitarTermos();
+      gravarAceiteClausulas();
+      setClausulasAbertas(false);
+      router.push("/assinatura");
+    } catch (falha) {
+      setClausulasAbertas(false);
+      setErro(falha instanceof Error ? falha.message : "Não foi possível registrar o aceite dos termos.");
+    }
+  }
 
   function validarSenhas() {
     const campos = formulario.current?.elements;
@@ -134,11 +149,7 @@ export function FormularioCriarConta() {
         aberto={clausulasAbertas}
         modo="aceite"
         aoFechar={() => setClausulasAbertas(false)}
-        aoConfirmar={() => {
-          gravarAceiteClausulas();
-          setClausulasAbertas(false);
-          router.push("/assinatura");
-        }}
+        aoConfirmar={() => void aceitarTermos()}
       />
     </form>
   );

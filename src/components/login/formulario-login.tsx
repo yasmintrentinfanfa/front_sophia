@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import { ModalClausulas } from "@/components/casos/modal-clausulas";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { contaApi } from "@/lib/api/conta";
 import { usuarioDaApi, type UsuarioApi } from "@/lib/api/http/mapeadores";
 import { gravarAceiteClausulas, leuAceiteClausulas } from "@/lib/clausulas";
 import { rotaInicial } from "@/lib/conta";
@@ -35,7 +36,20 @@ export function FormularioLogin() {
     if (!res.ok || !dados.usuario) {
       throw new Error(dados.erro ?? "Não foi possível entrar.");
     }
-    return rotaInicial(usuarioDaApi(dados.usuario));
+    return usuarioDaApi(dados.usuario);
+  }
+
+  /** O aceite fica na conta: vale em qualquer navegador e só é pedido uma vez. */
+  async function aceitarTermos() {
+    try {
+      await contaApi.aceitarTermos();
+      gravarAceiteClausulas();
+      setClausulasAbertas(false);
+      router.push(destino);
+    } catch (falha) {
+      setClausulasAbertas(false);
+      setErro(falha instanceof Error ? falha.message : "Não foi possível registrar o aceite dos termos.");
+    }
   }
 
   async function aoEnviar(evento: FormEvent<HTMLFormElement>) {
@@ -44,8 +58,15 @@ export function FormularioLogin() {
     setEnviando(true);
     setErro("");
     try {
-      const proxima = await entrar();
+      const usuario = await entrar();
+      const proxima = rotaInicial(usuario);
+      if (usuario.termosAceitosEm) {
+        router.push(proxima);
+        return;
+      }
       if (leuAceiteClausulas()) {
+        // Aceitou neste navegador antes de o aceite ir para a conta: só registra na conta.
+        await contaApi.aceitarTermos().catch(() => undefined);
         router.push(proxima);
         return;
       }
@@ -119,11 +140,7 @@ export function FormularioLogin() {
         aberto={clausulasAbertas}
         modo="aceite"
         aoFechar={() => setClausulasAbertas(false)}
-        aoConfirmar={() => {
-          gravarAceiteClausulas();
-          setClausulasAbertas(false);
-          router.push(destino);
-        }}
+        aoConfirmar={() => void aceitarTermos()}
       />
     </form>
   );

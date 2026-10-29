@@ -56,7 +56,7 @@ export async function requisitarJson<T>(url: string, init: RequestInit = {}): Pr
 
 type ApiConta = Pick<
   SophiaApi,
-  "obterUsuarioAtual" | "obterOfertaAssinatura" | "assinar" | "trocarPlano" | "cancelarConta"
+  "obterUsuarioAtual" | "obterOfertaAssinatura" | "assinar" | "trocarPlano" | "cancelarConta" | "aceitarTermos"
 >;
 
 export const contaApi: ApiConta = {
@@ -93,6 +93,12 @@ export const contaApi: ApiConta = {
 
   async cancelarConta() {
     const { usuario } = await requisitarJson<{ usuario: UsuarioApi }>("/api/conta/cancelar", {
+      method: "POST",
+    });
+    return usuarioDaApi(usuario);
+  },
+  async aceitarTermos() {
+    const { usuario } = await requisitarJson<{ usuario: UsuarioApi }>("/api/conta/termos", {
       method: "POST",
     });
     return usuarioDaApi(usuario);

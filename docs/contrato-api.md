@@ -201,6 +201,14 @@ O resumo fica em `users.subscription`. Não há coleção separada de assinatura
 Quando o gateway real entrar: guardar o id do cliente/método de pagamento do
 gateway, nunca o token de uso único, e atualizar o status mensal por webhook.
 
+### Aceite dos termos de uso
+
+O aceite fica na própria conta, em `users.terms_accepted_at` (data e hora) e
+`users.terms_version`. Os termos aparecem logo depois do cadastro e, no login, só
+para quem ainda não aceitou a versão atual (`VERSAO_TERMOS` no backend). O
+checkbox "Li e concordo" libera o botão "Concordo"; a rota `POST /api/conta/termos`
+grava o aceite da conta do cookie. Mudar `VERSAO_TERMOS` faz todos aceitarem de novo.
+
 ## Isolamento por usuário (obrigatório no backend)
 
 Cada usuário só pode ver e alterar os próprios casos. O front já se comporta

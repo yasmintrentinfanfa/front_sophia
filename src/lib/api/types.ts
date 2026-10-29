@@ -54,6 +54,8 @@ export interface Usuario {
   criadoEm?: string;
   /** Plano e cartão da assinatura ativa, para exibir na conta (sem valores). */
   assinatura?: ResumoAssinatura;
+  /** Quando aceitou a versão atual dos termos de uso (ISO). Ausente = ainda não aceitou. */
+  termosAceitosEm?: string;
 }
 
 export interface ResumoAssinatura {
@@ -161,4 +163,6 @@ export interface SophiaApi {
    * Pede o cancelamento da conta da sessão. O acesso segue até o fim do mês pago.
    */
   cancelarConta(): Promise<Usuario>;
+  /** Grava na conta o aceite dos termos de uso; os termos não aparecem mais para ela. */
+  aceitarTermos(): Promise<Usuario>;
 }
