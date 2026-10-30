@@ -1,4 +1,4 @@
-import { urlDoBack } from "@/lib/servidor/back";
+import { MENSAGEM_API_INDISPONIVEL, urlDoBack } from "@/lib/servidor/back";
 import { gravarUsuarioNaSessao } from "@/lib/servidor/sessao-usuario";
 
 export async function POST(pedido: Request) {
@@ -25,7 +25,7 @@ export async function POST(pedido: Request) {
     return Response.json(dados, { status: res.status });
   } catch {
     return Response.json(
-      { erro: "Não foi possível falar com a API. Confira se ela está na porta 8000." },
+      { erro: MENSAGEM_API_INDISPONIVEL },
       { status: 503 },
     );
   }

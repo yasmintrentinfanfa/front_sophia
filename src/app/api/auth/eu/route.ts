@@ -1,4 +1,4 @@
-import { urlDoBack } from "@/lib/servidor/back";
+import { MENSAGEM_API_INDISPONIVEL, urlDoBack } from "@/lib/servidor/back";
 import { apagarSessaoUsuario, idDoUsuarioNaSessao } from "@/lib/servidor/sessao-usuario";
 
 /** Usuário da sessão, com `account_status` para o front decidir entre assinatura e casos. */
@@ -19,7 +19,7 @@ export async function GET() {
     return Response.json(dados, { status: res.status });
   } catch {
     return Response.json(
-      { erro: "Não foi possível falar com a API. Confira se ela está na porta 8000." },
+      { erro: MENSAGEM_API_INDISPONIVEL },
       { status: 503 },
     );
   }

@@ -1,4 +1,4 @@
-import { urlDoBack } from "@/lib/servidor/back";
+import { MENSAGEM_API_INDISPONIVEL, urlDoBack } from "@/lib/servidor/back";
 import { idDoUsuarioNaSessao } from "@/lib/servidor/sessao-usuario";
 
 /** Lista os casos do usuário da sessão. O id nunca vem da query. */
@@ -15,7 +15,7 @@ export async function GET(_pedido: Request) {
     return Response.json(dados.casos ?? []);
   } catch {
     return Response.json(
-      { erro: "Não foi possível carregar os casos. Confira se a API está na porta 8000." },
+      { erro: MENSAGEM_API_INDISPONIVEL },
       { status: 503 },
     );
   }
@@ -52,7 +52,7 @@ export async function POST(pedido: Request) {
     return Response.json(dados.caso ?? dados, { status: res.status });
   } catch {
     return Response.json(
-      { erro: "Não foi possível salvar o caso. Confira se a API está na porta 8000." },
+      { erro: MENSAGEM_API_INDISPONIVEL },
       { status: 503 },
     );
   }

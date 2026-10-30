@@ -1,4 +1,4 @@
-import { urlDoBack } from "@/lib/servidor/back";
+import { MENSAGEM_API_INDISPONIVEL, urlDoBack } from "@/lib/servidor/back";
 import { gravarUsuarioNaSessao } from "@/lib/servidor/sessao-usuario";
 
 export async function POST(pedido: Request) {
@@ -37,8 +37,7 @@ export async function POST(pedido: Request) {
   } catch {
     return Response.json(
       {
-        erro:
-          "Não foi possível falar com a API. Rode o backend desta pasta (porta 8000) e confira MONGODB_URI no backend/.env.",
+        erro: MENSAGEM_API_INDISPONIVEL,
       },
       { status: 503 },
     );

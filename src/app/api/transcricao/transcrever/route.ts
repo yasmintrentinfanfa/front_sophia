@@ -1,4 +1,4 @@
-import { urlDoBack } from "@/lib/servidor/back";
+import { MENSAGEM_API_INDISPONIVEL, urlDoBack } from "@/lib/servidor/back";
 import { idDoUsuarioNaSessao } from "@/lib/servidor/sessao-usuario";
 
 export const maxDuration = 300;
@@ -15,7 +15,7 @@ export async function POST(pedido: Request) {
     return Response.json(dados, { status: res.status });
   } catch {
     return Response.json(
-      { erro: "Não foi possível transcrever. Confira se a API está na porta 8000." },
+      { erro: MENSAGEM_API_INDISPONIVEL },
       { status: 503 },
     );
   }

@@ -1,4 +1,4 @@
-import { urlDoBack } from "@/lib/servidor/back";
+import { MENSAGEM_API_INDISPONIVEL, urlDoBack } from "@/lib/servidor/back";
 import { idDoUsuarioNaSessao } from "@/lib/servidor/sessao-usuario";
 
 type Contexto = { params: Promise<{ casoId: string }> };
@@ -27,7 +27,7 @@ export async function PATCH(pedido: Request, contexto: Contexto) {
     return Response.json(dados.caso ?? dados, { status: res.status });
   } catch {
     return Response.json(
-      { erro: "Não foi possível atualizar o caso. Confira se a API está na porta 8000." },
+      { erro: MENSAGEM_API_INDISPONIVEL },
       { status: 503 },
     );
   }
@@ -51,7 +51,7 @@ export async function DELETE(_pedido: Request, contexto: Contexto) {
     return Response.json(dados, { status: res.status });
   } catch {
     return Response.json(
-      { erro: "Não foi possível excluir o caso. Confira se a API está na porta 8000." },
+      { erro: MENSAGEM_API_INDISPONIVEL },
       { status: 503 },
     );
   }

@@ -1,3 +1,4 @@
+import { MENSAGEM_API_INDISPONIVEL } from "@/lib/servidor/back";
 import { corpoJson, doUsuario, repassarJson } from "@/lib/servidor/repassar";
 import { idDoUsuarioNaSessao } from "@/lib/servidor/sessao-usuario";
 
@@ -31,6 +32,6 @@ export async function POST(pedido: Request) {
   return repassarJson(
     `/pecas/${encodeURIComponent(casoId)}`,
     corpoJson({ user_id: userId, modelo_id: modeloId, ...(instrucoes ? { instrucoes } : {}) }),
-    "Não foi possível gerar a minuta. Confira se a API está na porta 8000.",
+    MENSAGEM_API_INDISPONIVEL,
   );
 }

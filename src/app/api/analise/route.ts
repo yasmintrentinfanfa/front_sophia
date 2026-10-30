@@ -1,3 +1,4 @@
+import { MENSAGEM_API_INDISPONIVEL } from "@/lib/servidor/back";
 import { corpoJson, doUsuario, repassarJson } from "@/lib/servidor/repassar";
 import { idDoUsuarioNaSessao } from "@/lib/servidor/sessao-usuario";
 
@@ -40,6 +41,6 @@ export async function POST(pedido: Request) {
       ...(corpo.incluirChat === true ? { incluir_chat: true } : {}),
       ...(fonteTipo ? { fonte_tipo: fonteTipo, ...(fonteId ? { fonte_id: fonteId } : {}) } : {}),
     }),
-    "Não foi possível gerar a análise. Confira se a API está na porta 8000.",
+    MENSAGEM_API_INDISPONIVEL,
   );
 }
