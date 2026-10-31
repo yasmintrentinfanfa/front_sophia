@@ -4,6 +4,10 @@ import { useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { ModalClausulas } from "@/components/casos/modal-clausulas";
+import { contaApi } from "@/lib/api/conta";
+import { gravarAceiteClausulas } from "@/lib/clausulas";
+
 import { CampoConta } from "./campo-conta";
 
 export function FormularioCriarConta() {
@@ -11,6 +15,23 @@ export function FormularioCriarConta() {
   const formulario = useRef<HTMLFormElement>(null);
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
+  /** Conta já criada: falta só aceitar os termos para seguir ao plano e ao cartão. */
+  const [contaCriada, setContaCriada] = useState(false);
+  const [clausulasAbertas, setClausulasAbertas] = useState(false);
+
+  /** O aceite fica gravado na conta: os termos não aparecem de novo em nenhum navegador. */
+  async function aceitarTermos() {
+    setErro("");
+    try {
+      await contaApi.aceitarTermos();
+      gravarAceiteClausulas();
+      setClausulasAbertas(false);
+      router.push("/assinatura");
+    } catch (falha) {
+      setClausulasAbertas(false);
+      setErro(falha instanceof Error ? falha.message : "Não foi possível registrar o aceite dos termos.");
+    }
+  }
 
   function validarSenhas() {
     const campos = formulario.current?.elements;
@@ -25,6 +46,11 @@ export function FormularioCriarConta() {
 
   async function aoEnviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
+    if (contaCriada) {
+      // Fechou os termos sem aceitar: reabre em vez de tentar criar a conta de novo.
+      setClausulasAbertas(true);
+      return;
+    }
     validarSenhas();
     if (!evento.currentTarget.reportValidity() || enviando) return;
     const campos = evento.currentTarget.elements;
@@ -43,7 +69,9 @@ export function FormularioCriarConta() {
       if (!res.ok) {
         throw new Error(dados.erro ?? "Não foi possível criar a conta.");
       }
-      router.push("/assinatura");
+      // Conta nova sempre aceita os termos, mesmo que o navegador tenha o aceite de outra conta.
+      setContaCriada(true);
+      setClausulasAbertas(true);
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : "Não foi possível criar a conta.");
     } finally {
@@ -98,12 +126,17 @@ export function FormularioCriarConta() {
           {erro}
         </p>
       ) : null}
+      {contaCriada && !clausulasAbertas ? (
+        <p role="status" className="text-tinta-suave text-[12px]">
+          Conta criada. Para continuar para o plano e o pagamento, aceite os termos de uso.
+        </p>
+      ) : null}
       <button
         type="submit"
         disabled={enviando}
         className="pressionavel bg-acao text-acao-tinta flex h-10 items-center justify-center rounded-[8px] text-[13px] font-semibold disabled:opacity-60"
       >
-        {enviando ? "Criando…" : "Criar conta"}
+        {contaCriada ? "Aceitar os termos e continuar" : enviando ? "Criando…" : "Criar conta"}
       </button>
       <p className="flex min-h-[100px] flex-wrap items-start gap-1 text-[13px] leading-4">
         <span className="text-tinta-suave">Já tem uma conta?</span>
@@ -111,6 +144,13 @@ export function FormularioCriarConta() {
           Entrar
         </Link>
       </p>
+
+      <ModalClausulas
+        aberto={clausulasAbertas}
+        modo="aceite"
+        aoFechar={() => setClausulasAbertas(false)}
+        aoConfirmar={() => void aceitarTermos()}
+      />
     </form>
   );
 }

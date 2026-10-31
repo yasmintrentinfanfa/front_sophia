@@ -45,6 +45,8 @@ export interface UsuarioApi {
     plan_name: string;
     card: { brand?: BandeiraCartao; last4?: string; expiry?: string };
   } | null;
+  /** Aceite da versão atual dos termos; null = ainda não aceitou. */
+  terms_accepted_at?: string | null;
 }
 
 export function usuarioDaApi(dto: UsuarioApi): Usuario {
@@ -66,6 +68,7 @@ export function usuarioDaApi(dto: UsuarioApi): Usuario {
           },
         }
       : undefined,
+    termosAceitosEm: dto.terms_accepted_at || undefined,
   };
 }
 
