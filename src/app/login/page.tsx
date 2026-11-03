@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 import { FormularioLogin } from "@/components/login/formulario-login";
 import { LinkTermos } from "@/components/login/link-termos";
@@ -8,7 +9,9 @@ export default function PaginaLogin() {
   return (
     <div className="tela-login flex min-h-dvh flex-col px-8 py-5">
       <header className="flex h-6 w-full items-center justify-between">
-        <span className="text-[13px] font-semibold">SOPHIA</span>
+        <Link href="/" className="pressionavel text-[13px] font-semibold">
+          SOPHIA
+        </Link>
         <div className="flex items-center gap-2">
           <BotaoTema />
           <LinkTermos />

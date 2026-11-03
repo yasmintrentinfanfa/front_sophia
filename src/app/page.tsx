@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { PaginaEntrada } from "@/components/entrada/pagina-entrada";
 
 export default function Inicio() {
-  redirect("/login");
+  return <PaginaEntrada />;
 }

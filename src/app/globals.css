@@ -210,8 +210,9 @@ html[data-destaque="branco"] .bg-acao {
   border: 1px solid var(--color-borda);
 }
 
-/* Login sempre no padrão do protótipo; a cor escolhida vale só após entrar. */
-html[data-destaque] .tela-login {
+/* Login e landing ficam no padrão do protótipo; a cor escolhida vale só após entrar. */
+html[data-destaque] .tela-login,
+html[data-destaque] .tela-publica {
   --color-destaque: #47807a;
   --color-destaque-suave: #e0f0ed;
   --color-acao: #24211f;
@@ -220,7 +221,8 @@ html[data-destaque] .tela-login {
   --color-meta: #47807a;
 }
 
-html.dark[data-destaque] .tela-login {
+html.dark[data-destaque] .tela-login,
+html.dark[data-destaque] .tela-publica {
   --color-destaque: #66a69e;
   --color-destaque-suave: #2e4240;
   --color-acao: #f7f7fa;
@@ -229,7 +231,8 @@ html.dark[data-destaque] .tela-login {
   --color-meta: #d1d1d6;
 }
 
-html[data-destaque] .tela-login .bg-acao {
+html[data-destaque] .tela-login .bg-acao,
+html[data-destaque] .tela-publica .bg-acao {
   border-color: transparent;
 }
 
@@ -310,6 +313,12 @@ html[data-destaque] .tela-login .bg-acao {
   50% {
     transform: scale(1.07);
     opacity: 0.85;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html:has(.tela-publica) {
+    scroll-behavior: smooth;
   }
 }
 

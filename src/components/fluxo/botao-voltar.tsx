@@ -9,6 +9,7 @@ const ContextoVoltar = createContext<((destino: string) => void) | null>(null);
 /** Lista, um caso ou o fluxo de conta — a seta não atravessa esses contextos. */
 function moduloDoCaminho(caminho: string) {
   if (
+    caminho === "/" ||
     caminho === "/login" ||
     caminho.startsWith("/criar-conta") ||
     caminho.startsWith("/pagamento") ||
