@@ -42,7 +42,7 @@ export function TelaAnalise({
     setGerando(true);
     setErro("");
     try {
-      const lista = await api.solicitarAnalise(dados.casoId);
+      const lista = await api.solicitarAnalise(dados.casoId, { tipo: "transcricao" });
       setAnalises(lista);
       setAtualizou(true);
     } catch (falha) {
@@ -86,20 +86,24 @@ export function TelaAnalise({
         </div>
       </header>
       <div className="flex flex-1 flex-col gap-[14px] px-8 pt-1 pb-5 max-[700px]:px-4">
-        {temRelato && (arquivoPendente || !analises.length) ? (
+        {temRelato ? (
           <section className="bg-destaque-suave border-destaque/40 flex w-full max-w-[880px] flex-wrap items-center justify-between gap-3 rounded-[12px] border px-5 py-4">
             <div className="flex min-w-0 flex-col gap-0.5">
               <h2 className="text-[14px] font-semibold">
                 {arquivoPendente
                   ? "Há um arquivo novo. Deseja atualizar a análise?"
-                  : "O relato está salvo, falta a análise"}
+                  : analises.length
+                    ? "Há um relato novo. Deseja atualizar os cards?"
+                    : "O relato está salvo, falta a análise"}
               </h2>
               <p className="text-tinta-suave text-[12px]">
                 {gerando
-                  ? "A IA está atualizando os cards com o arquivo que estava só no repositório. Isso pode levar até um minuto."
+                  ? "A IA está atualizando os cards. Isso pode levar até um minuto."
                   : arquivoPendente
                     ? "Esse arquivo foi só gravado no repositório. Se quiser, os cards passam a considerá-lo."
-                    : "Gere os cards de teses, jurisprudência, perguntas e necessidades a partir do relato."}
+                    : analises.length
+                      ? "A transcrição já está no caso. Gere uma nova análise para os cards acompanharem o último relato."
+                      : "Gere os cards de teses, jurisprudência, perguntas e necessidades a partir do relato."}
               </p>
               {erro ? (
                 <p role="alert" className="text-destructive mt-1 text-[12px] font-medium">

@@ -17,14 +17,17 @@ type ApiAnalise = Pick<
 const rotuloAnalise = (item: AnalisePreliminar) =>
   item.fonteNome ? `Análise ${item.indice + 1} · ${item.fonteNome}` : `Análise ${item.indice + 1}`;
 
+function ordemDaAnalise(item: AnalisePreliminar) {
+  return item.versao ?? (item.indice ?? 0) + 1;
+}
+
 function listaDeAnalises(
   analise: AnalisePreliminar | null | undefined,
   analises?: AnalisePreliminar[],
   versoes?: AnalisePreliminar[],
 ) {
-  if (analises?.length) return analises;
-  if (versoes?.length) return [...versoes].sort((a, b) => a.indice - b.indice);
-  return analise ? [analise] : [];
+  const lista = analises?.length ? analises : versoes?.length ? versoes : analise ? [analise] : [];
+  return [...lista].sort((a, b) => ordemDaAnalise(a) - ordemDaAnalise(b));
 }
 
 export function criarAnaliseApi(base: SophiaApi): ApiAnalise {

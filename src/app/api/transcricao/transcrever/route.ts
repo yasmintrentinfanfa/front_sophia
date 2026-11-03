@@ -11,7 +11,15 @@ export async function POST(pedido: Request) {
   try {
     const form = await pedido.formData();
     const res = await fetch(urlDoBack("/transcribe"), { method: "POST", body: form });
-    const dados = await res.json().catch(() => ({}));
+    const dados = (await res.json().catch(() => ({}))) as { text?: string; erro?: string };
+    if (!res.ok) {
+      const erro =
+        dados.erro ||
+        (res.status === 413
+          ? "O áudio é grande demais para enviar. Use um arquivo menor, de preferência MP3."
+          : "Não foi possível transcrever o áudio.");
+      return Response.json({ erro }, { status: res.status === 413 ? 413 : res.status });
+    }
     return Response.json(dados, { status: res.status });
   } catch {
     return Response.json(
