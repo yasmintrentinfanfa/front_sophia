@@ -90,6 +90,7 @@ export interface DocumentoSalvo {
   nome: string;
   tipo: string;
   texto: string;
+  criadoEm?: string;
 }
 
 /** Um item de `case.transcript`. */
@@ -110,7 +111,7 @@ export async function obterSalvoDoCaso(casoId: string) {
   const dados = (await res.json().catch(() => ({}))) as {
     erro?: string;
     transcript?: { id?: string; text?: string; source?: string; duration_seconds?: number }[];
-    documents?: { id?: string; name?: string; type?: string; text?: string }[];
+    documents?: { id?: string; name?: string; type?: string; text?: string; created_at?: string }[];
   };
   if (!res.ok) return vazio;
   const relatos = (Array.isArray(dados.transcript) ? dados.transcript : [])
@@ -131,6 +132,7 @@ export async function obterSalvoDoCaso(casoId: string) {
       nome: (item.name ?? "").trim() || "Documento",
       tipo: (item.type ?? "").trim().toUpperCase() || "Arquivo",
       texto: (item.text ?? "").trim(),
+      criadoEm: item.created_at,
     }));
   return { relatos, documentos };
 }

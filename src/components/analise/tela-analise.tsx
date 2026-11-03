@@ -9,13 +9,20 @@ import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
 import { api } from "@/lib/api";
 import type { ConteudoCaso as DadosCaso } from "@/lib/api/analise";
 
-/** Arquivo que o usuário só gravou no repositório, sem pedir análise na hora. */
-function arquivosSoNoRepositorio(dados: DadosCaso, analises: DadosCaso["versoesAnalise"]) {
-  const atual = analises.at(-1);
-  if (!atual) return false;
-  const ids = new Set([...(atual.fontesIds ?? []), atual.fonteId].filter(Boolean) as string[]);
-  if (!ids.size) return false;
-  return (dados.documentos ?? []).some((documento) => documento.id && !ids.has(documento.id));
+/** PDF/DOCX/TXT ainda fora dos cards: id não coberto, ou arquivo gravado depois da última análise. */
+function documentosPendentes(dados: DadosCaso, analises: DadosCaso["versoesAnalise"]) {
+  const docs = (dados.documentos ?? []).filter((documento) => documento.id);
+  if (!analises?.length) return docs;
+  const cobertos = new Set(
+    analises.flatMap((item) => [...(item.fontesIds ?? []), item.fonteId].filter(Boolean) as string[]),
+  );
+  const gerada = Date.parse(analises.at(-1)?.geradaEm ?? "");
+  return docs.filter((documento) => {
+    if (documento.id && cobertos.has(documento.id)) return false;
+    const criado = Date.parse(documento.criadoEm ?? "");
+    if (Number.isFinite(criado) && Number.isFinite(gerada)) return criado > gerada;
+    return cobertos.size > 0;
+  });
 }
 
 export function TelaAnalise({
@@ -35,14 +42,19 @@ export function TelaAnalise({
   const [atualizou, setAtualizou] = useState(false);
   const temRelato =
     (dados.transcricao ?? []).some((fala) => fala.texto.trim()) || (dados.documentos ?? []).length > 0;
-  const arquivoPendente = !atualizou && arquivosSoNoRepositorio(dados, analises);
+  const pendentes = documentosPendentes(dados, analises);
+  const arquivoPendente = !atualizou && pendentes.length > 0;
   const visivel = analises.at(-1) ?? null;
 
   async function gerarAnalise() {
     setGerando(true);
     setErro("");
     try {
-      const lista = await api.solicitarAnalise(dados.casoId, { tipo: "transcricao" });
+      const arquivo = pendentes.at(-1);
+      const lista = await api.solicitarAnalise(
+        dados.casoId,
+        arquivo?.id ? { tipo: "documento", id: arquivo.id } : { tipo: "transcricao" },
+      );
       setAnalises(lista);
       setAtualizou(true);
     } catch (falha) {
@@ -100,7 +112,7 @@ export function TelaAnalise({
                 {gerando
                   ? "A IA está atualizando os cards. Isso pode levar até um minuto."
                   : arquivoPendente
-                    ? "Esse arquivo foi só gravado no repositório. Se quiser, os cards passam a considerá-lo."
+                    ? "PDF, DOCX ou TXT anexado só no repositório. Se quiser, os cards passam a considerá-lo."
                     : analises.length
                       ? "A transcrição já está no caso. Gere uma nova análise para os cards acompanharem o último relato."
                       : "Gere os cards de teses, jurisprudência, perguntas e necessidades a partir do relato."}

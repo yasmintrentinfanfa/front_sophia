@@ -63,6 +63,7 @@ function CarregarConteudo({
             nome: item.nome,
             tipo: item.tipo,
             texto: item.texto,
+            criadoEm: item.criadoEm,
             sanitizacao: { status: "limpo" as const },
           }));
         }
