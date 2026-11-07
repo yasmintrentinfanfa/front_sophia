@@ -30,6 +30,7 @@ const { POST: aceitarTermos } = await import("@/app/api/conta/termos/route");
 const { POST: transcrever } = await import("@/app/api/transcricao/transcrever/route");
 const { POST: revisar } = await import("@/app/api/transcricao/revisar/route");
 const { GET: listarCasos, POST: criarCaso } = await import("@/app/api/casos/route");
+const { GET: listarAreas } = await import("@/app/api/areas/route");
 const { PATCH: atualizarCaso, DELETE: excluirCaso } = await import("@/app/api/casos/[casoId]/route");
 const rotaAnalise = await import("@/app/api/analise/route");
 const rotaChat = await import("@/app/api/chat/route");
@@ -224,9 +225,36 @@ describe("dono vem sempre do cookie", () => {
     expect(new URL(urlChamada()).searchParams.get("user_id")).toBe(ANA);
   });
 
+  it("trocar a área do caso usa o dono da sessão e manda legal_area ao backend", async () => {
+    cookieAtual.valor = assinarSessao(ANA);
+    const contexto = { params: Promise.resolve({ casoId: "divorcio-abc" }) };
+
+    await atualizarCaso(
+      new Request("http://x/api/casos/divorcio-abc", {
+        method: "PATCH",
+        body: JSON.stringify({ user_id: BRUNO, legal_area: "familia-sucessoes" }),
+      }),
+      contexto,
+    );
+    expect(urlChamada()).toMatch(/\/casos\/divorcio-abc$/);
+    expect(corpoChamado()).toEqual({ user_id: ANA, legal_area: "familia-sucessoes" });
+  });
+
   it("sem sessão, a lista de casos não chama o backend", async () => {
     expect((await listarCasos(new Request("http://x/api/casos"))).status).toBe(401);
     expect(backend).not.toHaveBeenCalled();
+  });
+
+  it("catálogo de áreas jurídicas exige sessão e repassa a resposta do backend", async () => {
+    expect((await listarAreas()).status).toBe(401);
+    expect(backend).not.toHaveBeenCalled();
+
+    cookieAtual.valor = assinarSessao(ANA);
+    backend.mockResolvedValueOnce(Response.json({ areas: [{ id: "penal", nome: "Direito Penal" }] }));
+    const resposta = await listarAreas();
+    expect(resposta.status).toBe(200);
+    expect(urlChamada()).toMatch(/\/areas$/);
+    expect(await resposta.json()).toEqual({ areas: [{ id: "penal", nome: "Direito Penal" }] });
   });
 
   it("cartão de teste 0002 é recusado (402) sem registrar assinatura", async () => {

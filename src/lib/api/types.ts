@@ -137,6 +137,8 @@ export interface SophiaApi {
   listarCasos(): Promise<Caso[]>;
   criarCaso(dados: DadosNovoCaso): Promise<Caso>;
   moverCaso(id: string, pasta: PastaCaso): Promise<Caso>;
+  /** Troca a área jurídica de um caso já criado; vale a partir da próxima análise, chat ou minuta. */
+  alterarArea(id: string, area: string): Promise<Caso>;
   excluirCaso(id: string): Promise<void>;
   obterCaso(casoId: string): Promise<ConteudoCaso>;
   finalizarSessao(casoId: string, transcricao: ConteudoCaso["transcricao"], analisar?: boolean): Promise<Caso>;

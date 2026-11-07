@@ -203,6 +203,19 @@ export const mockApi: SophiaApi = {
     return atualizado;
   },
 
+  async alterarArea(id, area) {
+    const usuarioId = await garantirDono();
+    if (!casosNoBanco()) {
+      await esperar(120);
+      const atualizado = { ...casoDoDono(usuarioId, id), area, atualizadoEm: new Date().toISOString() };
+      salvarCasosDe(usuarioId, casosDe(usuarioId).map((caso) => (caso.id === id ? atualizado : caso)));
+      return structuredClone(atualizado);
+    }
+    const atualizado = await atualizarCasoNoBanco(id, { legal_area: area });
+    guardarCasoLocal(usuarioId, atualizado);
+    return atualizado;
+  },
+
   async excluirCaso(id) {
     const usuarioId = await garantirDono();
     if (!casosNoBanco()) {
@@ -225,7 +238,10 @@ function guardarCasoLocal(usuarioId: string, caso: Caso) {
   );
 }
 
-async function atualizarCasoNoBanco(id: string, campos: { folder?: PastaCaso; status?: Caso["status"] }) {
+async function atualizarCasoNoBanco(
+  id: string,
+  campos: { folder?: PastaCaso; status?: Caso["status"]; legal_area?: string },
+) {
   return casoDaApi(
     await requisitarJson<CasoApi>(`/api/casos/${encodeURIComponent(id)}`, {
       method: "PATCH",

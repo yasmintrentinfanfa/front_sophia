@@ -3,6 +3,7 @@
  * modelos vem do backend (`backend/analise/modelos_pecas.py`), o mesmo que orienta a IA.
  */
 
+import type { AreaJuridica } from "./areas";
 import { requisitarJson } from "./conta";
 
 export type FasePeca =
@@ -77,22 +78,10 @@ export const pecasApi = {
   },
 };
 
-/** Grupos de modelos mais úteis para a área jurídica do caso, na ordem de prioridade. */
-const GRUPOS_POR_AREA: Record<string, string[]> = {
-  civil: ["civel", "juizados"],
-  "familia-sucessoes": ["familia", "civel"],
-  trabalhista: ["trabalhista"],
-  previdenciario: ["previdenciario"],
-  consumidor: ["juizados", "civel"],
-  empresarial: ["civel", "extrajudicial"],
-  tributario: ["tributario", "administrativo"],
-  penal: ["penal"],
-  administrativo: ["administrativo"],
-  imobiliario: ["civel", "extrajudicial"],
-  ambiental: ["administrativo", "civel"],
-  digital: ["civel", "juizados"],
-};
-
-export function gruposSugeridos(area?: string) {
-  return (area && GRUPOS_POR_AREA[area]) || [];
+/**
+ * Grupos de modelos mais úteis para a área jurídica do caso, na ordem de prioridade.
+ * `areas` vem do catálogo de `GET /areas` (`src/lib/api/areas.ts`), que já traz `gruposPecas`.
+ */
+export function gruposSugeridos(areas: AreaJuridica[], area?: string) {
+  return (area && areas.find((item) => item.id === area)?.gruposPecas) || [];
 }

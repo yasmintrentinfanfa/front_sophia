@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Tabs } from "@base-ui/react/tabs";
 
 import { ListaAnalises } from "@/components/analise/lista-analises";
+import { useListaCasos } from "@/components/casos/contexto-lista-casos";
 import { ConteudoCaso } from "@/components/fluxo/conteudo-caso";
 import { ModalFluxo } from "@/components/fluxo/modal-fluxo";
 import type {
@@ -26,6 +27,8 @@ export default function PaginaRepositorio() {
 }
 
 function Repositorio({ dados }: { dados: DadosCaso }) {
+  const { casos } = useListaCasos();
+  const areaDoCaso = casos.find((caso) => caso.id === dados.casoId)?.area;
   const [documento, setDocumento] = useState<DocumentoCaso | null>(null);
   return (
     <>
@@ -131,6 +134,7 @@ function Repositorio({ dados }: { dados: DadosCaso }) {
             <ListaAnalises
               analises={[dados.analise]}
               destinoChat={`/casos/${dados.casoId}/repositorio/chat`}
+              areaDoCaso={areaDoCaso}
             />
           ) : (
             <p className="text-tinta-suave text-[13px]">

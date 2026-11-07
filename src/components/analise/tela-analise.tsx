@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Sparkles } from "lucide-react";
 
 import { ListaAnalises } from "@/components/analise/lista-analises";
+import { useListaCasos } from "@/components/casos/contexto-lista-casos";
+import { EditorAreaCaso } from "@/components/casos/editor-area-caso";
 import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
 import { api } from "@/lib/api";
 import type { ConteudoCaso as DadosCaso } from "@/lib/api/analise";
@@ -36,6 +38,8 @@ export function TelaAnalise({
   destinoChat: string;
   destinoPecas: string;
 }) {
+  const { casos } = useListaCasos();
+  const areaDoCaso = casos.find((caso) => caso.id === dados.casoId)?.area;
   const [analises, setAnalises] = useState(dados.versoesAnalise ?? []);
   const [gerando, setGerando] = useState(false);
   const [erro, setErro] = useState("");
@@ -81,6 +85,7 @@ export function TelaAnalise({
               : ""}
             . Se um arquivo novo foi só gravado no repositório, você pode atualizar os cards depois.
           </p>
+          <EditorAreaCaso casoId={dados.casoId} area={areaDoCaso} />
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Link
@@ -141,7 +146,9 @@ export function TelaAnalise({
             Ir para a gravação
           </Link>
         ) : null}
-        {visivel ? <ListaAnalises analises={[visivel]} destinoChat={destinoChat} /> : null}
+        {visivel ? (
+          <ListaAnalises analises={[visivel]} destinoChat={destinoChat} areaDoCaso={areaDoCaso} />
+        ) : null}
       </div>
     </>
   );

@@ -248,6 +248,56 @@ usuários, cookie forjado/adulterado e as rotas de conta. A API real deve cobrir
 mesmos cenários com dois usuários A e B: B não lista, não abre, não altera e não
 exclui caso de A (`404`), e nada funciona sem sessão (`401`).
 
+## Prompt por área jurídica
+
+O backend junta ao prompt padrão uma orientação específica para a área jurídica do caso
+(`legal_area`) na análise preliminar, no chat e na geração de minuta. O front não manda a
+área nem monta prompt: ela já está salva no caso, e o backend a lê de lá.
+
+### `GET /areas`
+
+Lista fixa das 12 áreas, sem `user_id`. Proxy: `GET /api/areas` (`src/app/api/areas/route.ts`),
+cliente: `src/lib/api/areas.ts` (`areasApi.obterCatalogo()`), com fallback local em
+`src/lib/casos/areas-juridicas.ts` se a chamada falhar.
+
+```json
+{
+  "areas": [
+    {
+      "id": "previdenciario",
+      "nome": "Direito Previdenciário",
+      "descricao": "Aposentadorias, benefícios por incapacidade, pensão por morte, BPC/LOAS e revisões no INSS.",
+      "gruposPecas": ["previdenciario", "juizados", "civel", "superiores", "extrajudicial"]
+    }
+  ]
+}
+```
+
+`gruposPecas` são chaves de `grupos` de `GET /pecas/modelos`, na ordem de prioridade: o
+seletor de modelos de peça (`TelaPecas`) os usa para destacar "Sugerido para este caso".
+
+### `PATCH /casos/{caso_id}` aceita `legal_area`
+
+Troca a área de um caso já criado. Corpo: `{ "user_id": "...", "legal_area": "penal" }`
+(pode vir junto com `folder` e/ou `status`). Área inválida → `400`; caso inexistente ou de
+outro usuário → `404`. A nova área vale a partir da próxima análise, mensagem de chat ou
+minuta; análises antigas não são refeitas sozinhas. No front: `api.alterarArea(id, area)`
+(`SophiaApi`), exposto em `useListaCasos()` e usado por `EditorAreaCaso`
+(`src/components/casos/editor-area-caso.tsx`) na tela de análise do caso.
+
+### Análise ganhou `area`
+
+Em `POST /analise/{caso_id}` e `GET /analise/{caso_id}`, cada objeto de análise (`analise`,
+e cada item de `analises`/`versoes`) pode ter `area?: string`: o id da área cuja orientação
+a IA usou. Ausente = prompt genérico (caso sem área, ou análise anterior a esta mudança).
+Mapeado em `AnalisePreliminar.area` (`src/lib/api/analise.ts`); exibido como selo "Analisada
+como: {nome}" em `ListaAnalises`, que também avisa quando a área da análise mostrada
+diverge da área atual do caso.
+
+Sem mudança: `POST /casos` (continua exigindo `legal_area`), `POST /chat/{caso_id}`,
+`POST /pecas/{caso_id}` e `GET /pecas/modelos` — nenhuma dessas chamadas manda `area` no
+corpo.
+
 ## Análise, chat e minutas com IA (`backend/analise`)
 
 Módulo vindo do repositório `repotestesmerged`: prompts com as regras anti-alucinação,

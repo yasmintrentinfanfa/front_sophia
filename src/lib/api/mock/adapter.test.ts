@@ -52,15 +52,27 @@ describe("isolamento de casos por usuário", () => {
     expect(await ids()).not.toContain(casoDoBruno.id);
   });
 
-  it("não deixa arquivar nem excluir o caso de outro usuário", async () => {
+  it("não deixa arquivar, excluir nem trocar a área do caso de outro usuário", async () => {
     const { casoDaAna } = await cenarioComDoisUsuarios();
 
     await expect(api.moverCaso(casoDaAna.id, "arquivo")).rejects.toThrow("Caso não encontrado.");
+    await expect(api.alterarArea(casoDaAna.id, "penal")).rejects.toThrow("Caso não encontrado.");
     await expect(api.excluirCaso(casoDaAna.id)).rejects.toThrow("Caso não encontrado.");
 
     await logarComo(ANA);
     const intacto = (await api.listarCasos()).find((caso) => caso.id === casoDaAna.id);
     expect(intacto?.pasta).toBe("ativo");
+    expect(intacto?.area).toBeUndefined();
+  });
+
+  it("o dono pode trocar a área jurídica do próprio caso", async () => {
+    const { casoDaAna } = await cenarioComDoisUsuarios();
+    await logarComo(ANA);
+
+    const atualizado = await api.alterarArea(casoDaAna.id, "previdenciario");
+    expect(atualizado.area).toBe("previdenciario");
+    const salvo = (await api.listarCasos()).find((caso) => caso.id === casoDaAna.id);
+    expect(salvo?.area).toBe("previdenciario");
   });
 
   it("caso alheio e caso inexistente dão o mesmo erro, sem revelar que o caso existe", async () => {
@@ -130,6 +142,7 @@ describe("isolamento de casos por usuário", () => {
     await expect(api.listarCasos()).rejects.toThrow("Sua sessão expirou");
     await expect(api.criarCaso({ titulo: "X", cliente: "Y" })).rejects.toThrow("Sua sessão expirou");
     await expect(api.moverCaso(casoDoBruno.id, "arquivo")).rejects.toThrow("Sua sessão expirou");
+    await expect(api.alterarArea(casoDoBruno.id, "civil")).rejects.toThrow("Sua sessão expirou");
     await expect(api.excluirCaso(casoDoBruno.id)).rejects.toThrow("Sua sessão expirou");
   });
 });

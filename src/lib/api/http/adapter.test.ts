@@ -108,6 +108,17 @@ describe("casos pelo adapter HTTP", () => {
     await api.excluirCaso("../users");
     expect(enviado(fetchFalso).url).toBe(`${BASE}/casos/..%2Fusers`);
   });
+
+  it("alterarArea manda legal_area por PATCH, sem user_id", async () => {
+    const fetchFalso = simularFetch(responder(200, { ...CASO_NO_BANCO, legal_area: "penal" }));
+    const caso = await api.alterarArea("6abd98668c404093b1cd875c", "penal");
+
+    const { url, init, corpo } = enviado(fetchFalso);
+    expect(url).toBe(`${BASE}/casos/6abd98668c404093b1cd875c`);
+    expect(init.method).toBe("PATCH");
+    expect(corpo).toEqual({ legal_area: "penal" });
+    expect(caso.area).toBe("penal");
+  });
 });
 
 describe("conta pelas rotas do Next", () => {

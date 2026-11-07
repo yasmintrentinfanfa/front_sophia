@@ -10,7 +10,11 @@ export async function PATCH(pedido: Request, contexto: Contexto) {
     return Response.json({ erro: "Entre na sua conta para alterar o caso." }, { status: 401 });
   }
   const { casoId } = await contexto.params;
-  const corpo = (await pedido.json().catch(() => ({}))) as { folder?: string; status?: string };
+  const corpo = (await pedido.json().catch(() => ({}))) as {
+    folder?: string;
+    status?: string;
+    legal_area?: string;
+  };
 
   try {
     const res = await fetch(urlDoBack(`/casos/${encodeURIComponent(casoId)}`), {
@@ -20,6 +24,7 @@ export async function PATCH(pedido: Request, contexto: Contexto) {
         user_id: userId,
         ...(corpo.folder ? { folder: corpo.folder } : {}),
         ...(corpo.status ? { status: corpo.status } : {}),
+        ...(corpo.legal_area ? { legal_area: corpo.legal_area } : {}),
       }),
     });
     const dados = (await res.json().catch(() => ({}))) as { caso?: unknown; erro?: string };

@@ -41,6 +41,9 @@ export function criarHttpApi(baseUrl: string): SophiaApi {
     async moverCaso(id, pasta) {
       return casoDaApi(await requisitarJson<CasoApi>(url(caminhoCaso(id)), comCorpo("PATCH", { folder: pasta })));
     },
+    async alterarArea(id, area) {
+      return casoDaApi(await requisitarJson<CasoApi>(url(caminhoCaso(id)), comCorpo("PATCH", { legal_area: area })));
+    },
     async excluirCaso(id) {
       await requisitarJson<void>(url(caminhoCaso(id)), { method: "DELETE" });
     },

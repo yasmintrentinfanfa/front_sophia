@@ -11,6 +11,7 @@ import { IconeFase } from "@/components/pecas/icone-fase";
 import { MinutaPeca } from "@/components/pecas/minuta-peca";
 import { ModalModeloPeca } from "@/components/pecas/modal-modelo-peca";
 import type { ConteudoCaso as DadosCaso } from "@/lib/api/analise";
+import { areasApi, type AreaJuridica } from "@/lib/api/areas";
 import {
   gruposSugeridos,
   pecasApi,
@@ -61,6 +62,7 @@ function Pecas({
   const { casos } = useListaCasos();
   const area = casos.find((caso) => caso.id === casoId)?.area;
   const [catalogo, setCatalogo] = useState<CatalogoPecas | null>(null);
+  const [areasCatalogo, setAreasCatalogo] = useState<AreaJuridica[]>([]);
   const [pecas, setPecas] = useState<PecaGerada[]>([]);
   const [erro, setErro] = useState("");
   const [tentativa, setTentativa] = useState(0);
@@ -73,11 +75,12 @@ function Pecas({
 
   useEffect(() => {
     let ativo = true;
-    Promise.all([pecasApi.obterCatalogo(), pecasApi.listar(casoId)])
-      .then(([novoCatalogo, lista]) => {
+    Promise.all([pecasApi.obterCatalogo(), pecasApi.listar(casoId), areasApi.obterCatalogo()])
+      .then(([novoCatalogo, lista, areas]) => {
         if (!ativo) return;
         setCatalogo(novoCatalogo);
         setPecas(lista);
+        setAreasCatalogo(areas);
       })
       .catch((falha) => {
         if (ativo) setErro(falha instanceof Error ? falha.message : "Não foi possível carregar os modelos.");
@@ -87,7 +90,7 @@ function Pecas({
     };
   }, [casoId, tentativa]);
 
-  const sugeridos = useMemo(() => gruposSugeridos(area), [area]);
+  const sugeridos = useMemo(() => gruposSugeridos(areasCatalogo, area), [areasCatalogo, area]);
 
   const visiveis = useMemo(() => {
     if (!catalogo) return [];

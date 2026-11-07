@@ -79,6 +79,10 @@ export default function LayoutCasos({ children }: { children: ReactNode }) {
         const atualizado = await api.moverCaso(id, pasta);
         setCasos((lista) => lista.map((item) => (item.id === id ? atualizado : item)));
       },
+      async alterarArea(id: string, area: string) {
+        const atualizado = await api.alterarArea(id, area);
+        setCasos((lista) => lista.map((item) => (item.id === id ? atualizado : item)));
+      },
       async excluirCaso(id: string) {
         await api.excluirCaso(id);
         setCasos((lista) => lista.filter((item) => item.id !== id));

@@ -48,6 +48,8 @@ export interface AnalisePreliminar {
   resumo: string;
   insights: Insight[];
   demonstracao: boolean;
+  /** Id da área cuja orientação a IA usou nesta versão; ausente = prompt genérico. */
+  area?: string;
   /** "chat": versão que incorporou o que o advogado contou no chat. */
   origem?: "relato" | "chat";
   fonteTipo?: FonteAnaliseTipo;

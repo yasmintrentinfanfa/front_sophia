@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
-import { AREAS_JURIDICAS, areaPorId } from "@/lib/casos/areas-juridicas";
+import { areasApi, type AreaJuridica } from "@/lib/api/areas";
+import { AREAS_JURIDICAS } from "@/lib/casos/areas-juridicas";
 import { cn } from "@/lib/utils";
 
 const CLASSE_CAMPO =
@@ -15,10 +16,22 @@ interface SeletorAreaJuridicaProps {
   aoMudar: (id: string) => void;
 }
 
+/** Busca o catálogo de `GET /areas`; cai no catálogo local se a chamada falhar. */
 export function SeletorAreaJuridica({ id, valor, aoMudar }: SeletorAreaJuridicaProps) {
   const raiz = useRef<HTMLDivElement>(null);
   const [aberto, setAberto] = useState(false);
-  const nome = areaPorId(valor)?.nome;
+  const [areas, setAreas] = useState<AreaJuridica[]>([...AREAS_JURIDICAS]);
+  const nome = areas.find((area) => area.id === valor)?.nome;
+
+  useEffect(() => {
+    let ativo = true;
+    areasApi.obterCatalogo().then((lista) => {
+      if (ativo) setAreas(lista);
+    });
+    return () => {
+      ativo = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!aberto) return;
@@ -62,9 +75,9 @@ export function SeletorAreaJuridica({ id, valor, aoMudar }: SeletorAreaJuridicaP
         <div
           role="listbox"
           aria-labelledby={id}
-          className="border-borda bg-campo absolute top-full z-20 mt-1 flex max-h-56 w-full flex-col overflow-y-auto rounded-[8px] border py-1 shadow-lg"
+          className="border-borda bg-campo absolute top-full z-20 mt-1 flex max-h-72 w-full flex-col overflow-y-auto rounded-[8px] border py-1 shadow-lg"
         >
-          {AREAS_JURIDICAS.map((area) => {
+          {areas.map((area) => {
             const ativa = area.id === valor;
             return (
               <button
@@ -77,11 +90,14 @@ export function SeletorAreaJuridica({ id, valor, aoMudar }: SeletorAreaJuridicaP
                   setAberto(false);
                 }}
                 className={cn(
-                  "hover:bg-destaque-suave flex h-9 shrink-0 items-center px-3 text-left text-[13px]",
+                  "hover:bg-destaque-suave flex shrink-0 flex-col gap-0.5 px-3 py-2 text-left text-[13px]",
                   ativa && "bg-destaque-suave font-semibold",
                 )}
               >
-                {area.nome}
+                <span>{area.nome}</span>
+                {area.descricao ? (
+                  <span className="text-tinta-suave text-[11px] leading-snug font-normal">{area.descricao}</span>
+                ) : null}
               </button>
             );
           })}

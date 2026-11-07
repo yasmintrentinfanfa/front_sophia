@@ -11,6 +11,7 @@ interface ValorListaCasos {
   finalizarSessao: (id: string, transcricao: ConteudoCaso["transcricao"], analisar?: boolean) => Promise<void>;
   criarCaso: (dados: DadosNovoCaso) => Promise<Caso>;
   moverCaso: (id: string, pasta: PastaCaso) => Promise<void>;
+  alterarArea: (id: string, area: string) => Promise<void>;
   excluirCaso: (id: string) => Promise<void>;
 }
 
@@ -24,6 +25,9 @@ const ContextoListaCasos = createContext<ValorListaCasos>({
     throw new Error("ProvedorListaCasos ausente");
   },
   moverCaso: async () => {
+    throw new Error("ProvedorListaCasos ausente");
+  },
+  alterarArea: async () => {
     throw new Error("ProvedorListaCasos ausente");
   },
   excluirCaso: async () => {
