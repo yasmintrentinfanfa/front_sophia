@@ -44,6 +44,24 @@ export interface PecaGerada {
   instrucoes?: string;
   /** Ausente na listagem; vem ao abrir a minuta. */
   texto?: string;
+  /** Partes da peça (backend `analise/minuta.py`). Minutas antigas só têm `texto`. */
+  estrutura?: EstruturaMinuta;
+}
+
+export type BlocoMinuta =
+  | { tipo: "paragrafo" | "subtitulo"; texto: string }
+  | { tipo: "citacao"; texto: string; fonte?: string }
+  | { tipo: "lista"; itens: string[] };
+
+export interface EstruturaMinuta {
+  enderecamento: string | null;
+  referencia: string | null;
+  qualificacao: string[];
+  titulo: string;
+  complemento_titulo: string | null;
+  /** Títulos sem numeração: a tela e o .docx numeram em romano (I – DOS FATOS). */
+  secoes: { titulo: string; blocos: BlocoMinuta[] }[];
+  fecho: { encerramento: string; local_data: string; advogado: string; oab: string };
 }
 
 const consulta = (casoId: string) => `?casoId=${encodeURIComponent(casoId)}`;
