@@ -127,7 +127,11 @@ function CartaoPagamento() {
         ) : assinatura ? (
           <>
             <p className="text-[12px]">Plano {assinatura.nomePlano}</p>
-            <p className="text-tinta-suave text-[12px]">Cartão {descreverCartao(assinatura.cartao)}</p>
+            {/* MVP: conta ativada sem cartão não tem cartão para mostrar. Original:
+            <p className="text-tinta-suave text-[12px]">Cartão {descreverCartao(assinatura.cartao)}</p> */}
+            {assinatura.cartao.final ? (
+              <p className="text-tinta-suave text-[12px]">Cartão {descreverCartao(assinatura.cartao)}</p>
+            ) : null}
           </>
         ) : (
           <p className="text-tinta-suave text-[12px]">Nenhuma assinatura encontrada</p>

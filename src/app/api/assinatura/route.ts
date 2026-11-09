@@ -21,8 +21,13 @@ export async function POST(pedido: Request) {
   const cardToken = (corpo.card_token ?? "").trim();
   const expiry = (corpo.card_expiry ?? "").trim();
   const holderName = (corpo.holder?.name ?? "").trim();
-  if (!planId || !cardToken) {
-    return Response.json({ erro: "Informe o plano e o cartão." }, { status: 400 });
+  // MVP: sem cobrança, a conta é ativada só com o plano (o cartão fica vazio).
+  // Para voltar a exigir o cartão, descomente o bloco abaixo e apague o seguinte.
+  // if (!planId || !cardToken) {
+  //   return Response.json({ erro: "Informe o plano e o cartão." }, { status: 400 });
+  // }
+  if (!planId) {
+    return Response.json({ erro: "Informe o plano." }, { status: 400 });
   }
 
   // Cobrança simulada até o gateway ser integrado: o token do gateway mockado
