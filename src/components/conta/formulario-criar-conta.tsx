@@ -128,7 +128,9 @@ export function FormularioCriarConta() {
       ) : null}
       {contaCriada && !clausulasAbertas ? (
         <p role="status" className="text-tinta-suave text-[12px]">
-          Conta criada. Para continuar para o plano e o pagamento, aceite os termos de uso.
+          {/* MVP: etapa do cartão desligada. Texto original:
+          Conta criada. Para continuar para o plano e o pagamento, aceite os termos de uso. */}
+          Conta criada. Para continuar para o plano, aceite os termos de uso.
         </p>
       ) : null}
       <button

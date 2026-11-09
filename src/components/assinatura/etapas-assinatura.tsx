@@ -6,7 +6,9 @@ import { usePathname } from "next/navigation";
 import { IconeCheck } from "@/components/assinatura/icones";
 import { cn } from "@/lib/utils";
 
-const ETAPAS = ["Conta", "Plano", "Pagamento"];
+// MVP: etapa do cartão desligada. Para voltar, troque pela linha comentada.
+// const ETAPAS = ["Conta", "Plano", "Pagamento"];
+const ETAPAS = ["Conta", "Plano"];
 
 /** A conta já foi criada quando o usuário chega aqui, então a etapa 1 sempre aparece concluída. */
 export function EtapasAssinatura() {

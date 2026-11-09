@@ -72,8 +72,9 @@ export default function PaginaTrocarPlano() {
         </span>
         <h1 className="text-[18px] font-bold">Plano alterado</h1>
         <p className="text-tinta-suave text-[13px]">
-          Seu plano agora é o <strong className="text-tinta">{trocadoPara}</strong>. A mensalidade continua no
-          cartão {descreverCartao(assinatura.cartao)}.
+          Seu plano agora é o <strong className="text-tinta">{trocadoPara}</strong>.
+          {/* MVP: conta sem cartão não mostra o cartão. Original: " A mensalidade continua no cartão {descreverCartao(assinatura.cartao)}." */}
+          {assinatura.cartao.final ? ` A mensalidade continua no cartão ${descreverCartao(assinatura.cartao)}.` : null}
         </p>
         <Link
           href="/casos"
@@ -124,7 +125,9 @@ export default function PaginaTrocarPlano() {
         <h1 className="text-2xl font-bold">Alterar plano</h1>
         <p className="text-tinta-suave text-sm">
           Seu plano atual é o <strong className="text-tinta">{assinatura.nomePlano}</strong>. Escolha um novo volume de
-          créditos; o cartão {descreverCartao(assinatura.cartao)} continua vinculado.
+          créditos
+          {/* MVP: conta sem cartão não mostra o cartão. Original: "; o cartão {descreverCartao(assinatura.cartao)} continua vinculado." */}
+          {assinatura.cartao.final ? `; o cartão ${descreverCartao(assinatura.cartao)} continua vinculado` : null}.
         </p>
       </div>
 
@@ -186,7 +189,11 @@ export default function PaginaTrocarPlano() {
       <ModalConfirmar
         aberto={confirmando}
         titulo={`Trocar para o plano ${plano?.nome ?? ""}?`}
-        descricao={`Seu plano passa de ${assinatura.nomePlano} para ${plano?.nome ?? ""}. A mensalidade continua no cartão ${descreverCartao(assinatura.cartao)}.`}
+        // MVP: conta sem cartão não mostra o cartão. Original:
+        // descricao={`Seu plano passa de ${assinatura.nomePlano} para ${plano?.nome ?? ""}. A mensalidade continua no cartão ${descreverCartao(assinatura.cartao)}.`}
+        descricao={`Seu plano passa de ${assinatura.nomePlano} para ${plano?.nome ?? ""}.${
+          assinatura.cartao.final ? ` A mensalidade continua no cartão ${descreverCartao(assinatura.cartao)}.` : ""
+        }`}
         confirmar={processando ? "Alterando…" : "Confirmar troca"}
         processando={processando}
         erro={erro}
