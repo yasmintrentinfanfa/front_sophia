@@ -16,10 +16,18 @@ interface SeletorAreaJuridicaProps {
   aoMudar: (id: string) => void;
   /** Já abre com a lista de áreas à mostra (ex.: ao clicar em "Alterar área"). */
   abertoInicial?: boolean;
+  /** A lista fechou sem escolha: clique fora, Esc ou clique na seta do próprio campo. */
+  aoFechar?: (motivo: "fora" | "tecla" | "seta") => void;
 }
 
 /** Busca o catálogo de `GET /areas`; cai no catálogo local se a chamada falhar. */
-export function SeletorAreaJuridica({ id, valor, aoMudar, abertoInicial = false }: SeletorAreaJuridicaProps) {
+export function SeletorAreaJuridica({
+  id,
+  valor,
+  aoMudar,
+  abertoInicial = false,
+  aoFechar,
+}: SeletorAreaJuridicaProps) {
   const raiz = useRef<HTMLDivElement>(null);
   const [aberto, setAberto] = useState(abertoInicial);
   const [areas, setAreas] = useState<AreaJuridica[]>([...AREAS_JURIDICAS]);
@@ -39,11 +47,15 @@ export function SeletorAreaJuridica({ id, valor, aoMudar, abertoInicial = false 
     if (!aberto) return;
 
     function tecla(evento: KeyboardEvent) {
-      if (evento.key === "Escape") setAberto(false);
+      if (evento.key !== "Escape") return;
+      setAberto(false);
+      aoFechar?.("tecla");
     }
 
     function cliqueFora(evento: MouseEvent) {
-      if (!raiz.current?.contains(evento.target as Node)) setAberto(false);
+      if (raiz.current?.contains(evento.target as Node)) return;
+      setAberto(false);
+      aoFechar?.("fora");
     }
 
     document.addEventListener("keydown", tecla);
@@ -52,7 +64,7 @@ export function SeletorAreaJuridica({ id, valor, aoMudar, abertoInicial = false 
       document.removeEventListener("keydown", tecla);
       document.removeEventListener("mousedown", cliqueFora);
     };
-  }, [aberto]);
+  }, [aberto, aoFechar]);
 
   return (
     <div ref={raiz} className="relative">
@@ -62,7 +74,14 @@ export function SeletorAreaJuridica({ id, valor, aoMudar, abertoInicial = false 
         aria-haspopup="listbox"
         aria-expanded={aberto}
         aria-required="true"
-        onClick={() => setAberto((atual) => !atual)}
+        onClick={() => {
+          if (!aberto) {
+            setAberto(true);
+            return;
+          }
+          setAberto(false);
+          aoFechar?.("seta");
+        }}
         className={cn(CLASSE_CAMPO, "flex items-center justify-between gap-2 text-left")}
       >
         <span className={nome ? undefined : "text-destaque text-[11px]"}>

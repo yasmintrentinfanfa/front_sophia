@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { PenLine } from "lucide-react";
 
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
@@ -21,7 +21,16 @@ export function EditorAreaCaso({ casoId, area, className }: { casoId: string; ar
   const [editando, setEditando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
+  const lapis = useRef<HTMLButtonElement>(null);
+  // Ao desistir pelo teclado ou pela seta, o foco volta ao lápis (o campo some da tela).
+  const focarLapis = useRef(false);
   const nomeAtual = areaPorId(area)?.nome;
+
+  useEffect(() => {
+    if (editando || !focarLapis.current) return;
+    focarLapis.current = false;
+    lapis.current?.focus();
+  }, [editando]);
 
   async function salvar(novaArea: string) {
     if (novaArea === area) {
@@ -32,12 +41,19 @@ export function EditorAreaCaso({ casoId, area, className }: { casoId: string; ar
     setErro("");
     try {
       await alterarArea(casoId, novaArea);
-      setEditando(false);
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : "Não foi possível alterar a área.");
     } finally {
       setSalvando(false);
+      setEditando(false);
     }
+  }
+
+  /** Fechou a lista sem escolher (clique fora, Esc ou seta): volta ao selo. */
+  function desistir(motivo: "fora" | "tecla" | "seta") {
+    if (salvando) return;
+    focarLapis.current = motivo !== "fora";
+    setEditando(false);
   }
 
   if (editando) {
@@ -47,22 +63,10 @@ export function EditorAreaCaso({ casoId, area, className }: { casoId: string; ar
           id={idCampo}
           valor={area ?? ""}
           aoMudar={(novaArea) => void salvar(novaArea)}
+          aoFechar={desistir}
           abertoInicial
         />
         {salvando ? <p className="text-tinta-suave text-[11px]">Salvando…</p> : null}
-        {erro ? (
-          <p role="alert" className="text-destructive text-[11px] font-medium">
-            {erro}
-          </p>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => setEditando(false)}
-          disabled={salvando}
-          className="text-tinta-suave self-start text-[11px] underline"
-        >
-          Cancelar
-        </button>
       </div>
     );
   }
@@ -78,8 +82,12 @@ export function EditorAreaCaso({ casoId, area, className }: { casoId: string; ar
       >
         <span className="truncate">{nomeAtual ?? "Área não definida"}</span>
         <button
+          ref={lapis}
           type="button"
-          onClick={() => setEditando(true)}
+          onClick={() => {
+            setErro("");
+            setEditando(true);
+          }}
           aria-label={nomeAtual ? `Alterar a área do caso (atual: ${nomeAtual})` : "Escolher a área do caso"}
           title={nomeAtual ? "Alterar área" : "Escolher área"}
           className="hover:bg-destaque/15 focus-visible:ring-destaque/40 flex size-5 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-2"
