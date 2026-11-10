@@ -14,12 +14,14 @@ interface SeletorAreaJuridicaProps {
   id: string;
   valor: string;
   aoMudar: (id: string) => void;
+  /** Já abre com a lista de áreas à mostra (ex.: ao clicar em "Alterar área"). */
+  abertoInicial?: boolean;
 }
 
 /** Busca o catálogo de `GET /areas`; cai no catálogo local se a chamada falhar. */
-export function SeletorAreaJuridica({ id, valor, aoMudar }: SeletorAreaJuridicaProps) {
+export function SeletorAreaJuridica({ id, valor, aoMudar, abertoInicial = false }: SeletorAreaJuridicaProps) {
   const raiz = useRef<HTMLDivElement>(null);
-  const [aberto, setAberto] = useState(false);
+  const [aberto, setAberto] = useState(abertoInicial);
   const [areas, setAreas] = useState<AreaJuridica[]>([...AREAS_JURIDICAS]);
   const nome = areas.find((area) => area.id === valor)?.nome;
 

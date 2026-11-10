@@ -6,30 +6,33 @@ import { PenLine } from "lucide-react";
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
 import { SeletorAreaJuridica } from "@/components/casos/seletor-area-juridica";
 import { areaPorId } from "@/lib/casos/areas-juridicas";
+import { cn } from "@/lib/utils";
+
+const DICA = "A área orienta a IA na análise, no chat e nas minutas, e ordena as peças sugeridas.";
 
 /**
- * Mostra a área jurídica do caso e permite trocá-la. Sem área (caso antigo), avisa
- * que a IA está usando orientação genérica e oferece o mesmo seletor para escolher uma.
+ * Área jurídica do caso num selo compacto, com um lápis para trocar. A área escolhe a
+ * orientação que a IA recebe na análise, no chat e nas minutas; trocar não refaz os cards
+ * já gerados (a tela de análise avisa para atualizar).
  */
-export function EditorAreaCaso({ casoId, area }: { casoId: string; area?: string }) {
+export function EditorAreaCaso({ casoId, area, className }: { casoId: string; area?: string; className?: string }) {
   const idCampo = useId();
   const { alterarArea } = useListaCasos();
   const [editando, setEditando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
-  const [aviso, setAviso] = useState("");
   const nomeAtual = areaPorId(area)?.nome;
 
   async function salvar(novaArea: string) {
+    if (novaArea === area) {
+      setEditando(false);
+      return;
+    }
     setSalvando(true);
     setErro("");
     try {
       await alterarArea(casoId, novaArea);
       setEditando(false);
-      const nome = areaPorId(novaArea)?.nome ?? novaArea;
-      setAviso(
-        `Área alterada. A próxima análise já usa a orientação de ${nome}. Gere ou atualize a análise para refazer os cards.`,
-      );
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : "Não foi possível alterar a área.");
     } finally {
@@ -39,8 +42,13 @@ export function EditorAreaCaso({ casoId, area }: { casoId: string; area?: string
 
   if (editando) {
     return (
-      <div className="flex max-w-[320px] flex-col gap-1.5">
-        <SeletorAreaJuridica id={idCampo} valor={area ?? ""} aoMudar={(novaArea) => void salvar(novaArea)} />
+      <div className={cn("flex w-full max-w-[280px] flex-col gap-1.5", className)}>
+        <SeletorAreaJuridica
+          id={idCampo}
+          valor={area ?? ""}
+          aoMudar={(novaArea) => void salvar(novaArea)}
+          abertoInicial
+        />
         {salvando ? <p className="text-tinta-suave text-[11px]">Salvando…</p> : null}
         {erro ? (
           <p role="alert" className="text-destructive text-[11px] font-medium">
@@ -60,27 +68,25 @@ export function EditorAreaCaso({ casoId, area }: { casoId: string; area?: string
   }
 
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex flex-wrap items-center gap-2">
-        {nomeAtual ? (
-          <span className="text-[12px]">
-            Área: <strong className="font-semibold">{nomeAtual}</strong>
-          </span>
-        ) : (
-          <span className="text-destaque text-[12px]">
-            Área não definida: a IA está usando uma orientação genérica.
-          </span>
+    <div className={cn("flex max-w-full min-w-0 flex-col items-start gap-1", className)}>
+      <span
+        title={DICA}
+        className={cn(
+          "inline-flex max-w-full items-center gap-0.5 rounded-full py-0.5 pr-0.5 pl-2.5 text-[11px] font-semibold",
+          nomeAtual ? "bg-destaque-suave text-destaque" : "border-destaque/50 text-destaque border border-dashed",
         )}
+      >
+        <span className="truncate">{nomeAtual ?? "Área não definida"}</span>
         <button
           type="button"
           onClick={() => setEditando(true)}
-          className="text-destaque flex items-center gap-1 text-[11px] font-semibold underline"
+          aria-label={nomeAtual ? `Alterar a área do caso (atual: ${nomeAtual})` : "Escolher a área do caso"}
+          title={nomeAtual ? "Alterar área" : "Escolher área"}
+          className="hover:bg-destaque/15 focus-visible:ring-destaque/40 flex size-5 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-2"
         >
           <PenLine className="size-3" aria-hidden />
-          {nomeAtual ? "Alterar área" : "Escolher área"}
         </button>
-      </div>
-      {aviso ? <p className="text-tinta-suave text-[11px]">{aviso}</p> : null}
+      </span>
       {erro ? (
         <p role="alert" className="text-destructive text-[11px] font-medium">
           {erro}

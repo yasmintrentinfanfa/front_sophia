@@ -10,6 +10,7 @@ import { EditorAreaCaso } from "@/components/casos/editor-area-caso";
 import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
 import { api } from "@/lib/api";
 import type { ConteudoCaso as DadosCaso } from "@/lib/api/analise";
+import { areaPorId } from "@/lib/casos/areas-juridicas";
 
 /** PDF/DOCX/TXT ainda fora dos cards: id não coberto, ou arquivo gravado depois da última análise. */
 function documentosPendentes(dados: DadosCaso, analises: DadosCaso["versoesAnalise"]) {
@@ -26,6 +27,26 @@ function documentosPendentes(dados: DadosCaso, analises: DadosCaso["versoesAnali
     return cobertos.size > 0;
   });
 }
+
+/** Relato registrado depois da última análise. Relato sem data não conta, para não avisar à toa. */
+function haRelatoNovo(dados: DadosCaso, analises: DadosCaso["versoesAnalise"]) {
+  const gerada = Date.parse(analises.at(-1)?.geradaEm ?? "");
+  if (!Number.isFinite(gerada)) return false;
+  return (dados.transcricao ?? []).some((fala) => {
+    const criado = Date.parse(fala.criadoEm ?? "");
+    return fala.texto.trim() !== "" && Number.isFinite(criado) && criado > gerada;
+  });
+}
+
+/** Por que a tela pede para gerar ou atualizar a análise; null = está em dia. */
+type Motivo = "sem_analise" | "arquivo" | "relato" | "area" | null;
+
+const TITULOS: Record<Exclude<Motivo, null>, string> = {
+  sem_analise: "O relato está salvo, falta a análise",
+  arquivo: "Há um arquivo novo no caso",
+  relato: "Há um relato novo no caso",
+  area: "A área do caso mudou",
+};
 
 export function TelaAnalise({
   dados,
@@ -47,14 +68,29 @@ export function TelaAnalise({
   const temRelato =
     (dados.transcricao ?? []).some((fala) => fala.texto.trim()) || (dados.documentos ?? []).length > 0;
   const pendentes = documentosPendentes(dados, analises);
-  const arquivoPendente = !atualizou && pendentes.length > 0;
   const visivel = analises.at(-1) ?? null;
+  const nomeArea = areaPorId(areaDoCaso)?.nome;
+  const nomeAreaDaAnalise = areaPorId(visivel?.area)?.nome;
+
+  // Um motivo por vez, do mais concreto para o mais geral.
+  const motivo: Motivo = !visivel
+    ? temRelato
+      ? "sem_analise"
+      : null
+    : !atualizou && pendentes.length > 0
+      ? "arquivo"
+      : !atualizou && haRelatoNovo(dados, analises)
+        ? "relato"
+        : !visivel.demonstracao && nomeArea && visivel.area !== areaDoCaso
+          ? "area"
+          : null;
+  const mostrarAviso = motivo !== null || gerando || erro !== "";
 
   async function gerarAnalise() {
     setGerando(true);
     setErro("");
     try {
-      const arquivo = pendentes.at(-1);
+      const arquivo = motivo === "arquivo" ? pendentes.at(-1) : undefined;
       const lista = await api.solicitarAnalise(
         dados.casoId,
         arquivo?.id ? { tipo: "documento", id: arquivo.id } : { tipo: "transcricao" },
@@ -68,26 +104,36 @@ export function TelaAnalise({
     }
   }
 
+  const textoDoAviso = gerando
+    ? `A IA está ${visivel ? "refazendo" : "gerando"} os cards. Isso pode levar de 1 a 2 minutos.`
+    : motivo === "sem_analise"
+      ? "Gere os cards de teses, jurisprudência, perguntas e necessidades a partir do relato."
+      : motivo === "arquivo"
+        ? "Um PDF, DOCX ou TXT entrou depois da última análise. Atualize para os cards considerarem o arquivo."
+        : motivo === "relato"
+          ? "Ele foi registrado depois da última análise. Atualize para os cards acompanharem o que foi dito."
+          : motivo === "area"
+            ? `A análise atual usou ${nomeAreaDaAnalise ? `a orientação de ${nomeAreaDaAnalise}` : "a orientação genérica"}. Atualize para usar a de ${nomeArea}.`
+            : "";
+
   return (
     <>
-      <header className="flex min-h-[72px] shrink-0 flex-wrap items-center justify-between gap-3 px-8 pt-5 pb-3 min-[1050px]:h-[72px] min-[1050px]:flex-nowrap min-[1050px]:pt-[17px] min-[1050px]:pb-[9px] max-[700px]:px-4">
-        <div className="flex min-w-0 flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <BotaoVoltar destino={destinoVoltar} />
-            <h1 className="text-[22px] leading-[27px] font-bold">
-              Análise preliminar de caso
-            </h1>
-          </div>
-          <p className="text-tinta-suave text-[12px] leading-[15px]">
-            Insights gerados a partir da transcrição e documentos
-            {visivel && !visivel.demonstracao
-              ? ` · versão ${visivel.versao}${visivel.origem === "chat" ? ", atualizada com o chat" : ""}`
-              : ""}
-            . Se um arquivo novo foi só gravado no repositório, você pode atualizar os cards depois.
-          </p>
-          <EditorAreaCaso casoId={dados.casoId} area={areaDoCaso} />
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 px-8 pt-5 pb-3 max-[700px]:px-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <BotaoVoltar destino={destinoVoltar} />
+          <h1 className="text-[22px] leading-[27px] font-bold">Análise preliminar de caso</h1>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {visivel && temRelato && !mostrarAviso ? (
+            <button
+              type="button"
+              onClick={() => void gerarAnalise()}
+              className="pressionavel text-destaque hover:bg-destaque-suave flex h-8 items-center gap-1.5 rounded-[8px] px-3 text-[12px] font-semibold"
+            >
+              <Sparkles className="size-3.5" aria-hidden />
+              Gerar nova análise
+            </button>
+          ) : null}
           <Link
             href={destinoPecas}
             className="pressionavel bg-campo border-borda flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-medium"
@@ -103,42 +149,52 @@ export function TelaAnalise({
         </div>
       </header>
       <div className="flex flex-1 flex-col gap-[14px] px-8 pt-1 pb-5 max-[700px]:px-4">
-        {temRelato ? (
-          <section className="bg-destaque-suave border-destaque/40 flex w-full max-w-[880px] flex-wrap items-center justify-between gap-3 rounded-[12px] border px-5 py-4">
+        {mostrarAviso ? (
+          <section
+            aria-live="polite"
+            className="bg-destaque-suave border-destaque/40 flex w-full max-w-[880px] flex-wrap items-center justify-between gap-3 rounded-[12px] border px-5 py-4"
+          >
             <div className="flex min-w-0 flex-col gap-0.5">
               <h2 className="text-[14px] font-semibold">
-                {arquivoPendente
-                  ? "Há um arquivo novo. Deseja atualizar a análise?"
-                  : analises.length
-                    ? "Há um relato novo. Deseja atualizar os cards?"
-                    : "O relato está salvo, falta a análise"}
+                {motivo
+                  ? TITULOS[motivo]
+                  : gerando
+                    ? "Atualizando a análise"
+                    : "Não foi possível atualizar a análise"}
               </h2>
-              <p className="text-tinta-suave text-[12px]">
-                {gerando
-                  ? "A IA está atualizando os cards. Isso pode levar até um minuto."
-                  : arquivoPendente
-                    ? "PDF, DOCX ou TXT anexado só no repositório. Se quiser, os cards passam a considerá-lo."
-                    : analises.length
-                      ? "A transcrição já está no caso. Gere uma nova análise para os cards acompanharem o último relato."
-                      : "Gere os cards de teses, jurisprudência, perguntas e necessidades a partir do relato."}
-              </p>
+              {textoDoAviso ? <p className="text-tinta-suave text-[12px]">{textoDoAviso}</p> : null}
+              {motivo === "sem_analise" ? (
+                // Antes da primeira análise, a área mostra qual orientação a IA vai usar.
+                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                  <span className="text-tinta-suave text-[11px]">Área do caso:</span>
+                  <EditorAreaCaso casoId={dados.casoId} area={areaDoCaso} />
+                </div>
+              ) : null}
               {erro ? (
                 <p role="alert" className="text-destructive mt-1 text-[12px] font-medium">
                   {erro}
                 </p>
               ) : null}
             </div>
-            <button
-              type="button"
-              onClick={() => void gerarAnalise()}
-              disabled={gerando}
-              className="pressionavel bg-acao text-acao-tinta flex h-10 shrink-0 items-center gap-2 rounded-[8px] px-4 text-[13px] font-semibold disabled:opacity-60"
-            >
-              <Sparkles className={gerando ? "size-4 animate-pulse" : "size-4"} aria-hidden />
-              {gerando ? "Gerando análise…" : analises.length ? "Gerar nova análise" : "Gerar análise"}
-            </button>
+            {temRelato ? (
+              <button
+                type="button"
+                onClick={() => void gerarAnalise()}
+                disabled={gerando}
+                className="pressionavel bg-acao text-acao-tinta flex h-10 shrink-0 items-center justify-center gap-2 rounded-[8px] px-4 text-[13px] font-semibold disabled:opacity-60 max-[700px]:w-full"
+              >
+                <Sparkles className={gerando ? "size-4 animate-pulse" : "size-4"} aria-hidden />
+                {gerando
+                  ? "Gerando análise…"
+                  : !visivel
+                    ? "Gerar análise"
+                    : erro && !motivo
+                      ? "Tentar de novo"
+                      : "Atualizar análise"}
+              </button>
+            ) : null}
           </section>
-        ) : !analises.length ? (
+        ) : !visivel && !temRelato ? (
           <Link
             href={`/casos/${dados.casoId}/gravacao`}
             className="text-destaque self-start text-[13px] underline"
@@ -147,7 +203,12 @@ export function TelaAnalise({
           </Link>
         ) : null}
         {visivel ? (
-          <ListaAnalises analises={[visivel]} destinoChat={destinoChat} areaDoCaso={areaDoCaso} />
+          <ListaAnalises
+            analises={[visivel]}
+            destinoChat={destinoChat}
+            areaDoCaso={areaDoCaso}
+            acaoArea={<EditorAreaCaso casoId={dados.casoId} area={areaDoCaso} className="items-end" />}
+          />
         ) : null}
       </div>
     </>

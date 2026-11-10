@@ -89,6 +89,8 @@ export interface ConteudoCaso {
     tempo: string;
     texto: string;
     papel: "cliente" | "advogado" | "nota";
+    /** Quando o relato entrou no caso; serve para saber se há relato depois da última análise. */
+    criadoEm?: string;
   }[];
   documentos: DocumentoCaso[];
   historico: { id: string; descricao: string; data: string }[];
