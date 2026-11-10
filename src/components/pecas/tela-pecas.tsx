@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ChevronRight, Clock, FileText, Search } from "lucide-react";
+import { ArrowLeft, ChevronRight, Clock, FileText, FolderUp, Search } from "lucide-react";
 
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
 import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
@@ -10,12 +10,14 @@ import { ConteudoCaso } from "@/components/fluxo/conteudo-caso";
 import { IconeFase } from "@/components/pecas/icone-fase";
 import { MinutaPeca } from "@/components/pecas/minuta-peca";
 import { ModalModeloPeca } from "@/components/pecas/modal-modelo-peca";
+import { ModalModelosEscritorio } from "@/components/pecas/modal-modelos-escritorio";
 import type { ConteudoCaso as DadosCaso } from "@/lib/api/analise";
 import { areasApi, type AreaJuridica } from "@/lib/api/areas";
 import {
   gruposSugeridos,
   pecasApi,
   type CatalogoPecas,
+  type ModeloEscritorio,
   type ModeloPeca,
   type PecaGerada,
 } from "@/lib/api/pecas";
@@ -71,7 +73,23 @@ function Pecas({
   const [modeloAberto, setModeloAberto] = useState<ModeloPeca | null>(null);
   const [pecaAberta, setPecaAberta] = useState<PecaGerada | null>(null);
   const [abrindo, setAbrindo] = useState<string | null>(null);
+  const [modelosEscritorio, setModelosEscritorio] = useState<ModeloEscritorio[]>([]);
+  const [escritorioAberto, setEscritorioAberto] = useState(false);
   const podeGerar = dados.analise !== null || dados.versoesAnalise.length > 0;
+
+  // Modelos do escritório valem para todos os casos; se falharem, as minutas seguem o padrão.
+  useEffect(() => {
+    let ativo = true;
+    pecasApi
+      .listarModelosEscritorio()
+      .then((lista) => {
+        if (ativo) setModelosEscritorio(lista);
+      })
+      .catch(() => {});
+    return () => {
+      ativo = false;
+    };
+  }, []);
 
   useEffect(() => {
     let ativo = true;
@@ -116,8 +134,8 @@ function Pecas({
       .filter((secao) => secao.modelos.length > 0);
   }, [catalogo, sugeridos, visiveis]);
 
-  async function gerar(modelo: ModeloPeca, instrucoes: string) {
-    const peca = await pecasApi.gerar(casoId, modelo.id, instrucoes);
+  async function gerar(modelo: ModeloPeca, instrucoes: string, usarModeloEscritorio: boolean) {
+    const peca = await pecasApi.gerar(casoId, modelo.id, instrucoes, usarModeloEscritorio);
     setPecas((atuais) => [{ ...peca, texto: undefined }, ...atuais]);
     setModeloAberto(null);
     setPecaAberta(peca);
@@ -138,9 +156,25 @@ function Pecas({
   return (
     <>
       <header className="flex w-full shrink-0 flex-col gap-1 px-7 pt-5 pb-2 max-[700px]:px-4">
-        <div className="flex items-center gap-2">
-          <BotaoVoltar destino={destinoVoltar} />
-          <h1 className="text-[22px] leading-none font-bold">Peças processuais</h1>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <BotaoVoltar destino={destinoVoltar} />
+            <h1 className="text-[22px] leading-none font-bold">Peças processuais</h1>
+          </div>
+          <button
+            type="button"
+            onClick={() => setEscritorioAberto(true)}
+            disabled={!catalogo}
+            className="pressionavel border-borda bg-campo hover:border-destaque/60 flex h-9 items-center gap-2 rounded-[8px] border px-3 text-[12px] font-semibold disabled:opacity-50"
+          >
+            <FolderUp className="text-destaque size-4" aria-hidden />
+            Modelos do escritório
+            {modelosEscritorio.length ? (
+              <span className="bg-destaque-suave text-destaque rounded-full px-1.5 text-[10px]">
+                {modelosEscritorio.length}
+              </span>
+            ) : null}
+          </button>
         </div>
         <p className="text-tinta-suave text-[13px]">
           Minutas geradas pela IA a partir da análise do caso {dados.titulo}
@@ -303,14 +337,28 @@ function Pecas({
       </div>
 
       {catalogo ? (
-        <ModalModeloPeca
-          modelo={modeloAberto}
-          catalogo={catalogo}
-          podeGerar={podeGerar}
-          destinoAnalise={destinoAnalise}
-          aoFechar={() => setModeloAberto(null)}
-          aoGerar={gerar}
-        />
+        <>
+          <ModalModeloPeca
+            modelo={modeloAberto}
+            catalogo={catalogo}
+            podeGerar={podeGerar}
+            destinoAnalise={destinoAnalise}
+            modelosEscritorio={modelosEscritorio}
+            aoAbrirModelosEscritorio={() => {
+              setModeloAberto(null);
+              setEscritorioAberto(true);
+            }}
+            aoFechar={() => setModeloAberto(null)}
+            aoGerar={gerar}
+          />
+          <ModalModelosEscritorio
+            aberto={escritorioAberto}
+            catalogo={catalogo}
+            modelos={modelosEscritorio}
+            aoFechar={() => setEscritorioAberto(false)}
+            aoMudar={setModelosEscritorio}
+          />
+        </>
       ) : null}
     </>
   );

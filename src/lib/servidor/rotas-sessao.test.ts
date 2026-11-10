@@ -37,6 +37,8 @@ const rotaChat = await import("@/app/api/chat/route");
 const rotaPecas = await import("@/app/api/pecas/route");
 const { GET: obterPeca } = await import("@/app/api/pecas/[pecaId]/route");
 const { GET: baixarPeca } = await import("@/app/api/pecas/[pecaId]/docx/route");
+const rotaModelosEscritorio = await import("@/app/api/modelos-escritorio/route");
+const { DELETE: excluirModeloEscritorio } = await import("@/app/api/modelos-escritorio/[modeloId]/route");
 
 let backend: ReturnType<typeof vi.fn<typeof fetch>>;
 
@@ -294,7 +296,49 @@ describe("análise, chat e minutas com IA", () => {
         body: JSON.stringify({ casoId: "caso-1", modeloId: "contestacao", user_id: BRUNO }),
       }),
     );
-    expect(corpoChamado()).toEqual({ user_id: ANA, modelo_id: "contestacao" });
+    expect(corpoChamado()).toEqual({ user_id: ANA, modelo_id: "contestacao", usar_modelo_escritorio: true });
+
+    backend.mockClear();
+    await rotaPecas.POST(
+      new Request("http://x/api/pecas", {
+        method: "POST",
+        body: JSON.stringify({ casoId: "caso-1", modeloId: "contestacao", usarModeloEscritorio: false }),
+      }),
+    );
+    expect(corpoChamado()).toEqual({ user_id: ANA, modelo_id: "contestacao", usar_modelo_escritorio: false });
+  });
+
+  it("modelos do escritório: o dono vem do cookie, nunca do formulário", async () => {
+    const form = new FormData();
+    form.append("arquivo", new File(["modelo"], "modelo.docx"));
+    form.append("nome", "Inicial padrão");
+    form.append("aplicaA", "contestacao");
+    form.append("user_id", BRUNO);
+    const enviar = () =>
+      rotaModelosEscritorio.POST(new Request("http://x/api/modelos-escritorio", { method: "POST", body: form }));
+
+    expect((await enviar()).status).toBe(401);
+    expect(backend).not.toHaveBeenCalled();
+
+    cookieAtual.valor = assinarSessao(ANA);
+    await enviar();
+    expect(urlChamada()).toMatch(/\/modelos-escritorio$/);
+    const enviado = backend.mock.calls[0][1]?.body as FormData;
+    expect(enviado.get("user_id")).toBe(ANA);
+    expect(enviado.get("aplica_a")).toBe("contestacao");
+    expect((enviado.get("arquivo") as File).name).toBe("modelo.docx");
+
+    backend.mockClear();
+    await rotaModelosEscritorio.GET();
+    expect(urlChamada()).toMatch(new RegExp(`/modelos-escritorio\\?user_id=${ANA}$`));
+
+    backend.mockClear();
+    backend.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const resposta = await excluirModeloEscritorio(new Request("http://x", { method: "DELETE" }), {
+      params: Promise.resolve({ modeloId: "abc" }),
+    });
+    expect(resposta.status).toBe(204);
+    expect(urlChamada()).toMatch(new RegExp(`/modelos-escritorio/abc\\?user_id=${ANA}$`));
   });
 
   it("atualizar a análise com o chat só liga incluir_chat quando pedido explicitamente", async () => {

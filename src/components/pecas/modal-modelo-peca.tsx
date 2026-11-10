@@ -2,11 +2,16 @@
 
 import { useId, useState } from "react";
 import Link from "next/link";
-import { Clock, LoaderCircle, Sparkles } from "lucide-react";
+import { Clock, FileText, LoaderCircle, Sparkles } from "lucide-react";
 
 import { IconeFase } from "@/components/pecas/icone-fase";
 import { Modal } from "@/components/ui/modal";
-import type { CatalogoPecas, ModeloPeca } from "@/lib/api/pecas";
+import {
+  modeloEscritorioPara,
+  type CatalogoPecas,
+  type ModeloEscritorio,
+  type ModeloPeca,
+} from "@/lib/api/pecas";
 
 /**
  * Detalhes do modelo e pedido da minuta. O Modal só monta o conteúdo aberto, então
@@ -17,6 +22,8 @@ export function ModalModeloPeca({
   catalogo,
   podeGerar,
   destinoAnalise,
+  modelosEscritorio,
+  aoAbrirModelosEscritorio,
   aoFechar,
   aoGerar,
 }: {
@@ -24,8 +31,10 @@ export function ModalModeloPeca({
   catalogo: CatalogoPecas;
   podeGerar: boolean;
   destinoAnalise: string;
+  modelosEscritorio: ModeloEscritorio[];
+  aoAbrirModelosEscritorio: () => void;
   aoFechar: () => void;
-  aoGerar: (modelo: ModeloPeca, instrucoes: string) => Promise<void>;
+  aoGerar: (modelo: ModeloPeca, instrucoes: string, usarModeloEscritorio: boolean) => Promise<void>;
 }) {
   const [gerando, setGerando] = useState(false);
 
@@ -43,12 +52,14 @@ export function ModalModeloPeca({
           modelo={modelo}
           podeGerar={podeGerar}
           destinoAnalise={destinoAnalise}
+          escritorio={modeloEscritorioPara(modelosEscritorio, modelo.id)}
+          aoAbrirModelosEscritorio={aoAbrirModelosEscritorio}
           gerando={gerando}
           aoFechar={aoFechar}
-          aoGerar={async (instrucoes) => {
+          aoGerar={async (instrucoes, usarModeloEscritorio) => {
             setGerando(true);
             try {
-              await aoGerar(modelo, instrucoes);
+              await aoGerar(modelo, instrucoes, usarModeloEscritorio);
             } finally {
               setGerando(false);
             }
@@ -63,6 +74,8 @@ function ConteudoModelo({
   modelo,
   podeGerar,
   destinoAnalise,
+  escritorio,
+  aoAbrirModelosEscritorio,
   gerando,
   aoFechar,
   aoGerar,
@@ -70,18 +83,22 @@ function ConteudoModelo({
   modelo: ModeloPeca;
   podeGerar: boolean;
   destinoAnalise: string;
+  escritorio: ModeloEscritorio | null;
+  aoAbrirModelosEscritorio: () => void;
   gerando: boolean;
   aoFechar: () => void;
-  aoGerar: (instrucoes: string) => Promise<void>;
+  aoGerar: (instrucoes: string, usarModeloEscritorio: boolean) => Promise<void>;
 }) {
   const idOrientacoes = useId();
+  const idUsarEscritorio = useId();
   const [instrucoes, setInstrucoes] = useState("");
+  const [usarEscritorio, setUsarEscritorio] = useState(true);
   const [erro, setErro] = useState("");
 
   async function gerar() {
     setErro("");
     try {
-      await aoGerar(instrucoes);
+      await aoGerar(instrucoes, escritorio !== null && usarEscritorio);
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : "Não foi possível gerar a minuta. Tente novamente.");
     }
@@ -128,6 +145,41 @@ function ConteudoModelo({
           ))}
         </ol>
       </section>
+
+      {escritorio ? (
+        <section className="bg-destaque-suave border-destaque/40 flex items-start gap-3 rounded-[10px] border px-4 py-3">
+          <FileText className="text-destaque mt-0.5 size-4 shrink-0" aria-hidden />
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <p className="text-[12px] leading-relaxed">
+              Modelo do escritório: <strong>{escritorio.nome}</strong>
+              {escritorio.comTimbre ? " · o Word baixado sai com o seu timbre" : ""}
+            </p>
+            <label htmlFor={idUsarEscritorio} className="flex w-fit items-center gap-2 text-[12px] font-medium">
+              <input
+                id={idUsarEscritorio}
+                type="checkbox"
+                checked={usarEscritorio}
+                onChange={(evento) => setUsarEscritorio(evento.target.checked)}
+                disabled={gerando}
+                className="accent-destaque size-4"
+              />
+              Seguir o meu modelo nesta minuta
+            </label>
+          </div>
+        </section>
+      ) : (
+        <p className="text-tinta-suave text-[12px]">
+          Quer que a minuta siga o padrão do seu escritório?{" "}
+          <button
+            type="button"
+            onClick={aoAbrirModelosEscritorio}
+            disabled={gerando}
+            className="text-destaque font-semibold underline"
+          >
+            Enviar um modelo
+          </button>
+        </p>
+      )}
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor={idOrientacoes} className="text-[13px] font-semibold">

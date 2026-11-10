@@ -184,6 +184,7 @@ export function MinutaPeca({ peca, urlDocx }: { peca: PecaGerada; urlDocx: strin
           <p className="text-tinta-suave text-[12px]">
             Gerada em {formatarDataHora(peca.geradaEm)}
             {peca.analiseVersao ? ` · com base na análise versão ${peca.analiseVersao}` : ""}
+            {peca.modeloEscritorio ? ` · modelo do escritório: ${peca.modeloEscritorio.nome}` : ""}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

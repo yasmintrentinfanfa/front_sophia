@@ -22,6 +22,7 @@ export async function POST(pedido: Request) {
     casoId?: string;
     modeloId?: string;
     instrucoes?: string;
+    usarModeloEscritorio?: boolean;
   };
   const casoId = (corpo.casoId ?? "").trim();
   const modeloId = (corpo.modeloId ?? "").trim();
@@ -31,7 +32,12 @@ export async function POST(pedido: Request) {
   if (!casoId || !modeloId) return Response.json({ erro: "Informe o caso e o modelo." }, { status: 400 });
   return repassarJson(
     `/pecas/${encodeURIComponent(casoId)}`,
-    corpoJson({ user_id: userId, modelo_id: modeloId, ...(instrucoes ? { instrucoes } : {}) }),
+    corpoJson({
+      user_id: userId,
+      modelo_id: modeloId,
+      usar_modelo_escritorio: corpo.usarModeloEscritorio !== false,
+      ...(instrucoes ? { instrucoes } : {}),
+    }),
     MENSAGEM_API_INDISPONIVEL,
   );
 }
