@@ -55,6 +55,7 @@ function CarregarConteudo({
                   : (tempoLocal ?? "00:00"),
             texto: relato.texto,
             papel: "cliente" as const,
+            criadoEm: relato.criadoEm,
           }));
         }
         if (salva.documentos.length) {

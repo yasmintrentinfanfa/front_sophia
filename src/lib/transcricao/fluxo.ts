@@ -99,6 +99,8 @@ export interface RelatoSalvo {
   texto: string;
   origem: OrigemRelato;
   duracaoSegundos: number | null;
+  /** Quando o relato entrou no caso (horário de Brasília, como `geradaEm` da análise). */
+  criadoEm?: string;
 }
 
 export async function obterSalvoDoCaso(casoId: string) {
@@ -110,7 +112,7 @@ export async function obterSalvoDoCaso(casoId: string) {
   if (res.status === 404) return vazio;
   const dados = (await res.json().catch(() => ({}))) as {
     erro?: string;
-    transcript?: { id?: string; text?: string; source?: string; duration_seconds?: number }[];
+    transcript?: { id?: string; text?: string; source?: string; duration_seconds?: number; created_at?: string }[];
     documents?: { id?: string; name?: string; type?: string; text?: string; created_at?: string }[];
   };
   if (!res.ok) return vazio;
@@ -124,6 +126,7 @@ export async function obterSalvoDoCaso(casoId: string) {
         typeof item.duration_seconds === "number" && Number.isFinite(item.duration_seconds)
           ? item.duration_seconds
           : null,
+      criadoEm: item.created_at || undefined,
     }));
   const documentos = (dados.documents ?? [])
     .filter((item) => (item.text ?? "").trim() || (item.name ?? "").trim())
