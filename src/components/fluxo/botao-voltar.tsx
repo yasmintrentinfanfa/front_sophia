@@ -4,6 +4,8 @@ import { createContext, useContext, useEffect, useRef, type ReactNode } from "re
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
+import { estaNoRepositorio } from "@/lib/casos/destino";
+
 const ContextoVoltar = createContext<((destino: string) => void) | null>(null);
 
 /** Lista, um caso ou o fluxo de conta — a seta não atravessa esses contextos. */
@@ -19,7 +21,8 @@ function moduloDoCaminho(caminho: string) {
   }
   const id = caminho.match(/^\/casos\/([^/]+)/)?.[1];
   if (id && id !== "novo" && id !== "arquivo") {
-    return caminho.includes("/repositorio") ? `repositorio:${id}` : `caso:${id}`;
+    // A gravação ao vivo começa no repositório, então volta para ele.
+    return estaNoRepositorio(caminho) ? `repositorio:${id}` : `caso:${id}`;
   }
   return "casos";
 }
@@ -33,7 +36,7 @@ export function ProvedorNavegacao({ children }: { children: ReactNode }) {
     const historico = caminhos.current;
     if (historico.at(-1) === pathname) return;
     // Encerrar a sessão não deve ficar no meio do voltar.
-    if (historico.at(-1)?.endsWith("/sessao") && /\/(analise|gravacao)$/.test(pathname)) {
+    if (historico.at(-1)?.endsWith("/sessao") && /\/(analise|repositorio|materiais)$/.test(pathname)) {
       historico.pop();
     }
     const moduloAtual = moduloDoCaminho(pathname);

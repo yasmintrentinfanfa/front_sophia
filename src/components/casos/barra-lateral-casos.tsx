@@ -18,7 +18,7 @@ import { ModalConfirmar } from "@/components/casos/modal-confirmar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
 import type { Caso, IdPlano, Usuario } from "@/lib/api/types";
-import { destinoDoCaso } from "@/lib/casos/destino";
+import { destinoDoCaso, estaNoRepositorio } from "@/lib/casos/destino";
 import { IconeArea } from "@/components/casos/icone-area";
 import { pastaDoCaso, rotuloCaso } from "@/lib/casos/rotulo";
 import { normalizar } from "@/lib/texto";
@@ -301,13 +301,13 @@ function TrilhaIcones({
   botaoRef: RefObject<HTMLButtonElement | null>;
 }) {
   const pathname = usePathname();
-  const emRepositorio = pathname.includes("/repositorio");
+  // Repositório: adicionar material e ver o que já entrou. Casos: lista, análise, chat e peças.
+  const emRepositorio = estaNoRepositorio(pathname);
   const emCasos =
     !emRepositorio &&
     (pathname === "/casos" ||
-      pathname.includes("/gravacao") ||
-      pathname.includes("/sessao") ||
-      pathname.includes("/analise"));
+      pathname === "/casos/arquivo" ||
+      /^\/casos\/[^/]+\/(analise|chat|pecas)(\/|$)/.test(pathname));
 
   return (
     <nav

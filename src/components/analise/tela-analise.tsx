@@ -196,10 +196,10 @@ export function TelaAnalise({
           </section>
         ) : !visivel && !temRelato ? (
           <Link
-            href={`/casos/${dados.casoId}/gravacao`}
+            href={`/casos/${dados.casoId}/repositorio`}
             className="text-destaque self-start text-[13px] underline"
           >
-            Ir para a gravação
+            Ir para o repositório
           </Link>
         ) : null}
         {visivel ? (

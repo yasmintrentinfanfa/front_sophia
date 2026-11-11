@@ -1,12 +1,7 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { TelaPecas } from "@/components/pecas/tela-pecas";
-
-export default function PaginaPecasRepositorio() {
-  return (
-    <TelaPecas
-      destinoVoltar={(casoId) => `/casos/${casoId}/repositorio/analise`}
-      destinoAnalise={(casoId) => `/casos/${casoId}/repositorio/analise`}
-    />
-  );
+/** Endereço antigo: as peças do caso ficam junto da análise, em "Casos em análise". */
+export default async function PaginaPecasRepositorio({ params }: { params: Promise<{ casoId: string }> }) {
+  const { casoId } = await params;
+  redirect(`/casos/${encodeURIComponent(casoId)}/pecas`);
 }

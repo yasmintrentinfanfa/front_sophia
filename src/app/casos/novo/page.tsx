@@ -35,7 +35,7 @@ export default function PaginaNovoCaso() {
         cliente: cliente.trim(),
         area,
       });
-      router.push(`/casos/${caso.id}/gravacao`);
+      router.push(`/casos/${caso.id}/repositorio`);
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : "Não foi possível criar o caso.");
     } finally {

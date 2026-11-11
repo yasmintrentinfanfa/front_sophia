@@ -144,7 +144,7 @@ export function CenaRelato() {
   const atual = useCiclo(MODOS.length, 1700);
   return (
     <MiniTela className="flex flex-col justify-center gap-3">
-      <p className="text-[12px] font-semibold">Como você quer registrar o relato?</p>
+      <p className="text-[12px] font-semibold">O que você quer adicionar ao caso?</p>
       <div className="grid grid-cols-3 gap-2">
         {MODOS.map(({ titulo, detalhe, Icone }, indice) => {
           const ativo = indice === atual;
@@ -346,11 +346,28 @@ export function CenaCasos() {
 }
 
 // ------------------------------------------------------------------- 7. repositório
-// Mesmas abas do repositório (src/app/casos/[casoId]/repositorio/page.tsx).
+// A entrada do repositório (src/app/casos/[casoId]/repositorio/page.tsx) e as abas de
+// Transcrições e documentos (src/app/casos/[casoId]/repositorio/materiais/page.tsx).
 const ABAS = [
-  { titulo: "Transcrição", conteudo: "Todos os relatos do caso, em ordem", itens: ["Transcrição 1", "Transcrição 2", "Transcrição 3"] },
-  { titulo: "Documentos", conteudo: "Arquivos anexados ao caso", itens: ["contrato.pdf", "negativa.pdf", "laudo.docx"] },
-  { titulo: "Análise", conteudo: "Os cards da análise mais recente", itens: ["Teses jurídicas", "Jurisprudência", "Perguntas sugeridas"] },
+  {
+    titulo: "Adicionar",
+    conteudo: "Grave, envie ou escreva o relato",
+    itens: [
+      { nome: "Gravar ao vivo", Icone: Mic },
+      { nome: "Enviar áudio ou documento", Icone: FileAudio },
+      { nome: "Escrever o relato", Icone: PenLine },
+    ],
+  },
+  {
+    titulo: "Transcrições",
+    conteudo: "Todos os relatos do caso, em ordem",
+    itens: ["Transcrição 1", "Transcrição 2", "Transcrição 3"].map((nome) => ({ nome, Icone: FileText })),
+  },
+  {
+    titulo: "Documentos",
+    conteudo: "Arquivos anexados ao caso",
+    itens: ["contrato.pdf", "negativa.pdf", "laudo.docx"].map((nome) => ({ nome, Icone: FileText })),
+  },
 ];
 
 export function CenaRepositorio() {
@@ -373,11 +390,11 @@ export function CenaRepositorio() {
       </div>
       <div key={atual} className="animate-in fade-in slide-in-from-right-2 flex flex-1 flex-col gap-2 duration-500">
         <p className="text-[11px] font-semibold">{ABAS[atual].conteudo}</p>
-        {ABAS[atual].itens.map((item) => (
-          <span key={item} className="bg-campo border-borda flex items-center gap-2 rounded-[8px] border px-2.5 py-2">
-            <FileText className="text-destaque size-3.5 shrink-0" aria-hidden />
+        {ABAS[atual].itens.map(({ nome, Icone }) => (
+          <span key={nome} className="bg-campo border-borda flex items-center gap-2 rounded-[8px] border px-2.5 py-2">
+            <Icone className="text-destaque size-3.5 shrink-0" aria-hidden />
             <span className="flex flex-1 flex-col gap-1">
-              <span className="text-[10px] font-semibold">{item}</span>
+              <span className="text-[10px] font-semibold">{nome}</span>
               <Linha className="w-2/3" />
             </span>
           </span>
