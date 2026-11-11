@@ -278,9 +278,34 @@ html[data-destaque] .tela-publica .bg-acao {
   .telefone-toque {
     animation: toque-telefone 3.2s ease-in-out infinite;
   }
-  /* Destaque do passo atual nas cenas do tutorial de primeiro acesso. */
-  .tutorial-pulso {
-    animation: tutorial-pulso 1.7s ease-in-out infinite;
+  /* Clique do cursor das cenas do tutorial: a onda sai da ponta e o cursor afunda. */
+  .tutorial-clique {
+    animation: tutorial-clique 520ms ease-out forwards;
+  }
+  .tutorial-toque {
+    transform-origin: 2px 2px;
+    animation: tutorial-toque 300ms ease-out;
+  }
+}
+
+@keyframes tutorial-clique {
+  from {
+    transform: scale(0.35);
+    opacity: 0.95;
+  }
+  to {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+@keyframes tutorial-toque {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(0.84);
   }
 }
 
@@ -304,18 +329,6 @@ html[data-destaque] .tela-publica .bg-acao {
   }
 }
 
-@keyframes tutorial-pulso {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.07);
-    opacity: 0.85;
-  }
-}
-
 @media (prefers-reduced-motion: no-preference) {
   html:has(.tela-publica) {
     scroll-behavior: smooth;
@@ -323,8 +336,14 @@ html[data-destaque] .tela-publica .bg-acao {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .telefone-toque,
-  .tutorial-pulso {
+  .telefone-toque {
     animation: none;
+  }
+  /* As cenas do tutorial param num quadro só; nada desliza nem pisca. */
+  .tutorial-palco *,
+  .tutorial-palco *::before,
+  .tutorial-palco *::after {
+    animation: none !important;
+    transition: none !important;
   }
 }

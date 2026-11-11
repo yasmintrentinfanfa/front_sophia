@@ -1,420 +1,738 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
-import { FileAudio, FileText, Mic, PenLine, RefreshCw, Sparkles } from "lucide-react";
+import { Fragment, type ComponentType, type ReactNode } from "react";
+import { FileText } from "lucide-react";
 
-import { IconeCasos, IconeNovoCaso, IconeRepositorio, IconeLixeira } from "@/components/casos/icones-trilha";
+import {
+  CARLOS,
+  CASOS_EXEMPLO,
+  Cursor,
+  JanelaApp,
+  MARIANA,
+  ModalMini,
+  Moldura,
+  Palco,
+  RAFAEL,
+  usePalco,
+  useRoteiro,
+  type Batida,
+  type PropsBarra,
+} from "@/components/tutorial/palco";
+import {
+  ASSUNTOS_CHAT,
+  ConfiguracoesMini,
+  ConfirmarAnalise,
+  DATA_RECENTE,
+  DetalheCartao,
+  ModeloReclamacao,
+  PainelArquivo,
+  PainelGravacao,
+  PainelTexto,
+  TelaAnalise,
+  TelaCasos,
+  TelaChat,
+  TelaMateriais,
+  TelaMinuta,
+  TelaNovoCaso,
+  TelaPecas,
+  TelaRepositorio,
+  TelaSessao,
+  TextoDigitado,
+  type FaseTexto,
+  type ItemListaMini,
+  type MensagemMini,
+} from "@/components/tutorial/telas";
 import { cn } from "@/lib/utils";
 
-/** Índice que avança sozinho de 0 a n-1; parado em 0 para quem pede menos movimento. */
-function useCiclo(total: number, intervalo = 1800) {
-  const [indice, setIndice] = useState(0);
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const id = window.setInterval(() => setIndice((atual) => (atual + 1) % total), intervalo);
-    return () => window.clearInterval(id);
-  }, [total, intervalo]);
-  return indice;
+export { COLUNAS_TUTORIAL } from "@/components/tutorial/telas";
+
+/*
+ * Cada cena é um roteiro de batidas tocado em loop: o cursor vai até o botão real,
+ * clica, e a miniatura navega para a tela seguinte, no mesmo caminho do sistema.
+ */
+
+/** Dá nome a cada batida, para a cena perguntar "já passou do clique em Criar caso?". */
+function roteiro<const Nome extends string>(passos: readonly (Batida & { nome: Nome })[]) {
+  const batidas: Batida[] = passos.map((passo) => ({ ms: passo.ms, alvo: passo.alvo, clique: passo.clique }));
+  const em = {} as Record<Nome, number>;
+  passos.forEach((passo, indice) => {
+    em[passo.nome] = indice;
+  });
+  return { batidas, em };
 }
 
-/** Moldura de "janela" em que cada cena mostra uma miniatura da tela real. */
-function MiniTela({ children, className }: { children: ReactNode; className?: string }) {
+/** Janela com a tela do momento; a tela é montada de novo a cada navegação. */
+function Cena({
+  tela,
+  barra,
+  sobreposicao,
+  cursor,
+  children,
+}: {
+  tela: string;
+  barra: PropsBarra;
+  sobreposicao?: ReactNode;
+  cursor: { alvo: string | null; clique: boolean; marca: number; arrastando?: string };
+  children: ReactNode;
+}) {
   return (
-    <div className="bg-fundo border-borda flex h-full w-full flex-col overflow-hidden rounded-[12px] border shadow-[0_8px_24px_rgba(0,0,0,0.08)]">
-      <div className="border-borda bg-barra flex h-6 shrink-0 items-center gap-1 border-b px-2.5" aria-hidden>
-        <span className="bg-borda size-1.5 rounded-full" />
-        <span className="bg-borda size-1.5 rounded-full" />
-        <span className="bg-borda size-1.5 rounded-full" />
-      </div>
-      <div className={cn("min-h-0 flex-1 p-3", className)}>{children}</div>
-    </div>
+    <Palco>
+      <JanelaApp tela={tela} barra={barra} sobreposicao={sobreposicao}>
+        <Fragment key={tela}>{children}</Fragment>
+      </JanelaApp>
+      <Cursor {...cursor} />
+    </Palco>
   );
 }
 
-function Linha({ className }: { className?: string }) {
-  return <span className={cn("bg-borda/70 block h-1.5 rounded-full", className)} />;
-}
+const MATERIAIS_DO_CARLOS = "2 transcrições · 1 documento";
 
 // ------------------------------------------------------------------- 1. boas-vindas
-const ETAPAS_FLUXO = [
-  { rotulo: "Caso", Icone: FileText },
-  { rotulo: "Relato", Icone: Mic },
-  { rotulo: "Análise", Icone: Sparkles },
-  { rotulo: "Chat e peças", Icone: PenLine },
+
+const JORNADA = roteiro([
+  { nome: "marca", ms: 1000 },
+  { nome: "novo", ms: 1300 },
+  { nome: "repositorio", ms: 1300 },
+  { nome: "analise", ms: 1300 },
+  { nome: "chat", ms: 1300 },
+  { nome: "tudo", ms: 2000 },
+]);
+
+function Traco({ className }: { className?: string }) {
+  return <span className={cn("bg-borda/80 block h-[3px] rounded-full", className)} />;
+}
+
+function MiniNovo() {
+  return (
+    <span className="flex w-full flex-col justify-center gap-1.5">
+      {[0, 1, 2].map((campo) => (
+        <span key={campo} className="flex flex-col gap-[3px]">
+          <Traco className="h-[2px] w-1/3" />
+          <span className="border-borda h-[10px] rounded-[3px] border" />
+        </span>
+      ))}
+      <span className="bg-acao mt-0.5 h-[10px] w-2/5 rounded-[3px]" />
+    </span>
+  );
+}
+
+function MiniRepositorio() {
+  return (
+    <span className="flex w-full flex-col gap-1.5">
+      <span className="grid grid-cols-2 gap-1">
+        <span className="border-borda h-[14px] rounded-[3px] border" />
+        <span className="border-borda h-[14px] rounded-[3px] border" />
+      </span>
+      <Traco className="w-3/5" />
+      <span className="grid grid-cols-3 gap-1">
+        {[0, 1, 2].map((modo) => (
+          <span
+            key={modo}
+            className={cn(
+              "flex h-[28px] flex-col gap-[4px] rounded-[4px] border p-[3px]",
+              modo === 0 ? "border-destaque ring-destaque/20 ring-2" : "border-borda",
+            )}
+          >
+            <span className={cn("size-[8px] rounded-[2px]", modo === 0 ? "bg-destaque" : "bg-destaque-suave")} />
+            <Traco className="h-[2px] w-4/5" />
+          </span>
+        ))}
+      </span>
+      <span className="border-borda h-[16px] rounded-[4px] border" />
+    </span>
+  );
+}
+
+function MiniAnalise() {
+  return (
+    <span className="flex w-full flex-col gap-1.5">
+      <span className="border-borda flex h-[16px] flex-col justify-center gap-[3px] rounded-[3px] border px-1">
+        <Traco className="h-[2px] w-2/5" />
+        <Traco className="h-[2px] w-4/5" />
+      </span>
+      <span className="grid grid-cols-5 gap-[3px]">
+        {[0, 1, 2, 3, 4].map((coluna) => (
+          <span key={coluna} className="flex flex-col gap-[3px]">
+            <Traco className="h-[2px] w-4/5" />
+            <span className="border-borda h-[16px] rounded-[2px] border" />
+            <span className="border-borda h-[16px] rounded-[2px] border" />
+          </span>
+        ))}
+      </span>
+    </span>
+  );
+}
+
+function MiniChat() {
+  return (
+    <span className="flex w-full flex-col gap-1.5">
+      <span className="bg-chip h-[12px] w-full rounded-[3px]" />
+      <span className="border-borda flex h-[18px] flex-col justify-center gap-[3px] rounded-[3px] border px-1">
+        <Traco className="h-[2px] w-4/5" />
+        <Traco className="h-[2px] w-3/5" />
+      </span>
+      <span className="flex gap-1">
+        <span className="border-borda flex h-[20px] flex-1 items-center justify-center rounded-[3px] border">
+          <FileText className="text-destaque size-2.5" />
+        </span>
+        <span className="border-borda h-[20px] flex-1 rounded-[3px] border" />
+      </span>
+      <span className="flex gap-1">
+        <span className="border-borda h-[10px] flex-1 rounded-[3px] border" />
+        <span className="bg-acao h-[10px] w-1/4 rounded-[3px]" />
+      </span>
+    </span>
+  );
+}
+
+const ETAPAS_JORNADA: { titulo: string; detalhe: string; Miniatura: ComponentType }[] = [
+  { titulo: "Novo caso", detalhe: "Cliente e área jurídica", Miniatura: MiniNovo },
+  { titulo: "Repositório", detalhe: "Grave, envie ou escreva", Miniatura: MiniRepositorio },
+  { titulo: "Análise", detalhe: "Teses e jurisprudência", Miniatura: MiniAnalise },
+  { titulo: "Chat e peças", detalhe: "Dúvidas e minutas", Miniatura: MiniChat },
 ];
 
-export function CenaBoasVindas() {
-  const atual = useCiclo(ETAPAS_FLUXO.length, 1200);
+function Jornada() {
+  const { compacto } = usePalco();
+  const { indice } = useRoteiro(JORNADA.batidas, JORNADA.em.tudo);
   return (
-    <MiniTela className="flex flex-col items-center justify-center gap-5">
-      <p className="text-destaque text-[22px] font-bold tracking-tight">SOPHIA</p>
-      <ol className="flex w-full max-w-[300px] items-center">
-        {ETAPAS_FLUXO.map(({ rotulo, Icone }, indice) => (
-          <li key={rotulo} className="flex flex-1 items-center last:flex-none">
-            <span className="flex flex-col items-center gap-1.5">
-              <span
-                className={cn(
-                  "flex size-9 items-center justify-center rounded-full border transition-all duration-500",
-                  indice <= atual
-                    ? "bg-destaque border-destaque scale-105 text-white"
-                    : "bg-campo border-borda text-tinta-suave",
-                )}
-              >
-                <Icone className="size-4" aria-hidden />
-              </span>
-              <span className={cn("text-[10px] font-semibold", indice <= atual ? "text-tinta" : "text-tinta-suave")}>
-                {rotulo}
-              </span>
-            </span>
-            {indice < ETAPAS_FLUXO.length - 1 ? (
-              <span className="bg-borda relative mx-1 mb-5 h-[2px] flex-1 overflow-hidden rounded-full">
-                <span
-                  className={cn(
-                    "bg-destaque absolute inset-y-0 left-0 transition-all duration-700",
-                    indice < atual ? "w-full" : "w-0",
-                  )}
-                />
-              </span>
-            ) : null}
-          </li>
-        ))}
-      </ol>
-    </MiniTela>
+    <Moldura tela="Sophia">
+      <div className={cn("flex flex-1 flex-col items-center justify-center px-7", compacto ? "gap-5" : "gap-7")}>
+        <div className="animate-in fade-in slide-in-from-bottom-2 flex flex-col items-center gap-1.5 duration-700">
+          <p className="text-destaque text-[30px] leading-none font-bold tracking-tight">SOPHIA</p>
+          <p className="text-tinta-suave text-[12px]">Da conversa com o cliente à minuta</p>
+        </div>
+        <ol className={cn("grid w-full", compacto ? "max-w-[300px] grid-cols-2 gap-x-4 gap-y-3" : "grid-cols-4 gap-4")}>
+          {ETAPAS_JORNADA.map(({ titulo, detalhe, Miniatura }, posicao) => {
+            const acesa = posicao < indice;
+            const atual = posicao === indice - 1;
+            return (
+              <li key={titulo} className="flex flex-col items-center gap-2 text-center">
+                <span className="relative w-full">
+                  <span
+                    className={cn(
+                      "bg-campo flex w-full overflow-hidden rounded-[10px] border p-2 transition-[border-color,box-shadow,opacity,translate] duration-500",
+                      compacto ? "aspect-[3/2]" : "aspect-[4/3]",
+                      acesa ? "border-destaque shadow-[0_6px_18px_rgba(0,0,0,0.10)]" : "border-borda opacity-60",
+                      atual && "ring-destaque/20 -translate-y-1 ring-4",
+                    )}
+                  >
+                    <Miniatura />
+                  </span>
+                  {!compacto && posicao < ETAPAS_JORNADA.length - 1 ? (
+                    <span className="bg-borda absolute top-1/2 left-full h-[2px] w-4 -translate-y-1/2 overflow-hidden rounded-full">
+                      <span
+                        className={cn(
+                          "bg-destaque absolute inset-y-0 left-0 transition-[width] duration-700 ease-out",
+                          posicao < indice - 1 ? "w-full" : "w-0",
+                        )}
+                      />
+                    </span>
+                  ) : null}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className={cn(
+                      "flex size-[18px] items-center justify-center rounded-full border text-[9.5px] font-bold transition-colors duration-500",
+                      acesa ? "bg-destaque border-destaque text-white" : "bg-chip border-borda text-tinta-suave",
+                    )}
+                  >
+                    {posicao + 1}
+                  </span>
+                  <span className="text-[11.5px] font-semibold">{titulo}</span>
+                </span>
+                <span className="text-tinta-suave -mt-1 text-[9.5px]">{detalhe}</span>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+    </Moldura>
+  );
+}
+
+export function CenaBoasVindas() {
+  return (
+    <Palco>
+      <Jornada />
+    </Palco>
   );
 }
 
 // ------------------------------------------------------------------- 2. criar caso
-const CAMPOS = [
-  { rotulo: "Nome do caso", valor: "Rescisão indireta" },
-  { rotulo: "Cliente", valor: "Carlos Nunes" },
-  { rotulo: "Área jurídica", valor: "Trabalhista" },
+
+const NOVO = roteiro([
+  { nome: "lista", ms: 900 },
+  { nome: "irMais", ms: 850, alvo: "trilha-novo" },
+  { nome: "clicaMais", ms: 420, clique: true },
+  { nome: "formulario", ms: 650, alvo: "campo-nome" },
+  { nome: "focaNome", ms: 280, clique: true },
+  { nome: "digitaNome", ms: 950 },
+  { nome: "irCliente", ms: 560, alvo: "campo-cliente" },
+  { nome: "focaCliente", ms: 280, clique: true },
+  { nome: "digitaCliente", ms: 800 },
+  { nome: "irArea", ms: 600, alvo: "campo-area" },
+  { nome: "abreArea", ms: 380, clique: true },
+  { nome: "irTrabalho", ms: 750, alvo: "area-trabalhista" },
+  { nome: "escolhe", ms: 380, clique: true },
+  { nome: "irCriar", ms: 700, alvo: "criar-caso" },
+  { nome: "cria", ms: 420, clique: true },
+  { nome: "repositorio", ms: 2600, alvo: null },
+]);
+
+const OUTROS_CASOS: ItemListaMini[] = [
+  { caso: MARIANA, status: "Em análise", data: "Ontem" },
+  { caso: RAFAEL, status: "Gravação pendente", data: DATA_RECENTE },
 ];
 
 export function CenaCriarCaso() {
-  const preenchidos = useCiclo(CAMPOS.length + 2, 1100);
+  const { indice, alvo, clique } = useRoteiro(NOVO.batidas, NOVO.em.irCriar);
+  const { em } = NOVO;
+  const noFormulario = indice >= em.formulario && indice < em.repositorio;
+  const criado = indice >= em.repositorio;
+  const fase = (comeca: number, termina: number): FaseTexto =>
+    indice < comeca ? "vazio" : indice < termina ? "digitando" : "pronto";
+  const foco =
+    indice >= em.focaNome && indice < em.irCliente
+      ? "nome"
+      : indice >= em.focaCliente && indice < em.irArea
+        ? "cliente"
+        : indice >= em.abreArea && indice <= em.escolhe
+          ? "area"
+          : null;
+
   return (
-    <MiniTela className="flex gap-3 p-0">
-      <div className="bg-trilha flex w-9 shrink-0 flex-col items-center gap-2 py-3" aria-hidden>
-        <span className="bg-destaque-suave border-destaque ring-destaque/25 flex size-7 items-center justify-center rounded-[8px] border-[1.5px] ring-4 tutorial-pulso">
-          <IconeNovoCaso />
-        </span>
-        <span className="flex size-7 items-center justify-center">
-          <IconeCasos />
-        </span>
-        <span className="flex size-7 items-center justify-center">
-          <IconeRepositorio />
-        </span>
-      </div>
-      <div className="flex flex-1 flex-col gap-2.5 py-3 pr-3">
-        <p className="text-[13px] font-bold">Novo caso</p>
-        {CAMPOS.map((campo, indice) => (
-          <div key={campo.rotulo} className="flex flex-col gap-1">
-            <span className="text-tinta-suave text-[9px] font-medium">{campo.rotulo}</span>
-            <span
-              className={cn(
-                "bg-campo flex h-7 items-center rounded-[6px] border px-2 text-[11px] transition-colors duration-300",
-                indice < preenchidos ? "border-destaque" : "border-borda text-tinta-suave",
-              )}
-            >
-              {indice < preenchidos ? campo.valor : ""}
-            </span>
-          </div>
-        ))}
-        <span
-          className={cn(
-            "bg-acao text-acao-tinta mt-1 flex h-7 w-fit items-center rounded-[6px] px-3 text-[10px] font-semibold transition-transform duration-300",
-            preenchidos > CAMPOS.length && "scale-105",
-          )}
-        >
-          Criar caso
-        </span>
-      </div>
-    </MiniTela>
+    <Cena
+      tela={criado ? "Repositório do caso" : noFormulario ? "Criar novo caso" : "Casos em análise"}
+      barra={{
+        secao: criado ? "repositorio" : noFormulario ? "novo" : "casos",
+        casos: criado ? CASOS_EXEMPLO : [MARIANA, RAFAEL],
+        casoAberto: criado ? CARLOS.id : null,
+        casoNovo: criado ? CARLOS.id : null,
+      }}
+      cursor={{ alvo, clique, marca: indice }}
+    >
+      {criado ? (
+        <TelaRepositorio caso={CARLOS} modo="ao_vivo" resumo="Nada adicionado ainda">
+          <PainelGravacao />
+        </TelaRepositorio>
+      ) : noFormulario ? (
+        <TelaNovoCaso
+          nome={fase(em.digitaNome, em.irCliente)}
+          cliente={fase(em.digitaCliente, em.irArea)}
+          area={indice > em.escolhe ? "trabalhista" : null}
+          foco={foco}
+          listaAberta={indice >= em.irTrabalho && indice <= em.escolhe}
+        />
+      ) : (
+        <TelaCasos itens={OUTROS_CASOS} />
+      )}
+    </Cena>
   );
 }
 
 // ------------------------------------------------------------------- 3. relato
-const MODOS = [
-  { titulo: "Gravar ao vivo", detalhe: "Transcrição ao finalizar", Icone: Mic },
-  { titulo: "Enviar arquivo", detalhe: "Áudio, PDF, DOCX ou TXT", Icone: FileAudio },
-  { titulo: "Escrever", detalhe: "Digite ou cole o relato", Icone: PenLine },
-];
+
+const RELATO = roteiro([
+  { nome: "inicio", ms: 1300, alvo: "iniciar-gravacao" },
+  { nome: "irArquivo", ms: 800, alvo: "modo-arquivo" },
+  { nome: "escolheArquivo", ms: 380, clique: true },
+  { nome: "pegaArquivo", ms: 420, alvo: "origem-arquivo" },
+  { nome: "arrasta", ms: 950, alvo: "soltar" },
+  { nome: "solta", ms: 450 },
+  { nome: "irAnexar", ms: 900, alvo: "anexar" },
+  { nome: "irTexto", ms: 800, alvo: "modo-texto" },
+  { nome: "escolheTexto", ms: 380, clique: true },
+  { nome: "focaRelato", ms: 600, alvo: "relato" },
+  { nome: "digita", ms: 3700 },
+  { nome: "irGerar", ms: 1300, alvo: "gerar-analise" },
+]);
 
 export function CenaRelato() {
-  const atual = useCiclo(MODOS.length, 1700);
+  const { indice, alvo, clique } = useRoteiro(RELATO.batidas, RELATO.em.inicio);
+  const { em } = RELATO;
+  const modo = indice >= em.focaRelato ? "texto" : indice >= em.pegaArquivo ? "arquivo" : "ao_vivo";
+
   return (
-    <MiniTela className="flex flex-col justify-center gap-3">
-      <p className="text-[12px] font-semibold">O que você quer adicionar ao caso?</p>
-      <div className="grid grid-cols-3 gap-2">
-        {MODOS.map(({ titulo, detalhe, Icone }, indice) => {
-          const ativo = indice === atual;
-          return (
-            <div
-              key={titulo}
-              className={cn(
-                "bg-campo flex flex-col gap-1.5 rounded-[10px] border p-2.5 transition-all duration-500",
-                ativo ? "border-destaque ring-destaque/20 -translate-y-0.5 ring-4" : "border-borda",
-              )}
-            >
-              <span
-                className={cn(
-                  "flex size-7 items-center justify-center rounded-[6px] transition-colors duration-500",
-                  ativo ? "bg-destaque text-white" : "bg-destaque-suave text-destaque",
-                )}
-              >
-                <Icone className="size-3.5" aria-hidden />
-              </span>
-              <span className="text-[10.5px] leading-tight font-bold">{titulo}</span>
-              <span className="text-tinta-suave text-[9px] leading-tight">{detalhe}</span>
-            </div>
-          );
-        })}
-      </div>
-      <div className="bg-campo border-borda flex items-center gap-2 rounded-[8px] border px-2.5 py-2">
-        <span className="bg-destaque size-1.5 rounded-full tutorial-pulso" />
-        <span className="text-tinta-suave text-[10px]">
-          {["Gravando a entrevista…", "contrato.pdf anexado ao caso", "Relato salvo no caso"][atual]}
-        </span>
-      </div>
-    </MiniTela>
+    <Cena
+      tela="Repositório do caso"
+      barra={{ secao: "repositorio", casoAberto: CARLOS.id }}
+      cursor={{
+        alvo,
+        clique,
+        marca: indice,
+        arrastando: indice === em.arrasta ? "contrato-de-trabalho.pdf" : undefined,
+      }}
+    >
+      <TelaRepositorio caso={CARLOS} modo={modo} resumo="Nada adicionado ainda">
+        {modo === "ao_vivo" ? (
+          <PainelGravacao />
+        ) : modo === "arquivo" ? (
+          <PainelArquivo anexado={indice >= em.solta} arrastando={indice === em.arrasta} />
+        ) : (
+          <PainelTexto fase={indice < em.digita ? "vazio" : indice === em.digita ? "digitando" : "pronto"} />
+        )}
+      </TelaRepositorio>
+    </Cena>
   );
 }
 
-// ------------------------------------------------------------------- 4. cards
-export const COLUNAS_TUTORIAL = [
-  { titulo: "Teses jurídicas", significado: "Argumentos que sustentam o pedido" },
-  { titulo: "Temas STF/STJ", significado: "Precedentes das cortes superiores" },
-  { titulo: "Jurisprudência", significado: "Decisões parecidas e se o entendimento é majoritário" },
-  { titulo: "Perguntas", significado: "O que confirmar com o cliente" },
-  { titulo: "Necessidades", significado: "Documentos, perícias e chance de acordo" },
-];
+// ------------------------------------------------------------------- 4. gravação
+
+const GRAVACAO = roteiro([
+  { nome: "inicio", ms: 900, alvo: "iniciar-gravacao" },
+  { nome: "inicia", ms: 420, clique: true },
+  { nome: "gravando", ms: 1300, alvo: null },
+  { nome: "irPausar", ms: 650, alvo: "pausar" },
+  { nome: "pausa", ms: 380, clique: true },
+  { nome: "pausada", ms: 750 },
+  { nome: "retoma", ms: 380, clique: true },
+  { nome: "irFinalizar", ms: 800, alvo: "finalizar" },
+  { nome: "finaliza", ms: 380, clique: true },
+  { nome: "modal", ms: 750, alvo: "confirmar-analise" },
+  { nome: "confirma", ms: 380, clique: true },
+  { nome: "processando", ms: 2800, alvo: null },
+  { nome: "pronto", ms: 900, alvo: "ver-analise" },
+  { nome: "verAnalise", ms: 420, clique: true },
+  { nome: "analise", ms: 2100, alvo: null },
+]);
+
+export function CenaGravacao() {
+  const { indice, alvo, clique } = useRoteiro(GRAVACAO.batidas, GRAVACAO.em.irFinalizar);
+  const { em } = GRAVACAO;
+  const noRepositorio = indice <= em.inicia;
+  const naAnalise = indice >= em.analise;
+  const estado =
+    indice >= em.processando
+      ? "encerrada"
+      : indice >= em.modal || (indice >= em.pausada && indice <= em.retoma)
+        ? "pausada"
+        : "gravando";
+
+  return (
+    <Cena
+      tela={noRepositorio ? "Repositório do caso" : naAnalise ? "Análise preliminar de caso" : "Sessão ativa"}
+      barra={{ secao: naAnalise ? "casos" : "repositorio", casoAberto: CARLOS.id }}
+      sobreposicao={
+        indice >= em.modal && indice <= em.confirma ? (
+          <ModalMini className="max-w-[250px]">
+            <ConfirmarAnalise />
+          </ModalMini>
+        ) : null
+      }
+      cursor={{ alvo, clique, marca: indice }}
+    >
+      {noRepositorio ? (
+        <TelaRepositorio caso={CARLOS} modo="ao_vivo" resumo="Nada adicionado ainda">
+          <PainelGravacao />
+        </TelaRepositorio>
+      ) : naAnalise ? (
+        <TelaAnalise caso={CARLOS} />
+      ) : (
+        <TelaSessao
+          caso={CARLOS}
+          estado={estado}
+          corpo={indice >= em.pronto ? "pronto" : indice >= em.processando ? "processando" : "aguardando"}
+        />
+      )}
+    </Cena>
+  );
+}
+
+// ------------------------------------------------------------------- 5. cards
+
+const CARDS = roteiro([
+  { nome: "inicio", ms: 1500, alvo: null },
+  { nome: "teses", ms: 1300, alvo: "card-0-0" },
+  { nome: "temas", ms: 1300, alvo: "card-1-0" },
+  { nome: "juris", ms: 1300, alvo: "card-2-0" },
+  { nome: "perguntas", ms: 1300, alvo: "card-3-0" },
+  { nome: "necessidades", ms: 1300, alvo: "card-4-0" },
+  { nome: "volta", ms: 850, alvo: "card-0-0" },
+  { nome: "abre", ms: 400, clique: true },
+  { nome: "detalhe", ms: 1000 },
+  { nome: "irChat", ms: 1700, alvo: "continuar-chat" },
+]);
 
 export function CenaCards() {
-  const atual = useCiclo(COLUNAS_TUTORIAL.length, 1500);
+  const { indice, alvo, clique } = useRoteiro(CARDS.batidas, CARDS.em.teses);
+  const { em } = CARDS;
+  const percorrendo = indice >= em.teses && indice <= em.necessidades;
+  const realce = percorrendo ? indice - em.teses : indice >= em.volta && indice <= em.abre ? 0 : null;
+
   return (
-    <MiniTela className="flex flex-col gap-2.5">
-      <div className="bg-campo border-borda flex flex-col gap-1 rounded-[8px] border px-2.5 py-2">
-        <span className="text-[10px] font-semibold">Resumo do caso</span>
-        <Linha className="w-full" />
-        <Linha className="w-3/4" />
-      </div>
-      <div className="grid min-h-0 flex-1 grid-cols-5 gap-1.5">
-        {COLUNAS_TUTORIAL.map((coluna, indice) => {
-          const ativo = indice === atual;
-          return (
-            <div key={coluna.titulo} className="flex min-w-0 flex-col gap-1.5">
-              <span
-                className={cn(
-                  "truncate text-[8.5px] font-bold transition-colors duration-300",
-                  ativo ? "text-destaque" : "text-tinta",
-                )}
-              >
-                {coluna.titulo}
-              </span>
-              {[0, 1].map((cartao) => (
-                <span
-                  key={cartao}
-                  className={cn(
-                    "bg-campo flex flex-col gap-1 rounded-[6px] border p-1.5 transition-all duration-500",
-                    ativo ? "border-destaque ring-destaque/20 ring-2" : "border-borda",
-                    cartao === 1 && "opacity-70",
-                  )}
-                >
-                  <Linha className={cn("w-full", ativo && "bg-destaque/60")} />
-                  <Linha className="w-2/3" />
-                </span>
-              ))}
-            </div>
-          );
-        })}
-      </div>
-      <p key={atual} className="text-destaque animate-in fade-in text-center text-[11px] font-semibold duration-500">
-        {COLUNAS_TUTORIAL[atual].titulo}: {COLUNAS_TUTORIAL[atual].significado.toLowerCase()}
-      </p>
-    </MiniTela>
+    <Cena
+      tela="Análise preliminar de caso"
+      barra={{ secao: "casos", casoAberto: CARLOS.id }}
+      sobreposicao={
+        indice >= em.detalhe ? (
+          <ModalMini className="max-w-[270px]">
+            <DetalheCartao />
+          </ModalMini>
+        ) : null
+      }
+      cursor={{ alvo, clique, marca: indice }}
+    >
+      <TelaAnalise caso={CARLOS} realce={realce} legenda={percorrendo} />
+    </Cena>
   );
 }
 
-// ------------------------------------------------------------------- 5. chat
-const CONVERSA = [
-  { papel: "advogado", texto: "Quais documentos ainda faltam?" },
-  { papel: "assistente", texto: "Holerites, cartões de ponto e o extrato do FGTS." },
-  { papel: "advogado", texto: "Ele recebia R$ 400 por Pix, fora do holerite." },
-] as const;
+// ------------------------------------------------------------------- 6. chat
 
-export function CenaChat() {
-  const etapa = useCiclo(CONVERSA.length + 2, 1300);
-  return (
-    <MiniTela className="flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[12px] font-bold">Chat com IA</span>
-        <span
-          className={cn(
-            "bg-campo flex items-center gap-1 rounded-[6px] border px-2 py-1 text-[9px] font-medium transition-all duration-500",
-            etapa > CONVERSA.length ? "border-destaque text-destaque ring-destaque/20 ring-2" : "border-borda",
-          )}
-        >
-          <RefreshCw className={cn("size-2.5", etapa > CONVERSA.length && "animate-spin")} aria-hidden />
-          Atualizar análise com a conversa
-        </span>
-      </div>
-      <div className="flex min-h-0 flex-1 flex-col justify-end gap-1.5">
-        {CONVERSA.slice(0, Math.min(etapa + 1, CONVERSA.length)).map((mensagem, indice) => (
-          <p
-            key={indice}
-            className={cn(
-              "animate-in fade-in slide-in-from-bottom-1 max-w-[85%] rounded-[8px] px-2.5 py-1.5 text-[10px] leading-snug duration-500",
-              mensagem.papel === "advogado"
-                ? "bg-destaque-suave self-end"
-                : "bg-campo border-borda self-start border",
-            )}
-          >
-            {mensagem.texto}
-          </p>
-        ))}
-      </div>
-      <div className="bg-campo border-borda flex h-7 items-center rounded-[6px] border px-2 text-[9px]">
-        <span className="text-tinta-suave">Pergunte algo sobre o caso…</span>
-      </div>
-    </MiniTela>
-  );
-}
+const CHAT = roteiro([
+  { nome: "analise", ms: 1000, alvo: "botao-chat" },
+  { nome: "abre", ms: 400, clique: true },
+  { nome: "chat", ms: 850, alvo: "assunto-1" },
+  { nome: "escolhe", ms: 380, clique: true },
+  { nome: "irEnviar", ms: 620, alvo: "enviar" },
+  { nome: "envia", ms: 380, clique: true },
+  { nome: "pensando", ms: 950 },
+  { nome: "resposta", ms: 1200, alvo: "campo-pergunta" },
+  { nome: "digita", ms: 1900 },
+  { nome: "irEnviar2", ms: 560, alvo: "enviar" },
+  { nome: "envia2", ms: 380, clique: true },
+  { nome: "pensando2", ms: 750 },
+  { nome: "resposta2", ms: 1100, alvo: "atualizar" },
+  { nome: "atualiza", ms: 380, clique: true },
+  { nome: "atualizando", ms: 1300 },
+  { nome: "atualizada", ms: 1800, alvo: "ver-cards" },
+]);
 
-// ------------------------------------------------------------------- 6. lista de casos
-const CASOS_EXEMPLO = ["Rescisão indireta — Carlos", "Plano nega cirurgia — Mariana", "Briga de trânsito — Rafael"];
+const FATO_NOVO = "Ele recebia R$ 400 por Pix, fora do holerite.";
 
-export function CenaCasos() {
-  const passo = useCiclo(4, 1400);
-  // 0: lista · 1: destaca arquivar · 2: destaca excluir · 3: caso foi para o Arquivo
-  return (
-    <MiniTela className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <span className="text-[12px] font-bold">Casos em análise</span>
-        <span
-          className={cn(
-            "text-tinta-suave flex items-center gap-1 rounded-[6px] px-1.5 py-0.5 text-[9px] font-semibold transition-colors duration-500",
-            passo === 3 && "bg-destaque-suave text-destaque",
-          )}
-        >
-          <span className="scale-75">
-            <IconeRepositorio />
-          </span>
-          Arquivados {passo === 3 ? "(1)" : ""}
-        </span>
-      </div>
-      {CASOS_EXEMPLO.map((caso, indice) => {
-        const alvo = indice === 0;
-        const saiu = alvo && passo === 3;
-        return (
-          <div
-            key={caso}
-            className={cn(
-              "bg-superficie border-borda flex items-center gap-2 rounded-[8px] border px-2.5 py-2 transition-all duration-500",
-              saiu && "translate-x-4 opacity-30",
-            )}
-          >
-            <span className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className="truncate text-[10.5px] font-semibold">{caso}</span>
-              <Linha className="w-1/2" />
-            </span>
-            <span
-              className={cn(
-                "flex size-6 items-center justify-center rounded-[6px] transition-all duration-300 [&>span]:scale-75",
-                alvo && passo === 1 && "bg-destaque-suave ring-destaque/30 ring-2",
-              )}
-              title="Arquivar"
-            >
-              <IconeRepositorio />
-            </span>
-            <span
-              className={cn(
-                "flex size-6 items-center justify-center rounded-[6px] transition-all duration-300 [&>span]:scale-75",
-                alvo && passo === 2 && "bg-destructive/15 ring-destructive/30 ring-2",
-              )}
-              title="Excluir"
-            >
-              <IconeLixeira />
-            </span>
-          </div>
-        );
-      })}
-      <p className="text-tinta-suave mt-auto text-center text-[10px]">
-        {["Todos os seus casos ficam aqui", "Arquivar: sai da lista, sem apagar", "Excluir: remove o caso da sua lista", "O caso arquivado fica em Arquivados"][passo]}
-      </p>
-    </MiniTela>
-  );
-}
-
-// ------------------------------------------------------------------- 7. repositório
-// A entrada do repositório (src/app/casos/[casoId]/repositorio/page.tsx) e as abas de
-// Transcrições e documentos (src/app/casos/[casoId]/repositorio/materiais/page.tsx).
-const ABAS = [
+const CONVERSA: MensagemMini[] = [
+  { papel: "advogado", conteudo: ASSUNTOS_CHAT[1] },
   {
-    titulo: "Adicionar",
-    conteudo: "Grave, envie ou escreva o relato",
-    itens: [
-      { nome: "Gravar ao vivo", Icone: Mic },
-      { nome: "Enviar áudio ou documento", Icone: FileAudio },
-      { nome: "Escrever o relato", Icone: PenLine },
-    ],
+    papel: "assistente",
+    conteudo: (
+      <>
+        Faltam os <strong className="font-semibold">holerites</strong>, os{" "}
+        <strong className="font-semibold">cartões de ponto</strong> e o{" "}
+        <strong className="font-semibold">extrato do FGTS</strong>. Com eles você comprova os atrasos.
+      </>
+    ),
   },
-  {
-    titulo: "Transcrições",
-    conteudo: "Todos os relatos do caso, em ordem",
-    itens: ["Transcrição 1", "Transcrição 2", "Transcrição 3"].map((nome) => ({ nome, Icone: FileText })),
-  },
-  {
-    titulo: "Documentos",
-    conteudo: "Arquivos anexados ao caso",
-    itens: ["contrato.pdf", "negativa.pdf", "laudo.docx"].map((nome) => ({ nome, Icone: FileText })),
-  },
+  { papel: "advogado", conteudo: FATO_NOVO },
+  { papel: "assistente", conteudo: "Anotado. O valor pago por fora integra o salário e entra no cálculo das verbas." },
 ];
 
-export function CenaRepositorio() {
-  const atual = useCiclo(ABAS.length, 1600);
+export function CenaChat() {
+  const { indice, alvo, clique } = useRoteiro(CHAT.batidas, CHAT.em.atualizada);
+  const { em } = CHAT;
+  const naAnalise = indice <= em.abre;
+  const mensagens = CONVERSA.slice(
+    0,
+    indice >= em.resposta2 ? 4 : indice >= em.pensando2 ? 3 : indice >= em.resposta ? 2 : indice >= em.pensando ? 1 : 0,
+  );
+  const pensando = indice === em.pensando || indice === em.pensando2;
+  const atualizacao = indice >= em.atualizada ? "pronta" : indice >= em.atualizando ? "atualizando" : "nenhuma";
+  const pergunta =
+    indice >= em.irEnviar && indice <= em.envia ? (
+      ASSUNTOS_CHAT[1]
+    ) : indice === em.digita ? (
+      <TextoDigitado texto={FATO_NOVO} fase="digitando" />
+    ) : indice >= em.irEnviar2 && indice <= em.envia2 ? (
+      FATO_NOVO
+    ) : null;
+
   return (
-    <MiniTela className="flex flex-col gap-2.5">
-      <span className="text-[12px] font-bold">Repositório do caso</span>
-      <div className="border-borda flex gap-3 border-b">
-        {ABAS.map((aba, indice) => (
-          <span
-            key={aba.titulo}
-            className={cn(
-              "-mb-px border-b-2 pb-1.5 text-[10px] font-semibold transition-colors duration-300",
-              indice === atual ? "border-destaque text-destaque" : "text-tinta-suave border-transparent",
-            )}
-          >
-            {aba.titulo}
-          </span>
-        ))}
-      </div>
-      <div key={atual} className="animate-in fade-in slide-in-from-right-2 flex flex-1 flex-col gap-2 duration-500">
-        <p className="text-[11px] font-semibold">{ABAS[atual].conteudo}</p>
-        {ABAS[atual].itens.map(({ nome, Icone }) => (
-          <span key={nome} className="bg-campo border-borda flex items-center gap-2 rounded-[8px] border px-2.5 py-2">
-            <Icone className="text-destaque size-3.5 shrink-0" aria-hidden />
-            <span className="flex flex-1 flex-col gap-1">
-              <span className="text-[10px] font-semibold">{nome}</span>
-              <Linha className="w-2/3" />
-            </span>
-          </span>
-        ))}
-      </div>
-    </MiniTela>
+    <Cena
+      tela={naAnalise ? "Análise preliminar de caso" : "Chat com IA"}
+      barra={{ secao: "casos", casoAberto: CARLOS.id }}
+      cursor={{ alvo, clique, marca: indice }}
+    >
+      {naAnalise ? (
+        <TelaAnalise caso={CARLOS} />
+      ) : (
+        <TelaChat
+          caso={CARLOS}
+          mensagens={mensagens}
+          pergunta={pergunta}
+          assunto={indice >= em.irEnviar && indice <= em.envia ? 1 : null}
+          pensando={pensando}
+          podeAtualizar={mensagens.length > 1 && !pensando && atualizacao !== "atualizando"}
+          atualizacao={atualizacao}
+        />
+      )}
+    </Cena>
   );
 }
 
-// ------------------------------------------------------------------- 8. final
-export function CenaPronto() {
+// ------------------------------------------------------------------- 7. peças
+
+const PECAS = roteiro([
+  { nome: "analise", ms: 1000, alvo: "botao-pecas" },
+  { nome: "abre", ms: 400, clique: true },
+  { nome: "catalogo", ms: 1300, alvo: "modelo-reclamacao" },
+  { nome: "escolhe", ms: 400, clique: true },
+  { nome: "modelo", ms: 800, alvo: "orientacoes" },
+  { nome: "foca", ms: 300, clique: true },
+  { nome: "digita", ms: 1500 },
+  { nome: "irGerar", ms: 650, alvo: "gerar-minuta" },
+  { nome: "gera", ms: 400, clique: true },
+  { nome: "gerando", ms: 1600 },
+  { nome: "minuta", ms: 1200, alvo: "baixar-docx" },
+  { nome: "baixa", ms: 400, clique: true },
+  { nome: "fim", ms: 1500 },
+]);
+
+const ORIENTACOES = "Incluir pedido de justiça gratuita.";
+
+export function CenaPecas() {
+  const { indice, alvo, clique } = useRoteiro(PECAS.batidas, PECAS.em.minuta);
+  const { em } = PECAS;
+  const naAnalise = indice <= em.abre;
+  const naMinuta = indice >= em.minuta;
+
   return (
-    <MiniTela className="flex flex-col items-center justify-center gap-3">
-      <span className="bg-destaque-suave text-destaque flex size-14 items-center justify-center rounded-full tutorial-pulso">
-        <Sparkles className="size-6" aria-hidden />
-      </span>
-      <p className="text-[15px] font-bold">Tudo pronto</p>
-      <span className="bg-acao text-acao-tinta flex h-8 items-center rounded-[8px] px-3 text-[11px] font-semibold">
-        + Novo caso
-      </span>
-    </MiniTela>
+    <Cena
+      tela={naAnalise ? "Análise preliminar de caso" : "Peças processuais"}
+      barra={{ secao: "casos", casoAberto: CARLOS.id }}
+      sobreposicao={
+        indice >= em.modelo && indice <= em.gerando ? (
+          <ModalMini className="max-w-[330px]">
+            <ModeloReclamacao
+              gerando={indice === em.gerando}
+              orientacoes={
+                indice < em.digita ? null : <TextoDigitado texto={ORIENTACOES} fase={indice === em.digita ? "digitando" : "pronto"} />
+              }
+            />
+          </ModalMini>
+        ) : null
+      }
+      cursor={{ alvo, clique, marca: indice }}
+    >
+      {naAnalise ? <TelaAnalise caso={CARLOS} /> : naMinuta ? <TelaMinuta /> : <TelaPecas caso={CARLOS} />}
+    </Cena>
+  );
+}
+
+// ------------------------------------------------------------------- 8. casos
+
+const CASOS = roteiro([
+  { nome: "inicio", ms: 1000, alvo: "trilha-casos" },
+  { nome: "abre", ms: 400, clique: true },
+  { nome: "lista", ms: 900, alvo: "arquivar-mariana" },
+  { nome: "dica", ms: 800 },
+  { nome: "arquiva", ms: 400, clique: true },
+  { nome: "saindo", ms: 520 },
+  { nome: "saiu", ms: 800, alvo: "excluir-rafael" },
+  { nome: "dicaExcluir", ms: 1000 },
+  { nome: "irCaso", ms: 800, alvo: "caso-carlos" },
+  { nome: "abreCaso", ms: 400, clique: true },
+  { nome: "analise", ms: 2200, alvo: null },
+]);
+
+export function CenaCasos() {
+  const { indice, alvo, clique } = useRoteiro(CASOS.batidas, CASOS.em.dica);
+  const { em } = CASOS;
+  const noRepositorio = indice <= em.abre;
+  const naAnalise = indice >= em.analise;
+  const arquivou = indice >= em.saindo;
+  const itens: ItemListaMini[] = [
+    { caso: CARLOS, status: "Em análise", data: "Hoje" },
+    {
+      caso: MARIANA,
+      status: "Em análise",
+      data: "Ontem",
+      estado: indice >= em.saiu ? "saiu" : indice === em.saindo ? "saindo" : undefined,
+    },
+    { caso: RAFAEL, status: "Gravação pendente", data: DATA_RECENTE },
+  ];
+
+  return (
+    <Cena
+      tela={noRepositorio ? "Repositório do caso" : naAnalise ? "Análise preliminar de caso" : "Casos em análise"}
+      barra={{
+        secao: noRepositorio ? "repositorio" : "casos",
+        casos: arquivou ? [CARLOS, RAFAEL] : CASOS_EXEMPLO,
+        casoAberto: noRepositorio || naAnalise ? CARLOS.id : null,
+      }}
+      cursor={{ alvo, clique, marca: indice }}
+    >
+      {noRepositorio ? (
+        <TelaRepositorio caso={CARLOS} modo="ao_vivo" resumo={MATERIAIS_DO_CARLOS}>
+          <PainelGravacao />
+        </TelaRepositorio>
+      ) : naAnalise ? (
+        <TelaAnalise caso={CARLOS} />
+      ) : (
+        <TelaCasos itens={itens} realceArquivados={arquivou && indice < em.irCaso} />
+      )}
+    </Cena>
+  );
+}
+
+// ------------------------------------------------------------------- 9. repositório
+
+const REPOSITORIO = roteiro([
+  { nome: "analise", ms: 1000, alvo: "trilha-repositorio" },
+  { nome: "abre", ms: 400, clique: true },
+  { nome: "repositorio", ms: 1300, alvo: "card-materiais" },
+  { nome: "abreMateriais", ms: 400, clique: true },
+  { nome: "materiais", ms: 1300, alvo: "aba-documentos" },
+  { nome: "aba", ms: 400, clique: true },
+  { nome: "documentos", ms: 1300, alvo: "adicionar-ao-caso" },
+  { nome: "adiciona", ms: 400, clique: true },
+  { nome: "volta", ms: 1800, alvo: null },
+]);
+
+export function CenaRepositorio() {
+  const { indice, alvo, clique } = useRoteiro(REPOSITORIO.batidas, REPOSITORIO.em.materiais);
+  const { em } = REPOSITORIO;
+  const naAnalise = indice <= em.abre;
+  const nosMateriais = indice > em.abreMateriais && indice <= em.adiciona;
+
+  return (
+    <Cena
+      tela={naAnalise ? "Análise preliminar de caso" : nosMateriais ? "Transcrições e documentos" : "Repositório do caso"}
+      barra={{ secao: naAnalise ? "casos" : "repositorio", casoAberto: CARLOS.id }}
+      cursor={{ alvo, clique, marca: indice }}
+    >
+      {naAnalise ? (
+        <TelaAnalise caso={CARLOS} />
+      ) : nosMateriais ? (
+        <TelaMateriais caso={CARLOS} aba={indice >= em.documentos ? "documentos" : "transcricao"} />
+      ) : (
+        <TelaRepositorio caso={CARLOS} modo="ao_vivo" resumo={MATERIAIS_DO_CARLOS}>
+          <PainelGravacao />
+        </TelaRepositorio>
+      )}
+    </Cena>
+  );
+}
+
+// ------------------------------------------------------------------- 10. pronto
+
+const PRONTO = roteiro([
+  { nome: "inicio", ms: 1000, alvo: "conta" },
+  { nome: "abreMenu", ms: 380, clique: true },
+  { nome: "menu", ms: 750, alvo: "menu-configuracoes" },
+  { nome: "abreConfiguracoes", ms: 380, clique: true },
+  { nome: "configuracoes", ms: 900, alvo: "ver-tutorial" },
+  { nome: "segura", ms: 1900 },
+  { nome: "novo", ms: 1700, alvo: "trilha-novo" },
+]);
+
+export function CenaPronto() {
+  const { indice, alvo, clique } = useRoteiro(PRONTO.batidas, PRONTO.em.configuracoes);
+  const { em } = PRONTO;
+
+  return (
+    <Cena
+      tela="Criar novo caso"
+      barra={{ secao: "novo", casos: [], menuConta: indice >= em.menu && indice <= em.abreConfiguracoes }}
+      sobreposicao={
+        indice >= em.configuracoes && indice <= em.segura ? (
+          <ModalMini className="max-w-[280px]">
+            <ConfiguracoesMini />
+          </ModalMini>
+        ) : null
+      }
+      cursor={{ alvo, clique, marca: indice }}
+    >
+      <TelaNovoCaso />
+    </Cena>
   );
 }
