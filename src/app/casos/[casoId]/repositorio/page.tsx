@@ -3,7 +3,7 @@
 import { useEffect, useId, useState, type ComponentType } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { FileAudio, FileText, FolderOpen, Mic, PenLine } from "lucide-react";
+import { ChevronRight, FileAudio, FileText, FolderOpen, Mic, PenLine, ShieldCheck } from "lucide-react";
 
 import { ModalConfirmar } from "@/components/casos/modal-confirmar";
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
@@ -32,6 +32,9 @@ type ModoRelato = "ao_vivo" | "arquivo" | "texto";
 
 const MINIMO_RELATO = 50;
 const MAXIMO_DOCUMENTOS = 10;
+
+const contagem = (total: number, singular: string, plural: string) =>
+  `${total} ${total === 1 ? singular : plural}`;
 
 const MODOS: { valor: ModoRelato; titulo: string; descricao: string; Icone: ComponentType<{ className?: string }> }[] = [
   {
@@ -280,49 +283,59 @@ export default function PaginaRepositorio() {
   const caracteres = relato.trim().length;
   const etapas =
     modo === "ao_vivo" || (modo === "arquivo" && veioDeAudio) ? ETAPAS_AUDIO : ETAPAS_TEXTO;
-  const totalMateriais = totalRelatos + anexados.length;
+  const resumoMateriais =
+    totalRelatos || anexados.length
+      ? `${contagem(totalRelatos, "transcrição", "transcrições")} · ${contagem(anexados.length, "documento", "documentos")}`
+      : "Nada adicionado ainda";
 
   return (
     <>
-      {/* O topo tem a mesma largura do conteúdo, para o atalho ficar alinhado aos cards. */}
-      <header className="w-full shrink-0 px-7 pt-5 pb-2 max-[700px]:px-4">
-        <div className="flex w-full max-w-[880px] flex-wrap items-center justify-between gap-x-4 gap-y-3">
-          <div className="flex min-w-0 flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <BotaoVoltar destino="/casos" desabilitado={processando} />
-              <h1 className="text-[22px] leading-none font-bold">Repositório do caso</h1>
+      <header className="flex w-full shrink-0 flex-col gap-1 px-7 pt-5 pb-2 max-[700px]:px-4">
+        <div className="flex items-center gap-2">
+          <BotaoVoltar destino="/casos" desabilitado={processando} />
+          <h1 className="text-[22px] leading-none font-bold">Repositório do caso</h1>
+        </div>
+        <p className="text-[13px]">{caso.titulo}</p>
+      </header>
+
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-7 pt-4 pb-7 max-[700px]:px-4">
+        {/* Situação do caso antes de adicionar: o consentimento e o que já está no repositório. */}
+        <div className="grid w-full max-w-[880px] gap-3 md:grid-cols-2">
+          <section className="bg-campo border-borda flex items-center gap-3 rounded-[10px] border px-4 py-3">
+            <span className="bg-destaque-suave text-destaque flex size-9 shrink-0 items-center justify-center rounded-[8px]">
+              <ShieldCheck className="size-4" aria-hidden />
+            </span>
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <h2 className="text-[13px] font-semibold">Consentimento do cliente</h2>
+              <p className="text-tinta-suave text-[12px] leading-snug">
+                O cliente foi informado e autorizou a gravação e o processamento dos dados para fins
+                jurídicos.
+              </p>
             </div>
-            <p className="text-[13px]">{caso.titulo}</p>
-          </div>
+          </section>
 
           <Link
             href={`/casos/${casoId}/repositorio/materiais`}
             aria-disabled={processando || undefined}
             tabIndex={processando ? -1 : undefined}
             className={cn(
-              "pressionavel bg-campo border-borda hover:border-destaque/60 flex h-8 shrink-0 items-center gap-1.5 rounded-[8px] border px-3 text-[12px] font-semibold",
+              "group bg-campo border-borda hover:border-destaque/60 flex items-center gap-3 rounded-[10px] border px-4 py-3 transition-colors",
               processando && "pointer-events-none opacity-50",
             )}
           >
-            <FolderOpen className="text-destaque size-3.5" aria-hidden />
-            Transcrições e documentos
-            {totalMateriais ? (
-              <span className="bg-destaque-suave text-destaque min-w-[18px] rounded-full px-1.5 text-center text-[11px] leading-[18px] font-semibold">
-                {totalMateriais}
-              </span>
-            ) : null}
+            <span className="bg-destaque-suave text-destaque flex size-9 shrink-0 items-center justify-center rounded-[8px]">
+              <FolderOpen className="size-4" aria-hidden />
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="text-[13px] font-semibold">Transcrições e documentos</span>
+              <span className="text-tinta-suave text-[12px]">{resumoMateriais}</span>
+            </span>
+            <ChevronRight
+              className="text-tinta-suave group-hover:text-destaque size-4 shrink-0 transition-transform group-hover:translate-x-0.5"
+              aria-hidden
+            />
           </Link>
         </div>
-      </header>
-
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-7 pt-4 pb-7 max-[700px]:px-4">
-        <section className="bg-campo border-borda flex w-full max-w-[880px] flex-col gap-1.5 rounded-[10px] border px-4 py-3">
-          <h2 className="text-[13px] font-semibold">Consentimento do cliente</h2>
-          <p className="text-tinta-suave text-[12px]">
-            O cliente foi informado e autorizou a gravação e o processamento dos dados para fins
-            jurídicos.
-          </p>
-        </section>
 
         <section className="flex w-full max-w-[880px] flex-col gap-3">
           <div className="flex flex-col gap-0.5">
