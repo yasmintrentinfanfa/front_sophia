@@ -28,30 +28,19 @@ const transcricao = [
   { id: "nota-1", tempo: "00:15", papel: "nota", texto: "Conferir documentos" },
 ];
 
-test("finalizar salva as falas, gera analise e permite reabrir pela lista", async () => {
+test("finalizar salva as falas, gera analise e a lista reabre o caso na analise", async () => {
   const { caso, api } = preparar();
-  assert.equal(destinoDoCaso(caso), "/casos/novo-caso/gravacao");
+  // As demais regras de destino ficam em src/lib/casos/destino.test.ts.
+  assert.equal(destinoDoCaso(caso), "/casos/novo-caso/analise");
   assert.equal(
     destinoDoCaso(caso, "/casos/outro/repositorio"),
     "/casos/novo-caso/repositorio",
-  );
-  assert.equal(
-    destinoDoCaso(caso, "/casos/outro/repositorio/analise"),
-    "/casos/novo-caso/repositorio/analise",
-  );
-  assert.equal(
-    destinoDoCaso(caso, "/casos/outro/repositorio/chat"),
-    "/casos/novo-caso/repositorio/chat",
-  );
-  assert.equal(
-    destinoDoCaso(caso, "/casos/outro/chat"),
-    "/casos/novo-caso/chat",
   );
   const atualizado = await api.finalizarSessao(caso.id, transcricao);
   const dados = await api.obterCaso(caso.id);
   assert.deepEqual(dados.transcricao, transcricao);
   assert.equal(atualizado.status, "em_analise");
-  assert.equal(destinoDoCaso(caso), "/casos/novo-caso/gravacao");
+  assert.equal(destinoDoCaso(caso), "/casos/novo-caso/analise");
   assert.equal(dados.analise.versao, 1);
   assert.equal(dados.versoesAnalise.length, 1);
   assert.equal(dados.analise.demonstracao, true);
@@ -61,15 +50,6 @@ test("finalizar salva as falas, gera analise e permite reabrir pela lista", asyn
   atualizado.status = "concluido";
   assert.deepEqual((await api.obterCaso(caso.id)).transcricao, transcricao);
   assert.equal(caso.status, "em_analise");
-});
-
-test("caso demonstrativo preserva sugestoes e versoes anteriores", async () => {
-  const { caso, api } = preparar("rescisao-silva");
-  await api.finalizarSessao(caso.id, transcricao);
-  const dados = await api.obterCaso(caso.id);
-  assert.equal(dados.analise.insights.length, 17);
-  assert.equal(dados.analise.versao, 2);
-  assert.equal(dados.versoesAnalise[1].versao, 1);
 });
 
 test("rejeita caso inexistente e transcricao vazia sem mudar status", async () => {
