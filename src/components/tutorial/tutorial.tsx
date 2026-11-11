@@ -86,7 +86,6 @@ const PASSOS: Passo[] = [
     itens: [
       { nome: "Adicionar ao caso", detalhe: "grave, envie um áudio ou documento, ou escreva o relato" },
       { nome: "Transcrições e documentos", detalhe: "tudo o que já entrou no caso" },
-      { nome: "Arquivar ou excluir", detalhe: "no topo da tela, ao lado do atalho" },
     ],
     Cena: CenaRepositorio,
   },

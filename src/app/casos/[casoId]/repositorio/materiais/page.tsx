@@ -33,27 +33,30 @@ function Materiais({ dados }: { dados: DadosCaso }) {
 
   return (
     <>
-      <header className="flex w-full shrink-0 flex-wrap items-start justify-between gap-3 px-7 pt-5 pb-2 max-[700px]:px-4">
-        <div className="flex min-w-0 flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <BotaoVoltar destino={destinoRepositorio} />
-            <h1 className="text-[22px] leading-none font-bold">Transcrições e documentos</h1>
+      {/* Mesma largura do conteúdo, como no repositório: o botão fica alinhado à lista. */}
+      <header className="w-full shrink-0 px-7 pt-5 pb-2 max-[700px]:px-4">
+        <div className="flex w-full max-w-[880px] flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          <div className="flex min-w-0 flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <BotaoVoltar destino={destinoRepositorio} />
+              <h1 className="text-[22px] leading-none font-bold">Transcrições e documentos</h1>
+            </div>
+            <p className="text-[13px]">{dados.titulo}</p>
           </div>
-          <p className="text-[13px]">{dados.titulo}</p>
+          <Link
+            href={destinoRepositorio}
+            className="pressionavel bg-acao text-acao-tinta flex h-8 shrink-0 items-center gap-1.5 rounded-[8px] px-3 text-[12px] font-semibold"
+          >
+            <Plus className="size-3.5" aria-hidden />
+            Adicionar ao caso
+          </Link>
         </div>
-        <Link
-          href={destinoRepositorio}
-          className="pressionavel bg-acao text-acao-tinta flex h-8 items-center gap-1.5 rounded-[8px] px-3 text-[12px] font-semibold"
-        >
-          <Plus className="size-3.5" aria-hidden />
-          Adicionar ao caso
-        </Link>
       </header>
 
-      <Tabs.Root defaultValue="transcricao" className="flex min-h-0 flex-1 flex-col">
+      <Tabs.Root defaultValue="transcricao" className="flex min-h-0 flex-1 flex-col px-7 max-[700px]:px-4">
         <Tabs.List
           aria-label="Conteúdo do repositório"
-          className="flex min-h-11 shrink-0 flex-wrap items-start gap-2 px-7 max-[700px]:px-4"
+          className="flex min-h-11 shrink-0 flex-wrap items-start gap-2"
         >
           {abas.map((aba) => (
             <Tabs.Tab
@@ -67,7 +70,7 @@ function Materiais({ dados }: { dados: DadosCaso }) {
           ))}
         </Tabs.List>
 
-        <Tabs.Panel value="transcricao" className="flex max-w-[880px] flex-col gap-[10px] px-7 pt-4 pb-6 max-[700px]:px-4">
+        <Tabs.Panel value="transcricao" className="flex w-full max-w-[880px] flex-col gap-[10px] pt-4 pb-6">
           {dados.transcricao.length ? (
             dados.transcricao.map((fala, indice) => (
               <article
@@ -98,7 +101,7 @@ function Materiais({ dados }: { dados: DadosCaso }) {
           )}
         </Tabs.Panel>
 
-        <Tabs.Panel value="documentos" className="flex max-w-[880px] flex-col gap-[10px] px-7 pt-4 pb-6 max-[700px]:px-4">
+        <Tabs.Panel value="documentos" className="flex w-full max-w-[880px] flex-col gap-[10px] pt-4 pb-6">
           {dados.documentos.length ? (
             dados.documentos.map((item) => (
               <button

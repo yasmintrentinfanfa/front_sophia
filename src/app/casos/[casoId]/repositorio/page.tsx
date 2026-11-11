@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useId, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useId, useState, type ComponentType } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Archive, ArchiveRestore, FileAudio, FileText, FolderOpen, Mic, PenLine, Trash2 } from "lucide-react";
+import { FileAudio, FileText, FolderOpen, Mic, PenLine } from "lucide-react";
 
 import { ModalConfirmar } from "@/components/casos/modal-confirmar";
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
@@ -13,7 +13,6 @@ import { SeletorArquivos, idDoArquivo, type ItemFila } from "@/components/gravac
 import type { ConteudoCaso } from "@/lib/api/analise";
 import { duracaoDoAudio } from "@/lib/arquivos/duracao-audio";
 import { ehAudio, ehDocumento } from "@/lib/arquivos/ler-documento";
-import { pastaDoCaso, rotuloCaso } from "@/lib/casos/rotulo";
 import { formatarDuracao } from "@/lib/formato";
 import { api } from "@/lib/api";
 import {
@@ -57,20 +56,17 @@ const MODOS: { valor: ModoRelato; titulo: string; descricao: string; Icone: Comp
 
 /**
  * Repositório do caso: a porta de entrada para somar material (gravar, enviar ou escrever),
- * com o atalho para o que já entrou e as ações de arquivar e excluir o caso.
+ * com o atalho para o que já entrou. Arquivar e excluir ficam na lista de casos.
  */
 export default function PaginaRepositorio() {
   const router = useRouter();
   const idRelato = useId();
   const { casoId } = useParams<{ casoId: string }>();
-  const { casos, carregando, finalizarSessao, moverCaso, excluirCaso } = useListaCasos();
+  const { casos, carregando, finalizarSessao } = useListaCasos();
   const [modo, setModo] = useState<ModoRelato>("ao_vivo");
   const [fila, setFila] = useState<ItemFila[]>([]);
   const [anexados, setAnexados] = useState<DocumentoSalvo[]>([]);
   const [totalRelatos, setTotalRelatos] = useState(0);
-  const [acaoCaso, setAcaoCaso] = useState<"arquivar" | "excluir" | null>(null);
-  const [movendo, setMovendo] = useState(false);
-  const [erroAcao, setErroAcao] = useState("");
   const [progressoDocs, setProgressoDocs] = useState("");
   const [okDocs, setOkDocs] = useState("");
   const [relato, setRelato] = useState("");
@@ -273,38 +269,6 @@ export default function PaginaRepositorio() {
     }
   }
 
-  /** Arquivado, o caso sai de "Casos em análise"; a lista de arquivados mostra para onde ele foi. */
-  async function arquivar() {
-    setErroAcao("");
-    setMovendo(true);
-    try {
-      await moverCaso(casoId, "arquivo");
-      router.push("/casos/arquivo");
-    } catch (falha) {
-      setErroAcao(falha instanceof Error ? falha.message : "Não foi possível arquivar o caso.");
-      setMovendo(false);
-    }
-  }
-
-  async function restaurar() {
-    setErro("");
-    setMovendo(true);
-    try {
-      await moverCaso(casoId, "ativo");
-    } catch (falha) {
-      setErro(falha instanceof Error ? falha.message : "Não foi possível restaurar o caso.");
-    } finally {
-      setMovendo(false);
-    }
-  }
-
-  /** Sai da tela antes de apagar: sem o caso na lista, esta rota mostraria "Caso não encontrado". */
-  function excluir() {
-    setAcaoCaso(null);
-    router.replace("/casos");
-    void excluirCaso(casoId).catch(() => {});
-  }
-
   if (carregando) {
     return <p className="text-tinta-suave px-7 pt-6 text-[13px]">Carregando caso…</p>;
   }
@@ -316,33 +280,27 @@ export default function PaginaRepositorio() {
   const caracteres = relato.trim().length;
   const etapas =
     modo === "ao_vivo" || (modo === "arquivo" && veioDeAudio) ? ETAPAS_AUDIO : ETAPAS_TEXTO;
-  const arquivado = pastaDoCaso(caso) === "arquivo";
   const totalMateriais = totalRelatos + anexados.length;
-  const ocupado = processando || movendo;
 
   return (
     <>
-      <header className="flex w-full shrink-0 flex-wrap items-start justify-between gap-x-4 gap-y-3 px-7 pt-5 pb-2 max-[700px]:px-4">
-        <div className="flex min-w-0 flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <BotaoVoltar destino="/casos" desabilitado={processando} />
-            <h1 className="text-[22px] leading-none font-bold">Repositório do caso</h1>
-            {arquivado ? (
-              <span className="bg-chip text-meta border-borda rounded-full border px-2 py-0.5 text-[11px] font-medium">
-                Arquivado
-              </span>
-            ) : null}
+      {/* O topo tem a mesma largura do conteúdo, para o atalho ficar alinhado aos cards. */}
+      <header className="w-full shrink-0 px-7 pt-5 pb-2 max-[700px]:px-4">
+        <div className="flex w-full max-w-[880px] flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          <div className="flex min-w-0 flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <BotaoVoltar destino="/casos" desabilitado={processando} />
+              <h1 className="text-[22px] leading-none font-bold">Repositório do caso</h1>
+            </div>
+            <p className="text-[13px]">{caso.titulo}</p>
           </div>
-          <p className="text-[13px]">{caso.titulo}</p>
-        </div>
 
-        <div className="flex shrink-0 items-center gap-1.5">
           <Link
             href={`/casos/${casoId}/repositorio/materiais`}
             aria-disabled={processando || undefined}
             tabIndex={processando ? -1 : undefined}
             className={cn(
-              "pressionavel bg-campo border-borda hover:border-destaque/60 flex h-8 items-center gap-1.5 rounded-[8px] border px-3 text-[12px] font-semibold",
+              "pressionavel bg-campo border-borda hover:border-destaque/60 flex h-8 shrink-0 items-center gap-1.5 rounded-[8px] border px-3 text-[12px] font-semibold",
               processando && "pointer-events-none opacity-50",
             )}
           >
@@ -354,26 +312,6 @@ export default function PaginaRepositorio() {
               </span>
             ) : null}
           </Link>
-          <span aria-hidden className="bg-borda mx-1 h-5 w-px" />
-          {arquivado ? (
-            <BotaoAcaoCaso rotulo="Restaurar caso" desabilitado={ocupado} aoClicar={() => void restaurar()}>
-              <ArchiveRestore />
-            </BotaoAcaoCaso>
-          ) : (
-            <BotaoAcaoCaso
-              rotulo="Arquivar caso"
-              desabilitado={ocupado}
-              aoClicar={() => {
-                setErroAcao("");
-                setAcaoCaso("arquivar");
-              }}
-            >
-              <Archive />
-            </BotaoAcaoCaso>
-          )}
-          <BotaoAcaoCaso rotulo="Excluir caso" perigo desabilitado={ocupado} aoClicar={() => setAcaoCaso("excluir")}>
-            <Trash2 />
-          </BotaoAcaoCaso>
         </div>
       </header>
 
@@ -657,56 +595,6 @@ export default function PaginaRepositorio() {
         aoFechar={() => router.push(`/casos/${casoId}/repositorio/materiais`)}
         aoConfirmar={() => void atualizarAnalise()}
       />
-      <ModalConfirmar
-        aberto={acaoCaso === "arquivar"}
-        titulo="Arquivar caso"
-        descricao={`“${rotuloCaso(caso)}” sai de Casos em análise e vai para Arquivados. Você pode restaurar quando quiser.`}
-        confirmar={movendo ? "Arquivando…" : "Arquivar"}
-        processando={movendo}
-        erro={erroAcao}
-        aoFechar={() => setAcaoCaso(null)}
-        aoConfirmar={() => void arquivar()}
-      />
-      <ModalConfirmar
-        aberto={acaoCaso === "excluir"}
-        titulo="Excluir caso"
-        descricao={`Apagar “${rotuloCaso(caso)}”? Esta ação não pode ser desfeita.`}
-        confirmar="Excluir"
-        aoFechar={() => setAcaoCaso(null)}
-        aoConfirmar={excluir}
-      />
     </>
-  );
-}
-
-function BotaoAcaoCaso({
-  rotulo,
-  aoClicar,
-  desabilitado,
-  perigo = false,
-  children,
-}: {
-  rotulo: string;
-  aoClicar: () => void;
-  desabilitado: boolean;
-  perigo?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      title={rotulo}
-      aria-label={rotulo}
-      disabled={desabilitado}
-      onClick={aoClicar}
-      className={cn(
-        "pressionavel border-borda bg-campo text-tinta-suave flex size-8 items-center justify-center rounded-[8px] border disabled:opacity-50 [&_svg]:size-4",
-        perigo
-          ? "hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
-          : "hover:text-tinta hover:border-destaque/60",
-      )}
-    >
-      {children}
-    </button>
   );
 }

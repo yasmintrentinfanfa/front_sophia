@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Archive, FileAudio, FileText, Mic, PenLine, RefreshCw, Sparkles, Trash2 } from "lucide-react";
+import { FileAudio, FileText, Mic, PenLine, RefreshCw, Sparkles } from "lucide-react";
 
 import { IconeCasos, IconeNovoCaso, IconeRepositorio, IconeLixeira } from "@/components/casos/icones-trilha";
 import { cn } from "@/lib/utils";
@@ -374,13 +374,7 @@ export function CenaRepositorio() {
   const atual = useCiclo(ABAS.length, 1600);
   return (
     <MiniTela className="flex flex-col gap-2.5">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[12px] font-bold">Repositório do caso</span>
-        <span className="text-tinta-suave flex items-center gap-1.5" aria-hidden>
-          <Archive className="size-3" />
-          <Trash2 className="size-3" />
-        </span>
-      </div>
+      <span className="text-[12px] font-bold">Repositório do caso</span>
       <div className="border-borda flex gap-3 border-b">
         {ABAS.map((aba, indice) => (
           <span
