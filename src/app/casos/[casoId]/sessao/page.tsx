@@ -235,7 +235,7 @@ export default function PaginaSessaoAtiva() {
     <>
       <header className="flex min-h-14 w-full shrink-0 flex-wrap items-center justify-between gap-3 px-7 pt-4 pb-2 max-[700px]:px-4">
         <BotaoVoltar
-          destino={`/casos/${casoId}/gravacao`}
+          destino={`/casos/${casoId}/repositorio`}
           desabilitado={processando}
           aoVoltar={() => {
             estadoAntesDoFim.current = estado;
@@ -368,7 +368,7 @@ export default function PaginaSessaoAtiva() {
         dispensar="Só gravar no repositório"
         processando={gerandoAnalise}
         erro={erro}
-        aoFechar={() => router.push(`/casos/${casoId}/repositorio`)}
+        aoFechar={() => router.push(`/casos/${casoId}/repositorio/materiais`)}
         aoConfirmar={() => {
           void (async () => {
             setGerandoAnalise(true);
@@ -391,9 +391,9 @@ export default function PaginaSessaoAtiva() {
       />
       <ModalConfirmar
         aberto={confirmarSaida}
-        titulo="Voltar para a gravação?"
+        titulo="Voltar ao repositório?"
         descricao="A sessão atual será interrompida sem gerar uma análise."
-        confirmar="Voltar para a gravação"
+        confirmar="Voltar ao repositório"
         aoFechar={() => {
           setConfirmarSaida(false);
           setEstado(estadoAntesDoFim.current);
@@ -401,7 +401,7 @@ export default function PaginaSessaoAtiva() {
         }}
         aoConfirmar={() => {
           soltarMicrofone();
-          router.replace(`/casos/${casoId}/gravacao`);
+          router.replace(`/casos/${casoId}/repositorio`);
         }}
       />
     </>

@@ -1,19 +1,7 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { TelaAnalise } from "@/components/analise/tela-analise";
-import { ConteudoCaso } from "@/components/fluxo/conteudo-caso";
-
-export default function PaginaAnaliseRepositorio() {
-  return (
-    <ConteudoCaso>
-      {(dados) => (
-        <TelaAnalise
-          dados={dados}
-          destinoVoltar={`/casos/${dados.casoId}/repositorio`}
-          destinoChat={`/casos/${dados.casoId}/repositorio/chat`}
-          destinoPecas={`/casos/${dados.casoId}/repositorio/pecas`}
-        />
-      )}
-    </ConteudoCaso>
-  );
+/** Endereço antigo: a análise do caso fica em "Casos em análise", fora do repositório. */
+export default async function PaginaAnaliseRepositorio({ params }: { params: Promise<{ casoId: string }> }) {
+  const { casoId } = await params;
+  redirect(`/casos/${encodeURIComponent(casoId)}/analise`);
 }

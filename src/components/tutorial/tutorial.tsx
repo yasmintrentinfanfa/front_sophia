@@ -72,7 +72,7 @@ const PASSOS: Passo[] = [
   {
     rotulo: "Casos",
     titulo: "Gerencie seus casos",
-    texto: "Em Casos em análise ficam todos os seus casos.",
+    texto: "Em Casos em análise ficam todos os seus casos. Clique num caso para abrir a análise, com o chat e as peças.",
     itens: [
       { nome: "Arquivar", detalhe: "tira da lista sem apagar; fica em Arquivados" },
       { nome: "Excluir", detalhe: "remove o caso da sua lista" },
@@ -84,9 +84,9 @@ const PASSOS: Passo[] = [
     titulo: "Tudo do caso num só lugar",
     texto: "Com o caso aberto, clique no ícone de pasta da barra lateral para abrir o Repositório:",
     itens: [
-      { nome: "Transcrição", detalhe: "todos os relatos, numerados" },
-      { nome: "Documentos", detalhe: "arquivos anexados" },
-      { nome: "Análise", detalhe: "os cards do caso" },
+      { nome: "Adicionar ao caso", detalhe: "grave, envie um áudio ou documento, ou escreva o relato" },
+      { nome: "Transcrições e documentos", detalhe: "tudo o que já entrou no caso" },
+      { nome: "Arquivar ou excluir", detalhe: "no topo da tela, ao lado do atalho" },
     ],
     Cena: CenaRepositorio,
   },

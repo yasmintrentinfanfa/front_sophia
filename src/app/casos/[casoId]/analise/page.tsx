@@ -9,7 +9,7 @@ export default function PaginaAnalise() {
       {(dados) => (
         <TelaAnalise
           dados={dados}
-          destinoVoltar={`/casos/${dados.casoId}/gravacao`}
+          destinoVoltar="/casos"
           destinoChat={`/casos/${dados.casoId}/chat`}
           destinoPecas={`/casos/${dados.casoId}/pecas`}
         />
