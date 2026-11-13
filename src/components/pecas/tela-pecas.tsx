@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ChevronRight, Clock, FileText, Search } from "lucide-react";
+import { ArrowLeft, ChevronRight, Clock, Search } from "lucide-react";
 
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
 import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
 import { ConteudoCaso } from "@/components/fluxo/conteudo-caso";
+import { HistoricoMinutas } from "@/components/pecas/historico-minutas";
 import { IconeFase } from "@/components/pecas/icone-fase";
 import { MinutaPeca } from "@/components/pecas/minuta-peca";
 import { ModalModeloPeca } from "@/components/pecas/modal-modelo-peca";
@@ -19,7 +20,6 @@ import {
   type ModeloPeca,
   type PecaGerada,
 } from "@/lib/api/pecas";
-import { formatarDataHora } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 
 const TODOS = "todos";
@@ -123,6 +123,11 @@ function Pecas({
     setPecaAberta(peca);
   }
 
+  async function excluirPeca(peca: PecaGerada) {
+    await pecasApi.excluir(casoId, peca.id);
+    setPecas((atuais) => atuais.filter((item) => item.id !== peca.id));
+  }
+
   async function abrirPeca(id: string) {
     setAbrindo(id);
     setErro("");
@@ -179,35 +184,12 @@ function Pecas({
               </section>
             ) : null}
 
-            {pecas.length ? (
-              <section className="flex w-full max-w-[880px] flex-col gap-2" aria-label="Minutas deste caso">
-                <h2 className="text-[15px] font-semibold">Minutas deste caso</h2>
-                <ul className="flex flex-col gap-2">
-                  {pecas.map((peca) => (
-                    <li key={peca.id}>
-                      <button
-                        type="button"
-                        onClick={() => void abrirPeca(peca.id)}
-                        disabled={abrindo !== null}
-                        className="pressionavel bg-campo border-borda hover:border-destaque/60 flex w-full items-center gap-3 rounded-[10px] border px-4 py-3 text-left disabled:opacity-60"
-                      >
-                        <FileText className="text-destaque size-4 shrink-0" aria-hidden />
-                        <span className="flex min-w-0 flex-1 flex-col">
-                          <span className="truncate text-[13px] font-semibold">{peca.titulo}</span>
-                          <span className="text-tinta-suave text-[11px]">
-                            {formatarDataHora(peca.geradaEm)}
-                          </span>
-                        </span>
-                        <span className="text-destaque shrink-0 text-[12px] font-semibold max-[450px]:hidden">
-                          {abrindo === peca.id ? "Abrindo…" : "Abrir"}
-                        </span>
-                        <ChevronRight className="text-destaque size-4 shrink-0 min-[451px]:hidden" aria-hidden />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
+            <HistoricoMinutas
+              pecas={pecas}
+              abrindo={abrindo}
+              aoAbrir={(id) => void abrirPeca(id)}
+              aoExcluir={excluirPeca}
+            />
 
             <section className="flex w-full flex-col gap-3" aria-label="Modelos de peça">
               <div className="flex flex-col gap-0.5">
