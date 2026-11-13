@@ -1352,7 +1352,8 @@ export function ConfiguracoesMini() {
         <X className="size-3.5" />
       </span>
       <p className="text-[12.5px] font-semibold">Configurações</p>
-      <p className="text-tinta-suave mt-0.5 text-[9.5px]">Tema, cor, pagamento, tutorial e sessão</p>
+      {/* MVP sem plano. Texto original: "Tema, cor, pagamento, tutorial e sessão" */}
+      <p className="text-tinta-suave mt-0.5 text-[9.5px]">Tema, cor, tutorial e sessão</p>
       <div className="mt-2.5 flex flex-col gap-1.5">
         <LinhaConfiguracao
           titulo="Aparência"
@@ -1372,9 +1373,10 @@ export function ConfiguracoesMini() {
             ))}
           </span>
         </LinhaConfiguracao>
+        {/* MVP sem plano: o modal real não tem mais o cartão de Pagamento. Original:
         <LinhaConfiguracao titulo="Pagamento" detalhe="Plano Básico">
           <Botao variante="contorno">Alterar</Botao>
-        </LinhaConfiguracao>
+        </LinhaConfiguracao> */}
         <LinhaConfiguracao titulo="Tutorial" detalhe="Rever o passo a passo da Sophia">
           <Botao
             alvo="ver-tutorial"

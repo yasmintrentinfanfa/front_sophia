@@ -506,7 +506,8 @@ function BarraMini({
           <div className="bg-trilha -mt-2 flex shrink-0 flex-col rounded-br-[8px] pt-4">
             <div className="flex h-8 flex-col justify-center pr-2 pb-1.5 pl-2">
               <p className="truncate text-[10.5px] leading-tight font-semibold">Ana Souza</p>
-              <p className="text-tinta-suave truncate text-[9px] leading-tight">Básico</p>
+              {/* MVP sem plano: a barra real não mostra mais o plano. Original:
+              <p className="text-tinta-suave truncate text-[9px] leading-tight">Básico</p> */}
             </div>
           </div>
         </div>

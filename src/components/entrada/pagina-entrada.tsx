@@ -2,11 +2,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { FileSearch, FileText, FolderOpen, MessageCircle, Mic } from "lucide-react";
 
-import { IconeCheck } from "@/components/assinatura/icones";
+// MVP sem plano: IconeCheck, OFERTA_ASSINATURA e cn só serviam à seção de planos. Original:
+// import { IconeCheck } from "@/components/assinatura/icones";
 import { LinkTermos } from "@/components/login/link-termos";
 import { BotaoTema } from "@/components/tema/botao-tema";
-import { OFERTA_ASSINATURA } from "@/lib/api/mock/dados";
-import { cn } from "@/lib/utils";
+// import { OFERTA_ASSINATURA } from "@/lib/api/mock/dados";
+// import { cn } from "@/lib/utils";
 
 const BENEFICIOS = [
   {
@@ -69,9 +70,10 @@ export function PaginaEntrada() {
             <a href="#beneficios" className="pressionavel hover:text-tinta">
               O que faz
             </a>
+            {/* MVP sem plano: o link saiu junto com a seção de planos. Para voltar, descomente:
             <a href="#planos" className="pressionavel hover:text-tinta">
               Planos
-            </a>
+            </a> */}
           </nav>
 
           <div className="flex items-center gap-2">
@@ -195,6 +197,8 @@ export function PaginaEntrada() {
           </div>
         </section>
 
+        {/* MVP sem plano: a seção de planos saiu da página. Para voltar, descomente a seção inteira
+        (até "fim da seção de planos") e os imports de IconeCheck, OFERTA_ASSINATURA e cn no topo.
         <section id="planos" className="flex scroll-mt-24 flex-col gap-8">
           <div className="flex max-w-xl flex-col gap-2">
             <h2 className="text-[24px] font-bold">Planos pensados para o volume do escritório</h2>
@@ -243,12 +247,15 @@ export function PaginaEntrada() {
             </ul>
           </div>
         </section>
+        fim da seção de planos */}
 
         <section className="bg-destaque-suave flex flex-col items-start gap-5 rounded-[20px] px-6 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <div className="flex max-w-lg flex-col gap-2">
             <h2 className="text-[22px] font-bold">Pronto para o próximo atendimento?</h2>
             <p className="text-tinta-suave text-[14px] leading-relaxed">
-              Entre na sua conta ou crie uma. A escolha do plano fica para depois, com calma.
+              {/* MVP sem plano. Texto original:
+              Entre na sua conta ou crie uma. A escolha do plano fica para depois, com calma. */}
+              Entre na sua conta ou crie uma para começar.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">

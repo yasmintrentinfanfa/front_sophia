@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+// MVP sem plano: useEffect, useState e Link só serviam ao cartão de Pagamento. Original:
+// import { useEffect, useState } from "react";
+// import Link from "next/link";
 import { X } from "lucide-react";
 
 import { IconeTelefone } from "@/components/casos/icones-trilha";
@@ -9,9 +10,10 @@ import { BotaoTema } from "@/components/tema/botao-tema";
 import { SeletorDestaque } from "@/components/tema/seletor-destaque";
 import { useTutorial } from "@/components/tutorial/contexto-tutorial";
 import { Modal } from "@/components/ui/modal";
-import { api } from "@/lib/api";
-import type { ResumoAssinatura } from "@/lib/api/types";
-import { descreverCartao } from "@/lib/pagamento/cartao";
+// MVP sem plano: imports do cartão de Pagamento. Original:
+// import { api } from "@/lib/api";
+// import type { ResumoAssinatura } from "@/lib/api/types";
+// import { descreverCartao } from "@/lib/pagamento/cartao";
 
 interface ModalConfiguracoesProps {
   aberto: boolean;
@@ -30,7 +32,8 @@ export function ModalConfiguracoes({
       aberto={aberto}
       aoFechar={aoFechar}
       titulo="Configurações"
-      descricao="Tema, cor, pagamento, tutorial e sessão"
+      // MVP sem plano. Original: descricao="Tema, cor, pagamento, tutorial e sessão"
+      descricao="Tema, cor, tutorial e sessão"
       className="relative max-w-[340px]"
     >
       <button
@@ -55,7 +58,8 @@ export function ModalConfiguracoes({
 
         <SeletorDestaque />
 
-        <CartaoPagamento />
+        {/* MVP sem plano: o cartão de Pagamento (plano e botão Alterar) saiu da tela. Para voltar, descomente:
+        <CartaoPagamento /> */}
 
         <div className="border-borda flex items-center justify-between rounded-[10px] border px-3 py-2.5">
           <div className="flex flex-col gap-0.5">
@@ -99,52 +103,55 @@ export function ModalConfiguracoes({
   );
 }
 
-/** Montado só com o modal aberto, então sempre mostra o plano atual depois de uma troca. */
-function CartaoPagamento() {
-  const [assinatura, setAssinatura] = useState<ResumoAssinatura | null | undefined>(undefined);
-
-  useEffect(() => {
-    let ativo = true;
-    api
-      .obterUsuarioAtual()
-      .then((usuario) => {
-        if (ativo) setAssinatura(usuario?.assinatura ?? null);
-      })
-      .catch(() => {
-        if (ativo) setAssinatura(null);
-      });
-    return () => {
-      ativo = false;
-    };
-  }, []);
-
-  return (
-    <div className="border-borda flex items-center justify-between gap-3 rounded-[10px] border px-3 py-2.5">
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <p className="text-[13px] font-semibold">Pagamento</p>
-        {assinatura === undefined ? (
-          <p className="text-tinta-suave text-[12px]">Carregando…</p>
-        ) : assinatura ? (
-          <>
-            <p className="text-[12px]">Plano {assinatura.nomePlano}</p>
-            {/* MVP: conta ativada sem cartão não tem cartão para mostrar. Original:
-            <p className="text-tinta-suave text-[12px]">Cartão {descreverCartao(assinatura.cartao)}</p> */}
-            {assinatura.cartao.final ? (
-              <p className="text-tinta-suave text-[12px]">Cartão {descreverCartao(assinatura.cartao)}</p>
-            ) : null}
-          </>
-        ) : (
-          <p className="text-tinta-suave text-[12px]">Nenhuma assinatura encontrada</p>
-        )}
-      </div>
-      {assinatura ? (
-        <Link
-          href="/plano"
-          className="pressionavel border-borda bg-campo flex h-8 shrink-0 items-center rounded-[8px] border px-3 text-[12px] font-semibold"
-        >
-          Alterar
-        </Link>
-      ) : null}
-    </div>
-  );
-}
+// MVP sem plano: o cartão de Pagamento saiu da tela. Para voltar, descomente a função abaixo,
+// os imports marcados no topo e o <CartaoPagamento /> no modal.
+//
+// /** Montado só com o modal aberto, então sempre mostra o plano atual depois de uma troca. */
+// function CartaoPagamento() {
+//   const [assinatura, setAssinatura] = useState<ResumoAssinatura | null | undefined>(undefined);
+//
+//   useEffect(() => {
+//     let ativo = true;
+//     api
+//       .obterUsuarioAtual()
+//       .then((usuario) => {
+//         if (ativo) setAssinatura(usuario?.assinatura ?? null);
+//       })
+//       .catch(() => {
+//         if (ativo) setAssinatura(null);
+//       });
+//     return () => {
+//       ativo = false;
+//     };
+//   }, []);
+//
+//   return (
+//     <div className="border-borda flex items-center justify-between gap-3 rounded-[10px] border px-3 py-2.5">
+//       <div className="flex min-w-0 flex-col gap-0.5">
+//         <p className="text-[13px] font-semibold">Pagamento</p>
+//         {assinatura === undefined ? (
+//           <p className="text-tinta-suave text-[12px]">Carregando…</p>
+//         ) : assinatura ? (
+//           <>
+//             <p className="text-[12px]">Plano {assinatura.nomePlano}</p>
+//             {/* MVP: conta ativada sem cartão não tem cartão para mostrar. Original:
+//             <p className="text-tinta-suave text-[12px]">Cartão {descreverCartao(assinatura.cartao)}</p> */}
+//             {assinatura.cartao.final ? (
+//               <p className="text-tinta-suave text-[12px]">Cartão {descreverCartao(assinatura.cartao)}</p>
+//             ) : null}
+//           </>
+//         ) : (
+//           <p className="text-tinta-suave text-[12px]">Nenhuma assinatura encontrada</p>
+//         )}
+//       </div>
+//       {assinatura ? (
+//         <Link
+//           href="/plano"
+//           className="pressionavel border-borda bg-campo flex h-8 shrink-0 items-center rounded-[8px] border px-3 text-[12px] font-semibold"
+//         >
+//           Alterar
+//         </Link>
+//       ) : null}
+//     </div>
+//   );
+// }

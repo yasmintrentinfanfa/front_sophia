@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { ModalClausulas } from "@/components/casos/modal-clausulas";
 import { contaApi } from "@/lib/api/conta";
 import { gravarAceiteClausulas } from "@/lib/clausulas";
+import { rotaInicial } from "@/lib/conta";
 
 import { CampoConta } from "./campo-conta";
 
@@ -15,7 +16,7 @@ export function FormularioCriarConta() {
   const formulario = useRef<HTMLFormElement>(null);
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
-  /** Conta já criada: falta só aceitar os termos para seguir ao plano e ao cartão. */
+  /** Conta já criada: falta só aceitar os termos para seguir. */
   const [contaCriada, setContaCriada] = useState(false);
   const [clausulasAbertas, setClausulasAbertas] = useState(false);
 
@@ -23,10 +24,12 @@ export function FormularioCriarConta() {
   async function aceitarTermos() {
     setErro("");
     try {
-      await contaApi.aceitarTermos();
+      const usuario = await contaApi.aceitarTermos();
       gravarAceiteClausulas();
       setClausulasAbertas(false);
-      router.push("/assinatura");
+      // MVP sem plano: a conta nova vai direto para os casos (regra em `rotaInicial`). Original:
+      // router.push("/assinatura");
+      router.push(rotaInicial(usuario));
     } catch (falha) {
       setClausulasAbertas(false);
       setErro(falha instanceof Error ? falha.message : "Não foi possível registrar o aceite dos termos.");
@@ -130,7 +133,9 @@ export function FormularioCriarConta() {
         <p role="status" className="text-tinta-suave text-[12px]">
           {/* MVP: etapa do cartão desligada. Texto original:
           Conta criada. Para continuar para o plano e o pagamento, aceite os termos de uso. */}
-          Conta criada. Para continuar para o plano, aceite os termos de uso.
+          {/* MVP sem plano: escolha do plano desligada. Texto anterior:
+          Conta criada. Para continuar para o plano, aceite os termos de uso. */}
+          Conta criada. Para continuar, aceite os termos de uso.
         </p>
       ) : null}
       <button
