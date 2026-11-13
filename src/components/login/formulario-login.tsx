@@ -23,7 +23,7 @@ export function FormularioLogin() {
   const [clausulasAbertas, setClausulasAbertas] = useState(false);
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
-  /** Quem ainda não pagou a assinatura vai para ela em vez dos casos. */
+  /** Para onde seguir depois do aceite (`rotaInicial`; no MVP sem plano, sempre os casos). */
   const [destino, setDestino] = useState("/casos");
 
   async function entrar() {

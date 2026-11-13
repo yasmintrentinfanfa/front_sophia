@@ -138,8 +138,13 @@ describe("conta pelas rotas do Next", () => {
       }),
     );
     const usuario = await contaApi.obterUsuarioAtual();
-    expect(usuario).toMatchObject({ id: "98ff6434-655e-486f-b255-1bd89542ea7f", nome: "Ana Silva" });
-    expect(redirecionamentoDosCasos(usuario)).toBe("/assinatura");
+    expect(usuario).toMatchObject({
+      id: "98ff6434-655e-486f-b255-1bd89542ea7f",
+      nome: "Ana Silva",
+      statusConta: "pagamento_pendente",
+    });
+    // MVP sem plano: mesmo assim entra nos casos. Com os planos de volta, o esperado é "/assinatura".
+    expect(redirecionamentoDosCasos(usuario)).toBeNull();
   });
 
   it("traz plano e cartão da assinatura para a conta, sem valores", async () => {

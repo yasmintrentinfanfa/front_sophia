@@ -17,7 +17,9 @@ import { ModalConfiguracoes } from "@/components/casos/modal-configuracoes";
 import { ModalConfirmar } from "@/components/casos/modal-confirmar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
-import type { Caso, IdPlano, Usuario } from "@/lib/api/types";
+// MVP sem plano: `IdPlano` saiu do import junto com CORES_PLANO. Original:
+// import type { Caso, IdPlano, Usuario } from "@/lib/api/types";
+import type { Caso, Usuario } from "@/lib/api/types";
 import { destinoDoCaso, estaNoRepositorio } from "@/lib/casos/destino";
 import { IconeArea } from "@/components/casos/icone-area";
 import { pastaDoCaso, rotuloCaso } from "@/lib/casos/rotulo";
@@ -230,9 +232,10 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
               <p className="truncate text-[13px] leading-tight font-semibold">
                 {usuario?.nome.trim() || "Conta"}
               </p>
+              {/* MVP sem plano: o nome do plano saiu do perfil. Para voltar, descomente:
               <p className="text-tinta-suave truncate text-[11px] leading-tight">
                 {usuario?.assinatura?.nomePlano || "Sem plano"}
-              </p>
+              </p> */}
             </div>
             </div>
           </div>
@@ -403,17 +406,22 @@ function iniciais(nome: string) {
   return `${partes[0][0]}${partes[partes.length - 1][0]}`.toUpperCase();
 }
 
-/** Fora da paleta de destaque: ouro, carmesim e café. */
-const CORES_PLANO: Record<IdPlano, string> = {
-  basico: "bg-[#c4a35a] text-[#241c10]",
-  intermediario: "bg-[#9c3044] text-[#fff6f6]",
-  pro: "bg-[#6e4b2a] text-[#fff6ec]",
-};
+// MVP sem plano: a cor do círculo não indica mais o plano. Todo mundo fica com o ouro, que já era
+// a cor de quem não tinha plano. Para voltar, descomente CORES_PLANO e classeDoPlano (e o
+// `IdPlano` no import) e troque COR_CONTA por `classeDoPlano(usuario?.assinatura?.planoId)`.
+const COR_CONTA = "bg-[#c4a35a] text-[#241c10]";
 
-function classeDoPlano(planoId?: IdPlano) {
-  if (!planoId) return CORES_PLANO.basico;
-  return CORES_PLANO[planoId];
-}
+// /** Fora da paleta de destaque: ouro, carmesim e café. */
+// const CORES_PLANO: Record<IdPlano, string> = {
+//   basico: "bg-[#c4a35a] text-[#241c10]",
+//   intermediario: "bg-[#9c3044] text-[#fff6f6]",
+//   pro: "bg-[#6e4b2a] text-[#fff6ec]",
+// };
+//
+// function classeDoPlano(planoId?: IdPlano) {
+//   if (!planoId) return CORES_PLANO.basico;
+//   return CORES_PLANO[planoId];
+// }
 
 /** Círculo da conta, que abre tema, configurações e sair. */
 function ContaUsuario({
@@ -439,7 +447,8 @@ function ContaUsuario({
       onClick={aoAlternar}
       className={cn(
         "flex size-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold",
-        classeDoPlano(usuario?.assinatura?.planoId),
+        // MVP sem plano. Original: classeDoPlano(usuario?.assinatura?.planoId),
+        COR_CONTA,
       )}
     >
       {usuario ? iniciais(nome) : "·"}

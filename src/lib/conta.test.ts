@@ -17,8 +17,9 @@ describe("acesso a /casos", () => {
     expect(redirecionamentoDosCasos(null)).toBe("/login");
   });
 
-  it("manda para a assinatura quem ainda não pagou", () => {
-    expect(redirecionamentoDosCasos(usuario("pagamento_pendente"))).toBe("/assinatura");
+  // MVP sem plano: conta sem assinatura também entra. Com os planos de volta, o esperado é "/assinatura".
+  it("libera quem ainda não escolheu plano", () => {
+    expect(redirecionamentoDosCasos(usuario("pagamento_pendente"))).toBeNull();
   });
 
   it("libera quem tem assinatura ativa", () => {
@@ -27,8 +28,9 @@ describe("acesso a /casos", () => {
 });
 
 describe("rota depois de entrar ou criar conta", () => {
-  it("segue o status da conta", () => {
-    expect(rotaInicial(usuario("pagamento_pendente"))).toBe("/assinatura");
+  it("vai para os casos, com ou sem plano", () => {
+    // MVP sem plano. Com os planos de volta: pagamento_pendente → "/assinatura".
+    expect(rotaInicial(usuario("pagamento_pendente"))).toBe("/casos");
     expect(rotaInicial(usuario("ativa"))).toBe("/casos");
   });
 });
