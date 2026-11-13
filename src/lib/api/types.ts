@@ -146,6 +146,11 @@ export interface SophiaApi {
   solicitarAnalise(casoId: string, opcoes?: OpcoesAnalise): Promise<AnalisePreliminar[]>;
   listarMensagens(casoId: string): Promise<MensagemChat[]>;
   enviarMensagem(casoId: string, conteudo: string): Promise<MensagemChat[]>;
+  /**
+   * Igual a `enviarMensagem`, com a resposta chegando em trechos por `aoTrecho` enquanto a IA
+   * escreve. Ausente onde não há streaming (mock); aí o chat usa `enviarMensagem`.
+   */
+  enviarMensagemAoVivo?(casoId: string, conteudo: string, aoTrecho: (texto: string) => void): Promise<MensagemChat[]>;
 
   /** `null` quando não há sessão. */
   obterUsuarioAtual(): Promise<Usuario | null>;

@@ -94,6 +94,7 @@ const PASSOS: Passo[] = [
     texto: "No topo da análise, clique em Chat com IA para tirar dúvidas sobre o caso.",
     itens: [
       { nome: "Sugestões", detalhe: "perguntas prontas para começar" },
+      { nome: "Anexar no +", detalhe: "escreva algo sobre o arquivo ou envie só ele; fica salvo no repositório" },
       { nome: "Fato novo?", detalhe: "conte no chat e clique em “Atualizar análise com a conversa”" },
     ],
     Cena: CenaChat,
@@ -130,7 +131,7 @@ const PASSOS: Passo[] = [
     texto: "Com o caso aberto, clique no ícone de pasta da barra lateral para voltar ao Repositório:",
     itens: [
       { nome: "Adicionar ao caso", detalhe: "grave, envie ou escreva um relato novo" },
-      { nome: "Transcrições e documentos", detalhe: "tudo o que já entrou no caso" },
+      { nome: "Transcrições e documentos", detalhe: "tudo o que já entrou no caso; documento errado sai na lixeira" },
       { nome: "Material novo", detalhe: "você escolhe se atualiza a análise com ele" },
     ],
     Cena: CenaRepositorio,
