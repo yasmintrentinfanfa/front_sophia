@@ -3,13 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Tabs } from "@base-ui/react/tabs";
-import { FileText, Plus } from "lucide-react";
+import { FileText, Plus, Trash2 } from "lucide-react";
 
+import { ModalConfirmar } from "@/components/casos/modal-confirmar";
 import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
 import { ConteudoCaso } from "@/components/fluxo/conteudo-caso";
 import { ModalFluxo } from "@/components/fluxo/modal-fluxo";
 import type { ConteudoCaso as DadosCaso, DocumentoCaso } from "@/lib/api/analise";
 import { formatarDataHora } from "@/lib/formato";
+import { excluirDocumentoDoCaso } from "@/lib/transcricao/fluxo";
 import { cn } from "@/lib/utils";
 
 const VERIFICACAO: Record<DocumentoCaso["sanitizacao"]["status"], string> = {
@@ -25,11 +27,30 @@ export default function PaginaMateriais() {
 
 function Materiais({ dados }: { dados: DadosCaso }) {
   const [documento, setDocumento] = useState<DocumentoCaso | null>(null);
+  const [documentos, setDocumentos] = useState(dados.documentos);
+  const [paraExcluir, setParaExcluir] = useState<DocumentoCaso | null>(null);
+  const [excluindo, setExcluindo] = useState(false);
+  const [erroExcluir, setErroExcluir] = useState<string>();
   const destinoRepositorio = `/casos/${dados.casoId}/repositorio`;
   const abas = [
     { id: "transcricao", titulo: "Transcrições", total: dados.transcricao.length },
-    { id: "documentos", titulo: "Documentos", total: dados.documentos.length },
+    { id: "documentos", titulo: "Documentos", total: documentos.length },
   ];
+
+  async function excluir() {
+    if (!paraExcluir) return;
+    setExcluindo(true);
+    setErroExcluir(undefined);
+    try {
+      await excluirDocumentoDoCaso(dados.casoId, paraExcluir.id);
+      setDocumentos((lista) => lista.filter((item) => item.id !== paraExcluir.id));
+      setParaExcluir(null);
+    } catch (falha) {
+      setErroExcluir(falha instanceof Error ? falha.message : "Não foi possível excluir o documento.");
+    } finally {
+      setExcluindo(false);
+    }
+  }
 
   return (
     <>
@@ -102,25 +123,41 @@ function Materiais({ dados }: { dados: DadosCaso }) {
         </Tabs.Panel>
 
         <Tabs.Panel value="documentos" className="flex w-full max-w-[880px] flex-col gap-[10px] pt-4 pb-6">
-          {dados.documentos.length ? (
-            dados.documentos.map((item) => (
-              <button
-                type="button"
+          {documentos.length ? (
+            documentos.map((item) => (
+              <div
                 key={item.id}
-                onClick={() => setDocumento(item)}
-                className="pressionavel border-borda bg-campo hover:border-destaque/60 flex min-h-12 items-center gap-3 rounded-[10px] border px-4 py-3 text-left"
+                className="border-borda bg-campo hover:border-destaque/60 flex min-h-12 items-center gap-1 rounded-[10px] border pr-2 transition-colors"
               >
-                <FileText className="text-destaque size-4 shrink-0" aria-hidden />
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="truncate text-[13px] font-medium">{item.nome}</span>
-                  <span className="text-tinta-suave text-[11px]">
-                    {[item.tipo, VERIFICACAO[item.sanitizacao.status], item.criadoEm ? formatarDataHora(item.criadoEm) : ""]
-                      .filter(Boolean)
-                      .join(" · ")}
+                <button
+                  type="button"
+                  onClick={() => setDocumento(item)}
+                  className="flex min-w-0 flex-1 items-center gap-3 rounded-[10px] py-3 pl-4 text-left"
+                >
+                  <FileText className="text-destaque size-4 shrink-0" aria-hidden />
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="truncate text-[13px] font-medium">{item.nome}</span>
+                    <span className="text-tinta-suave text-[11px]">
+                      {[item.tipo, VERIFICACAO[item.sanitizacao.status], item.criadoEm ? formatarDataHora(item.criadoEm) : ""]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
                   </span>
-                </span>
-                <span className="text-destaque shrink-0 text-[12px] font-semibold">Ver texto</span>
-              </button>
+                  <span className="text-destaque shrink-0 px-1 text-[12px] font-semibold">Ver texto</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErroExcluir(undefined);
+                    setParaExcluir(item);
+                  }}
+                  aria-label={`Excluir o documento ${item.nome}`}
+                  title="Excluir documento"
+                  className="text-tinta-suave flex size-8 shrink-0 items-center justify-center rounded-[8px] transition-colors hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400"
+                >
+                  <Trash2 className="size-4" aria-hidden />
+                </button>
+              </div>
             ))
           ) : (
             <Vazio texto="Nenhum documento neste caso ainda." destino={destinoRepositorio} />
@@ -140,6 +177,23 @@ function Materiais({ dados }: { dados: DadosCaso }) {
           </p>
         ) : null}
       </ModalFluxo>
+
+      <ModalConfirmar
+        aberto={paraExcluir !== null}
+        titulo="Excluir este documento?"
+        descricao={
+          paraExcluir
+            ? `“${paraExcluir.nome}” sai do repositório, e a IA deixa de considerá-lo no chat e nas próximas análises. As análises já geradas continuam no histórico.`
+            : ""
+        }
+        confirmar={excluindo ? "Excluindo…" : "Excluir documento"}
+        processando={excluindo}
+        erro={erroExcluir}
+        aoFechar={() => {
+          if (!excluindo) setParaExcluir(null);
+        }}
+        aoConfirmar={() => void excluir()}
+      />
     </>
   );
 }

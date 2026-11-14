@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { Loader2, Paperclip, Sparkles } from "lucide-react";
 
 import { ListaAnalises } from "@/components/analise/lista-analises";
+import { useAnexarDocumento } from "@/components/arquivos/use-anexar-documento";
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
 import { EditorAreaCaso } from "@/components/casos/editor-area-caso";
 import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
@@ -38,6 +39,15 @@ function haRelatoNovo(dados: DadosCaso, analises: DadosCaso["versoesAnalise"]) {
   });
 }
 
+/** Cita o arquivo mais recente pelo nome e conta os demais, para o advogado reconhecer o que entrou. */
+function descreverPendentes(pendentes: { nome?: string }[]) {
+  const ultimo = pendentes.at(-1)?.nome;
+  const outros = pendentes.length - 1;
+  if (!ultimo) return "Um PDF, DOCX ou TXT entrou depois da última análise. Atualize para os cards considerarem o arquivo.";
+  if (outros <= 0) return `“${ultimo}” entrou depois da última análise. Atualize para os cards considerarem o arquivo.`;
+  return `“${ultimo}” e mais ${outros} ${outros === 1 ? "arquivo entraram" : "arquivos entraram"} depois da última análise. Atualize para os cards considerarem os arquivos.`;
+}
+
 /** Por que a tela pede para gerar ou atualizar a análise; null = está em dia. */
 type Motivo = "sem_analise" | "arquivo" | "relato" | "area" | null;
 
@@ -65,9 +75,26 @@ export function TelaAnalise({
   const [gerando, setGerando] = useState(false);
   const [erro, setErro] = useState("");
   const [atualizou, setAtualizou] = useState(false);
+  /** Documentos anexados por esta tela; `dados` só traz os que já existiam ao abrir. */
+  const [anexadosAqui, setAnexadosAqui] = useState<{ id: string; nome: string }[]>([]);
+  const [erroAnexo, setErroAnexo] = useState("");
+  const { enviando: anexando, abrirSeletor, propsDaEntrada } = useAnexarDocumento(dados.casoId, {
+    aoComecar: () => setErroAnexo(""),
+    aoAnexar(_id, documento) {
+      setAnexadosAqui((lista) => [...lista, { id: documento.id, nome: documento.nome }]);
+      // O aviso "Há um arquivo novo no caso" volta a aparecer, com o botão de atualizar.
+      setAtualizou(false);
+    },
+    aoFalhar: setErroAnexo,
+  });
   const temRelato =
-    (dados.transcricao ?? []).some((fala) => fala.texto.trim()) || (dados.documentos ?? []).length > 0;
-  const pendentes = documentosPendentes(dados, analises);
+    (dados.transcricao ?? []).some((fala) => fala.texto.trim()) ||
+    (dados.documentos ?? []).length + anexadosAqui.length > 0;
+  const cobertos = new Set(analises.flatMap((item) => [...(item.fontesIds ?? []), item.fonteId]));
+  const pendentes = [
+    ...documentosPendentes(dados, analises),
+    ...anexadosAqui.filter((documento) => !cobertos.has(documento.id)),
+  ];
   const visivel = analises.at(-1) ?? null;
   const nomeArea = areaPorId(areaDoCaso)?.nome;
   const nomeAreaDaAnalise = areaPorId(visivel?.area)?.nome;
@@ -109,7 +136,7 @@ export function TelaAnalise({
     : motivo === "sem_analise"
       ? "Gere os cards de teses, jurisprudência, perguntas e necessidades a partir do relato."
       : motivo === "arquivo"
-        ? "Um PDF, DOCX ou TXT entrou depois da última análise. Atualize para os cards considerarem o arquivo."
+        ? descreverPendentes(pendentes)
         : motivo === "relato"
           ? "Ele foi registrado depois da última análise. Atualize para os cards acompanharem o que foi dito."
           : motivo === "area"
@@ -134,6 +161,22 @@ export function TelaAnalise({
               Gerar nova análise
             </button>
           ) : null}
+          <button
+            type="button"
+            onClick={abrirSeletor}
+            disabled={anexando !== null}
+            title="PDF, Word ou TXT. O arquivo fica salvo no repositório do caso."
+            className="pressionavel text-tinta-suave hover:text-tinta hover:bg-tinta/5 flex h-8 items-center gap-1.5 rounded-[8px] px-3 text-[12px] font-medium whitespace-nowrap disabled:opacity-60 max-[700px]:px-2"
+          >
+            {anexando ? (
+              <Loader2 className="size-3.5 animate-spin" aria-hidden />
+            ) : (
+              <Paperclip className="size-3.5" aria-hidden />
+            )}
+            {/* No celular fica só o clipe; o nome continua para leitores de tela e no title. */}
+            <span className="max-[700px]:sr-only">{anexando ? "Anexando…" : "Anexar documento"}</span>
+          </button>
+          <input {...propsDaEntrada} />
           <Link
             href={destinoPecas}
             className="pressionavel bg-campo border-borda flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-medium"
@@ -149,6 +192,11 @@ export function TelaAnalise({
         </div>
       </header>
       <div className="flex flex-1 flex-col gap-[14px] px-8 pt-1 pb-5 max-[700px]:px-4">
+        {erroAnexo ? (
+          <p role="alert" className="text-destructive text-[12px]">
+            {erroAnexo}
+          </p>
+        ) : null}
         {mostrarAviso ? (
           <section
             aria-live="polite"
@@ -157,7 +205,9 @@ export function TelaAnalise({
             <div className="flex min-w-0 flex-col gap-0.5">
               <h2 className="text-[14px] font-semibold">
                 {motivo
-                  ? TITULOS[motivo]
+                  ? motivo === "arquivo" && pendentes.length > 1
+                    ? "Há arquivos novos no caso"
+                    : TITULOS[motivo]
                   : gerando
                     ? "Atualizando a análise"
                     : "Não foi possível atualizar a análise"}

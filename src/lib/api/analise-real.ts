@@ -6,13 +6,66 @@
  */
 
 import type { AnalisePreliminar, OpcoesAnalise, MensagemChat } from "./analise";
-import { requisitarJson } from "./conta";
+import { ErroApi, requisitarJson } from "./conta";
+import { lerNdjson } from "./ndjson";
 import type { SophiaApi } from "./types";
 
 type ApiAnalise = Pick<
   SophiaApi,
-  "obterCaso" | "finalizarSessao" | "solicitarAnalise" | "listarMensagens" | "enviarMensagem"
+  "obterCaso" | "finalizarSessao" | "solicitarAnalise" | "listarMensagens" | "enviarMensagem" | "enviarMensagemAoVivo"
 >;
+
+type EventoDoChat =
+  | { tipo: "trecho"; texto: string }
+  | { tipo: "fim"; mensagens: MensagemChat[] }
+  | { tipo: "erro"; erro: string };
+
+async function enviarMensagem(casoId: string, conteudo: string): Promise<MensagemChat[]> {
+  const { mensagens } = await requisitarJson<{ mensagens: MensagemChat[] }>("/api/chat", {
+    method: "POST",
+    body: JSON.stringify({ casoId, mensagem: conteudo }),
+  });
+  return mensagens;
+}
+
+/** Chat com a resposta em trechos (`/api/chat/stream`); sem streaming no backend, cai no envio normal. */
+async function enviarMensagemAoVivo(
+  casoId: string,
+  conteudo: string,
+  aoTrecho: (texto: string) => void,
+): Promise<MensagemChat[]> {
+  let resposta: Response;
+  try {
+    resposta = await fetch("/api/chat/stream", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ casoId, mensagem: conteudo }),
+    });
+  } catch {
+    throw new ErroApi("Não foi possível conectar ao servidor. Verifique sua internet.", 0);
+  }
+  if (resposta.status === 501) return enviarMensagem(casoId, conteudo);
+  if (!resposta.ok || !resposta.body) {
+    const corpo = (await resposta.json().catch(() => null)) as { erro?: string } | null;
+    throw new ErroApi(corpo?.erro ?? "Não foi possível enviar a mensagem.", resposta.status);
+  }
+
+  let mensagens: MensagemChat[] | null = null;
+  let falha = "";
+  try {
+    await lerNdjson<EventoDoChat>(resposta.body, (evento) => {
+      if (evento.tipo === "trecho") aoTrecho(evento.texto);
+      else if (evento.tipo === "fim") mensagens = evento.mensagens;
+      else if (evento.tipo === "erro") falha = evento.erro;
+    });
+  } catch {
+    throw new ErroApi("A conexão caiu no meio da resposta. Tente de novo.", 0);
+  }
+  if (falha) throw new ErroApi(falha, 502);
+  if (!mensagens) throw new ErroApi("A resposta foi interrompida. Tente de novo.", 0);
+  return mensagens;
+}
 
 const rotuloAnalise = (item: AnalisePreliminar) =>
   item.fonteNome ? `Análise ${item.indice + 1} · ${item.fonteNome}` : `Análise ${item.indice + 1}`;
@@ -105,12 +158,7 @@ export function criarAnaliseApi(base: SophiaApi): ApiAnalise {
       return mensagens;
     },
 
-    async enviarMensagem(casoId, conteudo): Promise<MensagemChat[]> {
-      const { mensagens } = await requisitarJson<{ mensagens: MensagemChat[] }>("/api/chat", {
-        method: "POST",
-        body: JSON.stringify({ casoId, mensagem: conteudo }),
-      });
-      return mensagens;
-    },
+    enviarMensagem,
+    enviarMensagemAoVivo,
   };
 }

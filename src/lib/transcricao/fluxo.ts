@@ -85,6 +85,18 @@ export async function salvarDocumentoDoCaso(casoId: string, arquivo: File) {
   };
 }
 
+/** Tira do caso um documento anexado por engano (sai do repositório e do contexto da IA). */
+export async function excluirDocumentoDoCaso(casoId: string, documentoId: string) {
+  const res = await fetch(
+    `/api/casos/${encodeURIComponent(casoId)}/documentos/${encodeURIComponent(documentoId)}`,
+    { method: "DELETE" },
+  );
+  if (!res.ok) {
+    const dados = (await res.json().catch(() => ({}))) as { erro?: string };
+    throw new Error(dados.erro ?? "Não foi possível excluir o documento.");
+  }
+}
+
 export interface DocumentoSalvo {
   id: string;
   nome: string;

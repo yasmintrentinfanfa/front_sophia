@@ -488,18 +488,20 @@ const CHAT = roteiro([
   { nome: "irEnviar", ms: 620, alvo: "enviar" },
   { nome: "envia", ms: 380, clique: true },
   { nome: "pensando", ms: 950 },
-  { nome: "resposta", ms: 1200, alvo: "campo-pergunta" },
-  { nome: "digita", ms: 1900 },
-  { nome: "irEnviar2", ms: 560, alvo: "enviar" },
-  { nome: "envia2", ms: 380, clique: true },
-  { nome: "pensando2", ms: 750 },
-  { nome: "resposta2", ms: 1100, alvo: "atualizar" },
+  // A resposta aponta o que falta; o advogado anexa o extrato ali mesmo, pelo "+". O arquivo
+  // espera no campo; aqui ele envia só o documento, para ficar salvo no caso.
+  { nome: "resposta", ms: 1500, alvo: "anexar" },
+  { nome: "anexa", ms: 380, clique: true },
+  { nome: "separado", ms: 1300, alvo: "enviar" },
+  { nome: "enviaArquivo", ms: 380, clique: true },
+  { nome: "anexando", ms: 900 },
+  { nome: "anexado", ms: 1400, alvo: "atualizar" },
   { nome: "atualiza", ms: 380, clique: true },
   { nome: "atualizando", ms: 1300 },
   { nome: "atualizada", ms: 1800, alvo: "ver-cards" },
 ]);
 
-const FATO_NOVO = "Ele recebia R$ 400 por Pix, fora do holerite.";
+const DOCUMENTO_ANEXADO = "extrato-fgts.pdf";
 
 const CONVERSA: MensagemMini[] = [
   { papel: "advogado", conteudo: ASSUNTOS_CHAT[1] },
@@ -513,28 +515,18 @@ const CONVERSA: MensagemMini[] = [
       </>
     ),
   },
-  { papel: "advogado", conteudo: FATO_NOVO },
-  { papel: "assistente", conteudo: "Anotado. O valor pago por fora integra o salário e entra no cálculo das verbas." },
 ];
 
 export function CenaChat() {
   const { indice, alvo, clique } = useRoteiro(CHAT.batidas, CHAT.em.atualizada);
   const { em } = CHAT;
   const naAnalise = indice <= em.abre;
-  const mensagens = CONVERSA.slice(
-    0,
-    indice >= em.resposta2 ? 4 : indice >= em.pensando2 ? 3 : indice >= em.resposta ? 2 : indice >= em.pensando ? 1 : 0,
-  );
-  const pensando = indice === em.pensando || indice === em.pensando2;
+  const mensagens = CONVERSA.slice(0, indice >= em.resposta ? 2 : indice >= em.pensando ? 1 : 0);
+  const pensando = indice === em.pensando;
   const atualizacao = indice >= em.atualizada ? "pronta" : indice >= em.atualizando ? "atualizando" : "nenhuma";
-  const pergunta =
-    indice >= em.irEnviar && indice <= em.envia ? (
-      ASSUNTOS_CHAT[1]
-    ) : indice === em.digita ? (
-      <TextoDigitado texto={FATO_NOVO} fase="digitando" />
-    ) : indice >= em.irEnviar2 && indice <= em.envia2 ? (
-      FATO_NOVO
-    ) : null;
+  const pergunta = indice >= em.irEnviar && indice <= em.envia ? ASSUNTOS_CHAT[1] : null;
+  const anexo = indice >= em.anexando ? { nome: DOCUMENTO_ANEXADO, pronto: indice >= em.anexado } : null;
+  const separado = indice >= em.separado && indice <= em.enviaArquivo ? DOCUMENTO_ANEXADO : null;
 
   return (
     <Cena
@@ -551,8 +543,10 @@ export function CenaChat() {
           pergunta={pergunta}
           assunto={indice >= em.irEnviar && indice <= em.envia ? 1 : null}
           pensando={pensando}
-          podeAtualizar={mensagens.length > 1 && !pensando && atualizacao !== "atualizando"}
+          podeAtualizar={Boolean(anexo?.pronto) && atualizacao !== "atualizando"}
           atualizacao={atualizacao}
+          anexo={anexo}
+          separado={separado}
         />
       )}
     </Cena>
@@ -673,7 +667,9 @@ const REPOSITORIO = roteiro([
   { nome: "abreMateriais", ms: 400, clique: true },
   { nome: "materiais", ms: 1300, alvo: "aba-documentos" },
   { nome: "aba", ms: 400, clique: true },
-  { nome: "documentos", ms: 1300, alvo: "adicionar-ao-caso" },
+  // Passa pela lixeira do documento (excluir o que subiu errado) antes de adicionar material novo.
+  { nome: "documentos", ms: 1300, alvo: "excluir-documento" },
+  { nome: "lixeira", ms: 1100, alvo: "adicionar-ao-caso" },
   { nome: "adiciona", ms: 400, clique: true },
   { nome: "volta", ms: 1800, alvo: null },
 ]);

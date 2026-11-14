@@ -14,12 +14,14 @@ import {
   FolderOpen,
   LoaderCircle,
   Mic,
+  Paperclip,
   PenLine,
   Plus,
   RefreshCw,
   Search,
   ShieldCheck,
   Sparkles,
+  Trash2,
   TriangleAlert,
   X,
 } from "lucide-react";
@@ -822,6 +824,10 @@ export function TelaAnalise({
         titulo="Análise preliminar de caso"
         acoes={
           <>
+            <span className="text-tinta-suave flex h-7 shrink-0 items-center gap-1 px-1.5 text-[10px] font-medium whitespace-nowrap [&_svg]:size-3">
+              <Paperclip />
+              Anexar documento
+            </span>
             <Botao alvo="botao-pecas" variante="contorno" className="font-medium">
               Peças processuais
             </Botao>
@@ -931,6 +937,8 @@ export function TelaChat({
   pensando = false,
   podeAtualizar = false,
   atualizacao = "nenhuma",
+  anexo = null,
+  separado = null,
 }: {
   caso: CasoMini;
   mensagens: MensagemMini[];
@@ -940,6 +948,10 @@ export function TelaChat({
   pensando?: boolean;
   podeAtualizar?: boolean;
   atualizacao?: "nenhuma" | "atualizando" | "pronta";
+  /** Documento anexado pelo "+", mostrado como no chat real. */
+  anexo?: { nome: string; pronto: boolean } | null;
+  /** Arquivo escolhido no "+", esperando o Enviar (com ou sem texto). */
+  separado?: string | null;
 }) {
   const atualizando = atualizacao === "atualizando";
   return (
@@ -995,7 +1007,9 @@ export function TelaChat({
         )}
       >
         {mensagens.length === 0 ? (
-          <p className="text-tinta-suave text-[10px]">Nenhuma mensagem ainda. Pergunte algo sobre este caso.</p>
+          <p className="text-tinta-suave text-[10px]">
+            Nenhuma mensagem ainda. Pergunte algo sobre este caso ou anexe um documento no +.
+          </p>
         ) : null}
         {mensagens.map((mensagem, indice) => (
           <p
@@ -1008,18 +1022,56 @@ export function TelaChat({
             {mensagem.conteudo}
           </p>
         ))}
+        {anexo ? (
+          <span className="bg-campo border-borda animate-in fade-in slide-in-from-bottom-2 flex w-fit max-w-full shrink-0 items-center gap-2 rounded-[9px] border py-1.5 pr-1.5 pl-2 duration-400">
+            <span className="bg-destaque-suave text-destaque flex size-6 shrink-0 items-center justify-center rounded-[6px]">
+              {anexo.pronto ? <FileText className="size-3" /> : <LoaderCircle className="size-3 animate-spin" />}
+            </span>
+            <span className="flex min-w-0 flex-col">
+              <span className="truncate text-[9.5px] font-semibold">{anexo.nome}</span>
+              <span className="text-tinta-suave text-[8px]">
+                {anexo.pronto ? "Adicionado ao caso. A Sophia já considera nas respostas." : "Anexando ao caso…"}
+              </span>
+            </span>
+            {anexo.pronto ? (
+              <span className="text-destaque animate-in fade-in px-1.5 text-[9px] font-semibold duration-300">Resumir</span>
+            ) : null}
+          </span>
+        ) : null}
         {pensando ? (
           <p className="text-tinta-suave animate-in fade-in shrink-0 text-[9px] duration-300">
             A Sophia está analisando o caso para responder…
           </p>
         ) : null}
       </div>
+      {separado ? (
+        <div className="animate-in fade-in slide-in-from-bottom-1 flex shrink-0 items-center gap-1.5 px-4 pt-2 duration-300">
+          <span className="bg-campo border-destaque/50 flex h-6 items-center gap-1.5 rounded-[7px] border pr-1.5 pl-1">
+            <span className="bg-destaque-suave text-destaque flex size-4 items-center justify-center rounded-[4px]">
+              <FileText className="size-2.5" />
+            </span>
+            <span className="text-[9px] font-medium">{separado}</span>
+            <X className="text-tinta-suave size-2.5" />
+          </span>
+          <span className="text-tinta-suave truncate text-[8px]">Escreva algo sobre o arquivo, ou envie só ele.</span>
+        </div>
+      ) : null}
       <div className="flex shrink-0 items-center gap-1.5 px-4 pt-2 pb-3.5">
+        <span
+          data-alvo="anexar"
+          className="bg-campo border-borda text-tinta-suave data-sobre:border-destaque/60 data-sobre:text-destaque flex size-7 shrink-0 items-center justify-center rounded-[7px] border transition-colors duration-300"
+        >
+          <Plus className="size-3.5" />
+        </span>
         <span
           data-alvo="campo-pergunta"
           className="bg-campo border-borda flex h-7 min-w-0 flex-1 items-center truncate rounded-[7px] border px-2.5 text-[9.5px]"
         >
-          {pergunta ?? <span className="text-tinta-suave">Pergunte algo sobre o caso...</span>}
+          {pergunta ?? (
+            <span className="text-tinta-suave">
+              {separado ? "O que você quer saber sobre o arquivo? (opcional)" : "Pergunte algo sobre o caso..."}
+            </span>
+          )}
         </span>
         <Botao alvo="enviar" className="w-[56px]">
           Enviar
@@ -1321,6 +1373,9 @@ export function TelaMateriais({ caso, aba }: { caso: CasoMini; aba: "transcricao
                 <span className="text-tinta-suave text-[8.5px]">PDF · Verificado · {ONTEM} às 14:20</span>
               </span>
               <span className="text-destaque shrink-0 text-[9.5px] font-semibold">Ver texto</span>
+              <span data-alvo="excluir-documento" className="text-tinta-suave data-sobre:text-red-600 transition-colors">
+                <Trash2 className="size-3" />
+              </span>
             </span>
           )}
         </div>

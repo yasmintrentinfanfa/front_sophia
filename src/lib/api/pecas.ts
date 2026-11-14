@@ -91,6 +91,13 @@ export const pecasApi = {
     return peca;
   },
 
+  /** Apaga a minuta do histórico e do banco; o .docx já baixado não é afetado. */
+  async excluir(casoId: string, pecaId: string) {
+    await requisitarJson<{ ok: boolean }>(`/api/pecas/${encodeURIComponent(pecaId)}${consulta(casoId)}`, {
+      method: "DELETE",
+    });
+  },
+
   urlDocx(casoId: string, pecaId: string) {
     return `/api/pecas/${encodeURIComponent(pecaId)}/docx${consulta(casoId)}`;
   },
