@@ -29,8 +29,30 @@ const MENSAGEM_POR_STATUS: Record<number, string> = {
   409: "Já existe uma conta com este e-mail.",
 };
 
+/**
+ * O que dá para aproveitar de um corpo de erro: `erro`/`mensagem` (padrão das rotas e do
+ * backend) ou, fora do padrão, o `detail` do FastAPI ou o começo do texto/HTML devolvido.
+ */
+function lerCorpoDeErro(texto: string): { erro?: string; detalhe?: string } {
+  try {
+    const corpo = JSON.parse(texto) as Record<string, unknown> | null;
+    if (corpo && typeof corpo === "object") {
+      if (typeof corpo.erro === "string" && corpo.erro.trim()) return { erro: corpo.erro };
+      if (typeof corpo.mensagem === "string" && corpo.mensagem.trim()) return { erro: corpo.mensagem };
+      if (corpo.detail !== undefined) {
+        return { detalhe: typeof corpo.detail === "string" ? corpo.detail : JSON.stringify(corpo.detail) };
+      }
+    }
+  } catch {
+    // Não é JSON: segue com o texto cru.
+  }
+  const limpo = texto.replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return { detalhe: limpo || undefined };
+}
+
 /** `fetch` com cookie de sessão e erros no formato `{ erro }` usado pelas rotas e pelo backend. */
 export async function requisitarJson<T>(url: string, init: RequestInit = {}): Promise<T> {
+  const metodo = (init.method ?? "GET").toUpperCase();
   let resposta: Response;
   try {
     resposta = await fetch(url, {
@@ -38,16 +60,21 @@ export async function requisitarJson<T>(url: string, init: RequestInit = {}): Pr
       credentials: "include",
       headers: { "Content-Type": "application/json", ...init.headers },
     });
-  } catch {
-    throw new ErroApi("Não foi possível conectar ao servidor. Verifique sua internet.", 0);
+  } catch (falha) {
+    const causa = falha instanceof Error ? falha.message : String(falha);
+    throw new ErroApi(`Não foi possível conectar ao servidor. Verifique sua internet. (${metodo} ${url}: ${causa})`, 0);
   }
 
   if (!resposta.ok) {
-    const corpo = (await resposta.json().catch(() => null)) as { erro?: string; mensagem?: string } | null;
-    throw new ErroApi(
-      corpo?.erro ?? corpo?.mensagem ?? MENSAGEM_POR_STATUS[resposta.status] ?? "Algo deu errado. Tente novamente.",
-      resposta.status,
-    );
+    const { erro, detalhe } = lerCorpoDeErro(await resposta.text().catch(() => ""));
+    if (erro) throw new ErroApi(erro, resposta.status);
+    // Status conhecido sem corpo (ex.: 404 de caso alheio) fica só com a mensagem amigável.
+    const conhecida = MENSAGEM_POR_STATUS[resposta.status];
+    if (conhecida && !detalhe) throw new ErroApi(conhecida, resposta.status);
+    // Fora do padrão `{ erro }`: mostra o que aconteceu de fato, para dar para diagnosticar.
+    const base = conhecida ?? "Algo deu errado.";
+    const tecnico = `HTTP ${resposta.status}${resposta.statusText ? ` ${resposta.statusText}` : ""} em ${metodo} ${url}`;
+    throw new ErroApi(`${base} (${tecnico}${detalhe ? `: ${detalhe.slice(0, 400)}` : ""})`, resposta.status);
   }
 
   if (resposta.status === 204) return undefined as T;

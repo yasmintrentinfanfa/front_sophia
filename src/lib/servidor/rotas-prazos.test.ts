@@ -111,10 +111,44 @@ describe("o dono vem do cookie", () => {
     expect(initChamado()?.method).toBe("PATCH");
   });
 
-  it("backend fora do ar → 503 com a mensagem da rota", async () => {
-    backend.mockRejectedValueOnce(new TypeError("fetch failed"));
+  it("backend fora do ar → 503 com a mensagem da rota e o motivo, sem o user_id", async () => {
+    backend.mockRejectedValueOnce(Object.assign(new TypeError("fetch failed"), { cause: { code: "ECONNREFUSED" } }));
     const resposta = await obterPainel(new Request("http://x/api/prazos"));
     expect(resposta.status).toBe(503);
-    expect(await resposta.json()).toEqual({ erro: "Não foi possível carregar os prazos." });
+    const { erro } = await resposta.json();
+    expect(erro).toMatch(/^Não foi possível carregar os prazos\. \(sem resposta de .*\/prazos\/painel: fetch failed: ECONNREFUSED\)$/);
+    expect(erro).not.toContain(ANA);
+  });
+
+  it("rota inexistente no backend (404 do FastAPI) avisa que o módulo pode não estar publicado", async () => {
+    backend.mockResolvedValueOnce(Response.json({ detail: "Not Found" }, { status: 404 }));
+    const { erro } = await (await obterPainel(new Request("http://x/api/prazos"))).json();
+    expect(erro).toContain("backend respondeu HTTP 404: Not Found");
+    expect(erro).toContain("a rota não existe no backend em uso");
+  });
+
+  it("erro 500 em texto puro chega com o texto", async () => {
+    backend.mockResolvedValueOnce(new Response("Internal Server Error", { status: 500 }));
+    const resposta = await acompanhar(json("http://x/api/prazos/monitoramentos", { tipo: "oab" }));
+    expect(resposta.status).toBe(500);
+    expect((await resposta.json()).erro).toBe(
+      "Não foi possível salvar o acompanhamento. (backend respondeu HTTP 500: Internal Server Error)",
+    );
+  });
+
+  it("validação do FastAPI (422) mostra o detail", async () => {
+    backend.mockResolvedValueOnce(
+      Response.json({ detail: [{ loc: ["body", "tipo"], msg: "Field required" }] }, { status: 422 }),
+    );
+    const { erro } = await (await acompanhar(json("http://x/api/prazos/monitoramentos", {}))).json();
+    expect(erro).toContain("HTTP 422");
+    expect(erro).toContain("Field required");
+  });
+
+  it("erro no padrão { erro } passa como está", async () => {
+    backend.mockResolvedValueOnce(Response.json({ erro: "MongoDB não configurado." }, { status: 503 }));
+    expect(await (await obterPainel(new Request("http://x/api/prazos"))).json()).toEqual({
+      erro: "MongoDB não configurado.",
+    });
   });
 });
