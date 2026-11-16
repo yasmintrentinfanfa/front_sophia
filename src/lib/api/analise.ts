@@ -23,7 +23,18 @@ export interface Insight {
   posicaoJurisprudencial?: "majoritaria" | "minoritaria" | "em_analise";
   fontes: Fonte[];
   meta?: [string, string];
+  /** Precedentes qualificados (categoria "tema_superior"): autoridade, tribunal e situação. */
+  nivel?: NivelPrecedente;
+  tribunal?: string;
+  /** "Tema 1124", "Súmula 47", "IRDR 15". */
+  identificador?: string;
+  especie?: string;
+  situacao?: SituacaoPrecedente;
 }
+
+/** N1 vinculante nacional, N2 uniformização (súmulas, TNU), N3 regional (TRF, TRT, TJ). */
+export type NivelPrecedente = "N1" | "N2" | "N3";
+export type SituacaoPrecedente = "vigente" | "em_atencao" | "alterado" | "superado";
 
 export type FonteAnaliseTipo = "transcricao" | "documento";
 
