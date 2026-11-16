@@ -35,8 +35,9 @@ const { PATCH: atualizarCaso, DELETE: excluirCaso } = await import("@/app/api/ca
 const rotaAnalise = await import("@/app/api/analise/route");
 const rotaChat = await import("@/app/api/chat/route");
 const rotaPecas = await import("@/app/api/pecas/route");
-const { GET: obterPeca } = await import("@/app/api/pecas/[pecaId]/route");
-const { GET: baixarPeca } = await import("@/app/api/pecas/[pecaId]/docx/route");
+const { GET: obterPeca, PATCH: atualizarPeca } = await import("@/app/api/pecas/[pecaId]/route");
+const { GET: baixarPeca, POST: baixarPecaEditada } = await import("@/app/api/pecas/[pecaId]/docx/route");
+const { POST: baixarPdf } = await import("@/app/api/pecas/[pecaId]/pdf/route");
 
 let backend: ReturnType<typeof vi.fn<typeof fetch>>;
 
@@ -327,6 +328,45 @@ describe("análise, chat e minutas com IA", () => {
     const download = await baixarPeca(new Request("http://x?casoId=caso-1"), { params: Promise.resolve({ pecaId: "p1" }) });
     expect(download.status).toBe(200);
     expect(download.headers.get("content-disposition")).toBe("attachment");
+
+    backend.mockClear();
+    await atualizarPeca(
+      new Request("http://x?casoId=caso-1", {
+        method: "PATCH",
+        body: JSON.stringify({ texto: "revisado", user_id: BRUNO }),
+      }),
+      { params: Promise.resolve({ pecaId: "p1" }) },
+    );
+    expect(urlChamada()).toMatch(/\/pecas\/caso-1\/p1$/);
+    expect(corpoChamado()).toEqual({ user_id: ANA, texto: "revisado" });
+
+    backend.mockClear();
+    backend.mockResolvedValueOnce(
+      new Response("PK", { headers: { "content-type": "application/vnd.openxmlformats", "content-disposition": "attachment" } }),
+    );
+    await baixarPecaEditada(
+      new Request("http://x?casoId=caso-1", {
+        method: "POST",
+        body: JSON.stringify({ texto: "revisado", user_id: BRUNO }),
+      }),
+      { params: Promise.resolve({ pecaId: "p1" }) },
+    );
+    expect(urlChamada()).toMatch(/\/pecas\/caso-1\/p1\/docx$/);
+    expect(corpoChamado()).toEqual({ user_id: ANA, texto: "revisado" });
+
+    backend.mockClear();
+    backend.mockResolvedValueOnce(
+      new Response("%PDF", { headers: { "content-type": "application/pdf", "content-disposition": "attachment" } }),
+    );
+    await baixarPdf(
+      new Request("http://x?casoId=caso-1", {
+        method: "POST",
+        body: JSON.stringify({ texto: "revisado", user_id: BRUNO }),
+      }),
+      { params: Promise.resolve({ pecaId: "p1" }) },
+    );
+    expect(urlChamada()).toMatch(/\/pecas\/caso-1\/p1\/pdf$/);
+    expect(corpoChamado()).toEqual({ user_id: ANA, texto: "revisado" });
   });
 
   it("sem sessão → 401, sem chamar o backend", async () => {
@@ -335,6 +375,27 @@ describe("análise, chat e minutas com IA", () => {
     expect((await rotaChat.POST(post({ casoId: "c", mensagem: "oi" }))).status).toBe(401);
     expect((await rotaPecas.POST(post({ casoId: "c", modeloId: "contestacao" }))).status).toBe(401);
     expect((await rotaPecas.GET(new Request("http://x?casoId=c"))).status).toBe(401);
+    expect(
+      (
+        await atualizarPeca(new Request("http://x?casoId=c", { method: "PATCH", body: JSON.stringify({ texto: "x" }) }), {
+          params: Promise.resolve({ pecaId: "p1" }),
+        })
+      ).status,
+    ).toBe(401);
+    expect(
+      (
+        await baixarPecaEditada(new Request("http://x?casoId=c", { method: "POST", body: JSON.stringify({ texto: "x" }) }), {
+          params: Promise.resolve({ pecaId: "p1" }),
+        })
+      ).status,
+    ).toBe(401);
+    expect(
+      (
+        await baixarPdf(new Request("http://x?casoId=c", { method: "POST", body: JSON.stringify({ texto: "x" }) }), {
+          params: Promise.resolve({ pecaId: "p1" }),
+        })
+      ).status,
+    ).toBe(401);
     expect(backend).not.toHaveBeenCalled();
   });
 });

@@ -4,7 +4,7 @@
  */
 
 import type { AreaJuridica } from "./areas";
-import { requisitarJson } from "./conta";
+import { ErroApi, requisitarJson } from "./conta";
 
 export type FasePeca =
   | "inicial"
@@ -98,10 +98,47 @@ export const pecasApi = {
     });
   },
 
+  /** Grava o texto revisado na minuta. Copiar e baixar passam a usar essa versão. */
+  async atualizar(casoId: string, pecaId: string, texto: string) {
+    const { peca } = await requisitarJson<{ peca: PecaGerada }>(
+      `/api/pecas/${encodeURIComponent(pecaId)}${consulta(casoId)}`,
+      { method: "PATCH", body: JSON.stringify({ texto }) },
+    );
+    return peca;
+  },
+
   urlDocx(casoId: string, pecaId: string) {
     return `/api/pecas/${encodeURIComponent(pecaId)}/docx${consulta(casoId)}`;
   },
+
+  /** Monta .docx ou PDF com o texto da tela, inclusive a edição ainda não gravada. */
+  async baixar(casoId: string, pecaId: string, texto: string, formato: "docx" | "pdf", titulo?: string) {
+    let resposta: Response;
+    try {
+      resposta = await fetch(`/api/pecas/${encodeURIComponent(pecaId)}/${formato}${consulta(casoId)}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ texto, ...(titulo ? { titulo } : {}) }),
+      });
+    } catch {
+      throw new ErroApi("Não foi possível conectar ao servidor. Verifique sua internet.", 0);
+    }
+    if (!resposta.ok) {
+      const corpo = (await resposta.json().catch(() => null)) as { erro?: string } | null;
+      throw new ErroApi(corpo?.erro ?? "Não foi possível baixar a minuta.", resposta.status);
+    }
+    return {
+      blob: await resposta.blob(),
+      nome: nomeDoAnexo(resposta.headers.get("content-disposition"), formato),
+    };
+  },
 };
+
+function nomeDoAnexo(cabecalho: string | null, formato: "docx" | "pdf") {
+  const nome = cabecalho?.match(/filename="?([^";]+)"?/i)?.[1]?.trim();
+  return nome || `minuta.${formato}`;
+}
 
 /**
  * Grupos de modelos mais úteis para a área jurídica do caso, na ordem de prioridade.

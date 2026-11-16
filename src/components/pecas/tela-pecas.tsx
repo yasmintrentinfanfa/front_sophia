@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ChevronRight, Clock, Search } from "lucide-react";
+import { ChevronRight, Clock, Search } from "lucide-react";
 
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
 import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
@@ -144,7 +144,10 @@ function Pecas({
     <>
       <header className="flex w-full shrink-0 flex-col gap-1 px-7 pt-5 pb-2 max-[700px]:px-4">
         <div className="flex items-center gap-2">
-          <BotaoVoltar destino={destinoVoltar} />
+          <BotaoVoltar
+            destino={destinoVoltar}
+            aoVoltar={pecaAberta ? () => setPecaAberta(null) : undefined}
+          />
           <h1 className="text-[22px] leading-none font-bold">Peças processuais</h1>
         </div>
         <p className="text-tinta-suave text-[13px]">
@@ -154,17 +157,7 @@ function Pecas({
 
       <div className="flex min-h-0 flex-1 flex-col gap-5 px-7 pt-4 pb-7 max-[700px]:px-4">
         {pecaAberta ? (
-          <div className="flex flex-col gap-3">
-            <button
-              type="button"
-              onClick={() => setPecaAberta(null)}
-              className="text-destaque flex w-fit items-center gap-1.5 text-[13px] font-semibold"
-            >
-              <ArrowLeft className="size-4" aria-hidden />
-              Voltar aos modelos
-            </button>
-            <MinutaPeca peca={pecaAberta} urlDocx={pecasApi.urlDocx(casoId, pecaAberta.id)} />
-          </div>
+          <MinutaPeca peca={pecaAberta} casoId={casoId} aoAtualizar={setPecaAberta} />
         ) : (
           <>
             {!podeGerar ? (

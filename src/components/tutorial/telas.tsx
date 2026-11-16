@@ -1259,10 +1259,6 @@ export function TelaMinuta() {
         subtitulo={<span className="text-tinta-suave">Minutas geradas pela IA a partir da análise do caso Rescisão indireta</span>}
       />
       <div className="flex min-h-0 flex-1 flex-col gap-2 px-4 pt-0.5">
-        <span className="text-destaque flex items-center gap-1 text-[10px] font-semibold">
-          <ArrowLeft className="size-3" />
-          Voltar aos modelos
-        </span>
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 flex-col gap-0.5">
             <p className="text-[11.5px] font-semibold">Reclamação trabalhista</p>
@@ -1273,10 +1269,15 @@ export function TelaMinuta() {
               <Copy />
               Copiar texto
             </Botao>
-            <Botao alvo="baixar-docx">
-              <Download />
-              Baixar .docx
-            </Botao>
+            <span className="flex">
+              <Botao alvo="baixar-docx" className="rounded-r-none pr-2">
+                <Download />
+                Baixar .docx
+              </Botao>
+              <span className="bg-acao text-acao-tinta flex h-7 items-center rounded-r-[7px] border-l border-current/25 px-1">
+                <ChevronDown className="size-3" />
+              </span>
+            </span>
           </span>
         </div>
         <p className="border-borda bg-chip text-tinta-suave flex items-start gap-1.5 rounded-[8px] border px-2.5 py-1.5 text-[8.5px] leading-snug">
