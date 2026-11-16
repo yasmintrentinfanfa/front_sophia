@@ -21,6 +21,16 @@ describe("destinoDoCaso", () => {
   });
 });
 
+describe("destinoDoCaso nos prazos", () => {
+  it("nos prazos de um caso, troca para os prazos do outro", () => {
+    expect(destinoDoCaso(caso, "/casos/caso-a/prazos")).toBe("/casos/caso-b/prazos");
+  });
+
+  it("na tela geral de prazos, abre a análise", () => {
+    expect(destinoDoCaso(caso, "/casos/prazos")).toBe("/casos/caso-b/analise");
+  });
+});
+
 describe("estaNoRepositorio", () => {
   it("reconhece as telas do repositório e mais nenhuma", () => {
     expect(estaNoRepositorio("/casos/x/repositorio")).toBe(true);

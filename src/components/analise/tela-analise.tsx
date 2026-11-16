@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Loader2, Paperclip, Sparkles } from "lucide-react";
+import { CalendarClock, Loader2, Paperclip, Sparkles } from "lucide-react";
 
 import { ListaAnalises } from "@/components/analise/lista-analises";
 import { useAnexarDocumento } from "@/components/arquivos/use-anexar-documento";
@@ -63,11 +63,14 @@ export function TelaAnalise({
   destinoVoltar,
   destinoChat,
   destinoPecas,
+  destinoPrazos,
 }: {
   dados: DadosCaso;
   destinoVoltar: string;
   destinoChat: string;
   destinoPecas: string;
+  /** Acompanhamento de prazos do caso (opcional: nem todo caso vira processo). */
+  destinoPrazos?: string;
 }) {
   const { casos } = useListaCasos();
   const areaDoCaso = casos.find((caso) => caso.id === dados.casoId)?.area;
@@ -177,6 +180,16 @@ export function TelaAnalise({
             <span className="max-[700px]:sr-only">{anexando ? "Anexando…" : "Anexar documento"}</span>
           </button>
           <input {...propsDaEntrada} />
+          {destinoPrazos ? (
+            <Link
+              href={destinoPrazos}
+              title="Acompanhe as intimações do DJEN e os prazos, se este caso já tiver processo."
+              className="pressionavel bg-campo border-borda flex h-8 items-center gap-1.5 rounded-[8px] border px-3 text-[12px] font-medium"
+            >
+              <CalendarClock className="size-3.5" aria-hidden />
+              Prazos
+            </Link>
+          ) : null}
           <Link
             href={destinoPecas}
             className="pressionavel bg-campo border-borda flex h-8 items-center rounded-[8px] border px-3 text-[12px] font-medium"

@@ -9,6 +9,7 @@ import {
   IconeCasos,
   IconeConfiguracoes,
   IconeNovoCaso,
+  IconePrazos,
   IconeRepositorio,
   IconeSair,
 } from "@/components/casos/icones-trilha";
@@ -51,7 +52,7 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
   const botaoConta = useRef<HTMLButtonElement>(null);
   const [ancora, setAncora] = useState({ top: 0, left: 0 });
   const segmento = pathname.match(/^\/casos\/([^/]+)/)?.[1] ?? null;
-  const rotaDePainel = segmento === "novo" || segmento === "arquivo";
+  const rotaDePainel = segmento === "novo" || segmento === "arquivo" || segmento === "prazos";
   const idDaRota = segmento && !rotaDePainel ? segmento : null;
 
   const casosAtivos = useMemo(
@@ -306,11 +307,14 @@ function TrilhaIcones({
   const pathname = usePathname();
   // Repositório: adicionar material e ver o que já entrou. Casos: lista, análise, chat e peças.
   const emRepositorio = estaNoRepositorio(pathname);
+  // Prazos da conta. Os prazos de um caso ficam com "Casos", como as peças e o chat.
+  const emPrazos = pathname === "/casos/prazos";
   const emCasos =
     !emRepositorio &&
     (pathname === "/casos" ||
       pathname === "/casos/arquivo" ||
-      /^\/casos\/[^/]+\/(analise|chat|pecas)(\/|$)/.test(pathname));
+      /^\/casos\/[^/]+\/(analise|chat|pecas|prazos)(\/|$)/.test(pathname)) &&
+    !emPrazos;
 
   return (
     <nav
@@ -367,6 +371,18 @@ function TrilhaIcones({
           }
         />
         <TooltipContent side="right">Casos em análise</TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Link href="/casos/prazos" aria-current={emPrazos ? "page" : undefined} className={classeTrilha(emPrazos)}>
+              <IconePrazos />
+              <span className="sr-only">Prazos</span>
+            </Link>
+          }
+        />
+        <TooltipContent side="right">Prazos</TooltipContent>
       </Tooltip>
 
       {mostrarRepositorio ? (

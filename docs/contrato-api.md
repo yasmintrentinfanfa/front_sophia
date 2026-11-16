@@ -353,3 +353,76 @@ paralela:
   anteriores continuam salvas.
 - **`python-docx`** só é carregado ao baixar a minuta: sem o pacote, o backend sobe e só o
   download do `.docx` responde 503 com a instrução de instalação.
+
+## Acompanhamento de prazos (`backend/prazos`)
+
+O advogado informa um número de OAB (com a UF) ou um número de processo, e a Sophia traz as
+intimações do **DJEN** (Diário de Justiça Eletrônico Nacional, CNJ). Desde 16/05/2025, a
+publicação no DJEN é o marco oficial dos prazos (Resolução CNJ 455/2022, alterada pela 569/2024).
+**A Sophia não calcula o prazo:** o advogado define a data final. A calculadora do modal só
+ajuda a preencher o campo e é conservadora: considera apenas feriados nacionais, então a data
+calculada nunca passa da real (`src/lib/prazos/calendario.ts`).
+
+- **Tela geral:** `/casos/prazos` (ícone de calendário na trilha lateral). Acompanha OAB e
+  processos e permite ligar um processo a um caso.
+- **No caso:** `/casos/{id}/prazos` (botão "Prazos" na análise). É opcional: sem processo
+  informado, a tela só explica o recurso. No caso, entra apenas o número do processo, não a OAB.
+
+### Fonte de dados
+
+API pública `GET https://comunicaapi.pje.jus.br/api/v1/comunicacao` (sem autenticação), com
+filtros `numeroOab`+`ufOab` ou `numeroProcesso`, `dataDisponibilizacaoInicio/Fim`,
+`itensPorPagina` (até 100) e `pagina`. O teor da intimação chega em HTML e vira texto no
+backend. Limite observado em 11/2026: **20 requisições por janela, por IP**
+(`X-RateLimit-Limit`). Um 429 interrompe a sincronização, que é retomada na próxima vez.
+
+Fora do DJEN, e portanto fora do módulo: citações pelo Domicílio Judicial Eletrônico,
+intimações feitas só dentro do sistema do tribunal e publicações do STF (diário próprio).
+A tela avisa isso.
+
+### Sincronização
+
+Sob demanda, porque o backend roda como função serverless: a tela pede ao abrir (só para o
+que está há mais de 30 min sem atualizar) e no botão "Atualizar agora" (mínimo de 1 min).
+A primeira consulta por OAB cobre os últimos 30 dias. A primeira por processo traz o
+histórico inteiro dele. As consultas seguintes repetem os últimos 5 dias e olham 7 dias à
+frente, porque o DJEN registra a comunicação antes do dia da disponibilização. Para uma
+rotina agendada no futuro, basta chamar `sincronizar_usuario` (`backend/prazos/router.py`).
+
+### Rotas
+
+| Next (cookie assinado) | Backend | O que faz |
+|---|---|---|
+| `GET /api/prazos[?casoId=]` | `GET /prazos/painel` | Acompanhamentos, intimações e prazos (do caso, se `casoId`) |
+| `POST /api/prazos/sincronizar` `{ casoId?, forcar? }` | `POST /prazos/sincronizar` | Consulta o DJEN e devolve `{ novas, consultados, erros, painel }` |
+| `POST /api/prazos/monitoramentos` `{ tipo, oabNumero?, oabUf?, numeroProcesso?, casoId? }` | `POST /prazos/monitoramentos` | Começa a acompanhar e já faz a primeira consulta (`{ aviso, painel }`) |
+| `PATCH /api/prazos/monitoramentos/{id}` `{ casoId \| null }` | `PATCH /prazos/monitoramentos/{id}` | Liga ou desliga o processo de um caso |
+| `DELETE /api/prazos/monitoramentos/{id}` | `DELETE /prazos/monitoramentos/{id}` | Deixa de acompanhar (204) |
+| `GET /api/prazos/publicacoes/{id}` | `GET /prazos/publicacoes/{id}` | Intimação com o inteiro teor (no painel, o teor vem resumido em 1.200 caracteres) |
+| `PATCH /api/prazos/publicacoes/{id}` `{ situacao }` | `PATCH /prazos/publicacoes/{id}` | `sem_prazo` ou `pendente` (409 se já tem prazo) |
+| `POST /api/prazos/agenda` `{ descricao, dataFinal, publicacaoId?, casoId?, numeroProcesso? }` | `POST /prazos/agenda` | Agenda o prazo com a data do advogado |
+| `PATCH /api/prazos/agenda/{id}` `{ descricao?, dataFinal?, cumprido? }` | `PATCH /prazos/agenda/{id}` | Edita ou marca como cumprido |
+| `DELETE /api/prazos/agenda/{id}` | `DELETE /prazos/agenda/{id}` | Exclui (204). Se era o único prazo da intimação, ela volta a `pendente` |
+
+Item de outro usuário responde 404. Caso alheio ou excluído também. Número de processo com
+dígito verificador errado responde 400 sem consultar o DJEN.
+
+### Coleções
+
+| Coleção | Um documento por | Campos principais |
+|---|---|---|
+| `monitoramentos` | OAB ou processo acompanhado | `user_id`, `chave` (única por usuário: `oab:123/SP`, `processo:<20 dígitos>`), `tipo`, `oab_numero`, `oab_uf`, `numero_processo`, `caso_id` (opcional), `ultima_sincronizacao`, `sincronizado_ate`, `ultimo_erro` |
+| `publicacoes` | intimação do DJEN | `user_id`, `djen_id` (único por usuário), `monitoramento_ids`, `data_disponibilizacao`, `tribunal`, `orgao`, `tipo_documento`, `numero_processo`, `texto`, `link`, `situacao` (`pendente`/`agendada`/`sem_prazo`), `cancelada` |
+| `prazos` | prazo agendado | `user_id`, `publicacao_id?`, `caso_id?`, `numero_processo?`, `descricao`, `data_final`, `cumprido`, `cumprido_em` |
+
+Ao deixar de acompanhar, saem só as intimações que vieram apenas por aquele acompanhamento e
+que ninguém agendou. Os prazos continuam. Limite de 20 acompanhamentos por conta.
+
+### Pontos de atenção em produção
+
+- **Região do servidor:** o backend publicado está na Vercel. É preciso confirmar se a API do
+  CNJ responde a partir da região dele. Há relatos de bloqueio fora do Brasil, e o erro 403
+  aparece como "O DJEN recusou a consulta deste servidor". Se acontecer, publicar a função em
+  `gru1` (São Paulo).
+- **Limite por IP:** é compartilhado entre todos os usuários do mesmo servidor. Com muitos
+  usuários, vale uma rotina agendada que espalhe as consultas, ou um fornecedor pago.

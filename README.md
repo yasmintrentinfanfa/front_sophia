@@ -60,3 +60,10 @@ guardam tudo no MongoDB. Para ligar:
 
 Para usar a análise simulada no front, defina `NEXT_PUBLIC_ANALISE_REAL=false` no `.env.local`.
 Rotas e coleções estão em `docs/contrato-api.md`.
+
+## Acompanhamento de prazos (módulo `backend/prazos`)
+
+Intimações do DJEN (Diário de Justiça Eletrônico Nacional, do CNJ) por número da OAB ou do
+processo, com os prazos que o próprio advogado agenda. Tela geral em `/casos/prazos` e, em
+cada caso, `/casos/{id}/prazos` (opcional: só se o caso tiver processo). Usa a API pública do
+CNJ, sem chave; precisa só do MongoDB. Detalhes em `docs/contrato-api.md`.

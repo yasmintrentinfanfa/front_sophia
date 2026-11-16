@@ -31,6 +31,26 @@ export function IconeRepositorio() {
   );
 }
 
+/** Calendário com relógio: acompanhamento de prazos. */
+export function IconePrazos() {
+  return (
+    <span className="flex size-5 items-center justify-center">
+      <svg aria-hidden viewBox="0 0 20 20" className="text-tinta-suave size-5">
+        <path
+          d="M15.5 9V5.5A1.5 1.5 0 0 0 14 4H5.5A1.5 1.5 0 0 0 4 5.5V14a1.5 1.5 0 0 0 1.5 1.5H9M4 8h11.5M7.5 2.75v2.5M12 2.75v2.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle cx="14" cy="14" r="3.25" fill="none" stroke="currentColor" strokeWidth="1.4" />
+        <path d="M14 12.6V14l.9.8" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      </svg>
+    </span>
+  );
+}
+
 export function IconeConfiguracoes() {
   return (
     <span className="flex size-5 items-center justify-center">

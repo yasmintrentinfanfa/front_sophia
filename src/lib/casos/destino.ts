@@ -7,7 +7,8 @@ export function estaNoRepositorio(caminho: string) {
 
 /**
  * Para onde vai o clique num caso. Dentro do repositório, troca de caso sem sair dele (na mesma tela);
- * em qualquer outro lugar (Casos em análise, chat, peças), abre a análise do caso.
+ * nos prazos de um caso, abre os prazos do outro; em qualquer outro lugar (Casos em análise,
+ * chat, peças, prazos da conta), abre a análise do caso.
  */
 export function destinoDoCaso(caso: Caso, origem = "") {
   if (origem.includes("/repositorio/materiais")) {
@@ -15,6 +16,10 @@ export function destinoDoCaso(caso: Caso, origem = "") {
   }
   if (estaNoRepositorio(origem)) {
     return `/casos/${caso.id}/repositorio`;
+  }
+  // Nos prazos de um caso, continua nos prazos do outro. A tela geral (/casos/prazos) abre a análise.
+  if (/^\/casos\/[^/]+\/prazos(\/|$)/.test(origem)) {
+    return `/casos/${caso.id}/prazos`;
   }
   return `/casos/${caso.id}/analise`;
 }

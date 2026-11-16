@@ -20,7 +20,7 @@ function moduloDoCaminho(caminho: string) {
     return "conta";
   }
   const id = caminho.match(/^\/casos\/([^/]+)/)?.[1];
-  if (id && id !== "novo" && id !== "arquivo") {
+  if (id && id !== "novo" && id !== "arquivo" && id !== "prazos") {
     // A gravação ao vivo começa no repositório, então volta para ele.
     return estaNoRepositorio(caminho) ? `repositorio:${id}` : `caso:${id}`;
   }
