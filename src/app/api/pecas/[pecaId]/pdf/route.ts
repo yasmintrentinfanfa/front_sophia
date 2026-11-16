@@ -43,14 +43,19 @@ export async function POST(pedido: Request, contexto: Contexto) {
   if (!userId) return Response.json({ erro: "Entre na sua conta para baixar a minuta." }, { status: 401 });
   if (!casoId) return Response.json({ erro: "Informe o caso." }, { status: 400 });
   const { pecaId } = await contexto.params;
-  const corpo = (await pedido.json().catch(() => ({}))) as { texto?: string };
+  const corpo = (await pedido.json().catch(() => ({}))) as { texto?: string; titulo?: string };
   const texto = typeof corpo.texto === "string" ? corpo.texto : "";
+  const titulo = typeof corpo.titulo === "string" ? corpo.titulo : "";
   if (!texto.trim()) return Response.json({ erro: "A minuta não pode ficar vazia." }, { status: 400 });
 
   try {
+    const destino =
+      process.env.NODE_ENV === "production"
+        ? urlDoBack(`/pecas/${encodeURIComponent(casoId)}/${encodeURIComponent(pecaId)}/pdf`)
+        : `http://localhost:8000/pecas/${encodeURIComponent(casoId)}/${encodeURIComponent(pecaId)}/pdf`;
     const res = await fetch(
-      urlDoBack(`/pecas/${encodeURIComponent(casoId)}/${encodeURIComponent(pecaId)}/pdf`),
-      corpoJson({ user_id: userId, texto }),
+      destino,
+      corpoJson({ user_id: userId, texto, ...(titulo ? { titulo } : {}) }),
     );
     if (res.status === 405) {
       return Response.json(
