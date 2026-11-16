@@ -13,6 +13,7 @@ export const OFERTA_ASSINATURA: OfertaAssinatura = {
       "Análise preliminar do caso com fontes citadas",
       "Conversa com a IA para aprofundar cada caso",
       "Rascunhos de peças processuais a partir do caso",
+      "Controle de prazos com intimações do DJEN",
       "Repositório com tudo do caso em um só lugar",
     ],
   },

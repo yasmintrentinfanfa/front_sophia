@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { FileSearch, FileText, FolderOpen, MessageCircle, Mic } from "lucide-react";
+import { CalendarClock, FileSearch, FileText, FolderOpen, MessageCircle, Mic } from "lucide-react";
 
 // MVP sem plano: IconeCheck, OFERTA_ASSINATURA e cn só serviam à seção de planos. Original:
 // import { IconeCheck } from "@/components/assinatura/icones";
@@ -29,6 +29,11 @@ const BENEFICIOS = [
     icone: FileText,
     titulo: "Rascunhos de peças",
     texto: "Minutas a partir do relato, dos documentos e da análise, para você ajustar no seu estilo.",
+  },
+  {
+    icone: CalendarClock,
+    titulo: "Controle de prazos",
+    texto: "Intimações do DJEN pela OAB ou pelo processo, para você agendar o prazo e marcar quando cumprir.",
   },
   {
     icone: FolderOpen,
@@ -135,7 +140,8 @@ export function PaginaEntrada() {
           <div className="flex max-w-xl flex-col gap-2">
             <h2 className="text-[24px] font-bold">O que a Sophia faz no dia a dia</h2>
             <p className="text-tinta-suave text-[14px] leading-relaxed">
-              Do primeiro relato até o rascunho da peça, o caso fica reunido para você conferir, complementar e seguir.
+              Do primeiro relato ao rascunho da peça e ao controle dos prazos: o caso fica reunido para você conferir,
+              complementar e seguir.
             </p>
           </div>
 
