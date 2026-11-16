@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { ModalClausulas } from "@/components/casos/modal-clausulas";
+import { BotaoGoogle } from "@/components/login/botao-google";
 import { contaApi } from "@/lib/api/conta";
 import { gravarAceiteClausulas } from "@/lib/clausulas";
 import { rotaInicial } from "@/lib/conta";
@@ -113,6 +114,7 @@ export function FormularioCriarConta() {
         autoComplete="new-password"
         required
         minLength={8}
+        maxLength={72}
         onChange={validarSenhas}
       />
       <CampoConta
@@ -145,6 +147,27 @@ export function FormularioCriarConta() {
       >
         {contaCriada ? "Aceitar os termos e continuar" : enviando ? "Criando…" : "Criar conta"}
       </button>
+      {contaCriada ? null : (
+        <div className="mt-1.5">
+          <BotaoGoogle
+            contexto="signup"
+            aoEntrar={(usuario) => {
+              setErro("");
+              if (usuario.termosAceitosEm) {
+                // Já tinha conta com o Google e aceitou os termos: só entra.
+                router.push(rotaInicial(usuario));
+                return;
+              }
+              setContaCriada(true);
+              setClausulasAbertas(true);
+            }}
+            aoPedirVinculo={() =>
+              setErro("Já existe uma conta Sophia com este email. Entre pela tela de login para ligar o Google.")
+            }
+            aoFalhar={setErro}
+          />
+        </div>
+      )}
       <p className="flex min-h-[100px] flex-wrap items-start gap-1 text-[13px] leading-4">
         <span className="text-tinta-suave">Já tem uma conta?</span>
         <Link href="/login" className="pressionavel font-semibold">
