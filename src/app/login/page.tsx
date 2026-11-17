@@ -20,21 +20,14 @@ export default function PaginaLogin() {
 
       <main className="flex w-full flex-1 flex-col items-center justify-center gap-4 py-6">
         <div className="flex flex-col items-center gap-4 text-center">
+          {/* Um logo só: traço escuro no claro e invertido (traço claro, fundo transparente) no escuro. */}
           <Image
             src="/logo-sophia.png"
             alt="Sophia"
             width={120}
             height={102}
             priority
-            className="h-[102px] w-[120px] object-contain dark:hidden"
-          />
-          <Image
-            src="/logo-sophia-escuro.png"
-            alt="Sophia"
-            width={80}
-            height={82}
-            priority
-            className="hidden h-[82px] w-[80px] rounded-full dark:block"
+            className="h-[102px] w-[120px] object-contain dark:invert"
           />
           <div className="flex flex-col gap-2">
             <h1 className="text-2xl font-bold">Bem-vindo à Sophia</h1>
