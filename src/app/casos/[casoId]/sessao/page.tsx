@@ -313,7 +313,7 @@ export default function PaginaSessaoAtiva() {
               ) : null}
               {pronta && !revisado ? (
                 <p className="text-tinta-suave text-[12px]">
-                  Texto transcrito pelo Whisper. A revisão da Groq entra quando a chave estiver configurada.
+                  Texto transcrito pelo Whisper. A revisão da IA entra quando a chave da OpenAI estiver configurada.
                 </p>
               ) : null}
               {erro ? (

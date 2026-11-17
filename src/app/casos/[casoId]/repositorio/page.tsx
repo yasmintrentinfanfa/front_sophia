@@ -413,7 +413,7 @@ export default function PaginaRepositorio() {
                   {modo === "arquivo" && veioDeAudio
                     ? resultado.revisado
                       ? "Transcrição revisada."
-                      : "Texto transcrito pelo Whisper. A revisão da Groq entra quando a chave estiver configurada."
+                      : "Texto transcrito pelo Whisper. A revisão da IA entra quando a chave da OpenAI estiver configurada."
                     : modo === "arquivo"
                       ? "O arquivo foi salvo em Documentos, no repositório do caso."
                       : "O texto foi salvo no caso."}

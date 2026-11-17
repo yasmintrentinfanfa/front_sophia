@@ -163,7 +163,7 @@ export type EtapaProcessamento = "transcrevendo" | "revisando" | "salvando" | "a
 export const ETAPAS_AUDIO: EtapaProcessamento[] = ["transcrevendo", "revisando", "salvando", "analisando"];
 export const ETAPAS_TEXTO: EtapaProcessamento[] = ["salvando", "analisando"];
 
-/** Texto final do relato; `revisado` indica se passou pela revisão da Groq. */
+/** Texto final do relato; `revisado` indica se passou pela revisão da IA (OpenAI). */
 export interface ResultadoRelato {
   texto: string;
   revisado: boolean;
