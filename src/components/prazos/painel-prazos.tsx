@@ -10,6 +10,7 @@ import { CartaoIntimacao } from "@/components/prazos/cartao-intimacao";
 import { FormularioAcompanhar } from "@/components/prazos/formulario-acompanhar";
 import { ListaPrazos } from "@/components/prazos/lista-prazos";
 import { ModalPrazo } from "@/components/prazos/modal-prazo";
+import { Paginacao } from "@/components/ui/paginacao";
 import {
   prazosApi,
   type Monitoramento,
@@ -22,6 +23,7 @@ import {
 } from "@/lib/api/prazos";
 import { pastaDoCaso, rotuloCaso } from "@/lib/casos/rotulo";
 import { formatarDataHora } from "@/lib/formato";
+import { paginar } from "@/lib/paginacao";
 import { hojeEmBrasilia } from "@/lib/prazos/calendario";
 import { formatarProcesso, rotuloOab } from "@/lib/prazos/numeros";
 import { cn } from "@/lib/utils";
@@ -54,6 +56,7 @@ export function PainelPrazos({ casoId }: { casoId?: string }) {
   const [sincronizando, setSincronizando] = useState(false);
   const [mensagem, setMensagem] = useState<Mensagem>(null);
   const [filtro, setFiltro] = useState<"pendentes" | "todas">("pendentes");
+  const [paginaIntimacoes, setPaginaIntimacoes] = useState(1);
   const [modal, setModal] = useState<EstadoModal>(null);
   const [remover, setRemover] = useState<Monitoramento | null>(null);
   const [removendo, setRemovendo] = useState(false);
@@ -111,6 +114,7 @@ export function PainelPrazos({ casoId }: { casoId?: string }) {
   const publicacoes = painel?.publicacoes ?? [];
   const pendentes = publicacoes.filter((pub) => pub.situacao === "pendente");
   const visiveis = filtro === "pendentes" ? pendentes : publicacoes;
+  const paginaDeIntimacoes = paginar(visiveis, paginaIntimacoes);
   const ultimaAtualizacao = (painel?.monitoramentos ?? [])
     .map((mon) => mon.ultimaSincronizacao)
     .filter(Boolean)
@@ -230,8 +234,8 @@ export function PainelPrazos({ casoId }: { casoId?: string }) {
   const vazioNoCaso = modoCaso && painel && !painel.monitoramentos.length && !painel.prazos.length;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-      <header className="flex shrink-0 flex-wrap items-start justify-between gap-3 px-7 pt-5 pb-3 max-[700px]:px-4">
+    <>
+      <header className="flex w-full shrink-0 flex-wrap items-start justify-between gap-3 px-7 pt-5 pb-3 max-[700px]:px-4">
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex items-center gap-2">
             <BotaoVoltar destino={casoId ? `/casos/${casoId}/analise` : "/casos"} />
@@ -265,193 +269,204 @@ export function PainelPrazos({ casoId }: { casoId?: string }) {
         ) : null}
       </header>
 
-      <div className="flex w-full max-w-[960px] flex-col gap-6 px-7 pt-1 pb-8 max-[700px]:px-4">
-        {mensagem ? (
-          <p
-            role={mensagem.tipo === "erro" ? "alert" : "status"}
-            className={cn(
-              "rounded-[8px] px-3 py-2.5 text-[12px] font-medium",
-              mensagem.tipo === "erro" ? "bg-destructive/10 text-destructive" : "bg-destaque-suave text-destaque",
-            )}
-          >
-            {mensagem.texto}
-          </p>
-        ) : null}
-
-        {erroCarga ? (
-          <div role="alert" className="text-[13px]">
-            <p className="bg-destructive/10 text-destructive rounded-[8px] px-3 py-2.5 text-[12px] font-medium">{erroCarga}</p>
-            <button
-              type="button"
-              className="text-destaque mt-2 underline"
-              onClick={() => {
-                setErroCarga("");
-                setTentativa((valor) => valor + 1);
-              }}
-            >
-              Tentar novamente
-            </button>
-          </div>
-        ) : !painel ? (
-          <p role="status" className="text-tinta-suave text-[13px]">
-            Carregando prazos…
-          </p>
-        ) : vazioNoCaso ? (
-          <section className="bg-campo border-borda flex flex-col gap-3 rounded-[12px] border px-5 py-4">
-            <div className="flex flex-col gap-1">
-              <h2 className="text-[15px] font-semibold">Acompanhar os prazos deste caso (opcional)</h2>
-              <p className="text-tinta-suave text-[12px] leading-relaxed">
-                Se este caso já virou um processo, informe o número para receber aqui as intimações do DJEN e agendar os
-                prazos. Se ainda não há processo — ou se ele não vai ser protocolado —, não precisa fazer nada.
-              </p>
-            </div>
-            <FormularioAcompanhar somenteProcesso aoEnviar={acompanhar} />
-            <button
-              type="button"
-              onClick={() => setModal({ modo: "novo", publicacao: null })}
-              className="text-destaque w-fit text-[12px] font-semibold"
-            >
-              Agendar um prazo sem número de processo
-            </button>
-          </section>
-        ) : (
-          <>
-            <Secao
-              titulo={modoCaso ? "Processo acompanhado" : "Acompanhando"}
-              descricao={
-                modoCaso
-                  ? "As intimações deste número chegam aqui e na tela geral de prazos."
-                  : "Informe sua OAB para receber todas as intimações em seu nome, ou um número de processo específico."
-              }
-            >
-              {painel.monitoramentos.length ? (
-                <ul className="flex flex-wrap gap-2">
-                  {painel.monitoramentos.map((mon) => {
-                    const ligado = !modoCaso ? casoPorId(mon.casoId) : null;
-                    return (
-                      <li
-                        key={mon.id}
-                        className="bg-chip border-borda flex h-8 max-w-full items-center gap-2 rounded-full border pr-1 pl-3 text-[12px]"
-                      >
-                        <span className={cn("truncate font-medium", mon.tipo === "processo" && "font-mono tracking-tight")}>
-                          {rotuloMonitoramento(mon)}
-                        </span>
-                        {ligado ? <span className="text-destaque truncate font-medium">· {rotuloCaso(ligado)}</span> : null}
-                        {mon.ultimoErro ? (
-                          <span title={mon.ultimoErro} className="text-amber-600 dark:text-amber-400">
-                            <TriangleAlert className="size-3.5" aria-hidden />
-                            <span className="sr-only">Última consulta falhou: {mon.ultimoErro}</span>
-                          </span>
-                        ) : null}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setErroRemover("");
-                            setRemover(mon);
-                          }}
-                          aria-label={`Deixar de acompanhar ${rotuloMonitoramento(mon)}`}
-                          title="Deixar de acompanhar"
-                          className="text-tinta-suave hover:bg-tinta/10 flex size-6 shrink-0 items-center justify-center rounded-full"
-                        >
-                          <X className="size-3.5" aria-hidden />
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : null}
-              <FormularioAcompanhar somenteProcesso={modoCaso} aoEnviar={acompanhar} />
-            </Secao>
-
-            <Secao
-              titulo="Prazos agendados"
-              acao={
-                <button
-                  type="button"
-                  onClick={() => setModal({ modo: "novo", publicacao: null })}
-                  className="pressionavel border-borda bg-campo flex h-8 items-center gap-1.5 rounded-[8px] border px-3 text-[12px] font-semibold"
-                >
-                  <CalendarPlus className="size-3.5" aria-hidden />
-                  Novo prazo
-                </button>
-              }
-            >
-              <ListaPrazos
-                prazos={painel.prazos}
-                hoje={hoje}
-                casoPorId={casoPorId}
-                mostrarCaso={!modoCaso}
-                aoEditar={(prazo) => setModal({ modo: "editar", prazo })}
-                aoAlternarCumprido={alternarCumprido}
-                aoExcluir={excluirPrazo}
-              />
-            </Secao>
-
-            <Secao
-              titulo="Intimações"
-              descricao="Leia, agende o prazo ou marque que não há providência. A Sophia não calcula o prazo por você."
-              acao={
-                <div role="group" aria-label="Filtrar intimações" className="bg-chip border-borda flex rounded-[8px] border p-0.5">
-                  {(
-                    [
-                      ["pendentes", `A tratar (${pendentes.length})`],
-                      ["todas", `Todas (${publicacoes.length})`],
-                    ] as const
-                  ).map(([valor, rotulo]) => (
-                    <button
-                      key={valor}
-                      type="button"
-                      aria-pressed={filtro === valor}
-                      onClick={() => setFiltro(valor)}
-                      className={cn(
-                        "h-7 rounded-[6px] px-3 text-[12px] font-medium",
-                        filtro === valor ? "bg-campo text-destaque shadow-sm" : "text-tinta-suave hover:text-tinta",
-                      )}
-                    >
-                      {rotulo}
-                    </button>
-                  ))}
-                </div>
-              }
-            >
-              {sincronizando && !publicacoes.length ? (
-                <p className="text-tinta-suave flex items-center gap-2 text-[13px]">
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                  Consultando o DJEN…
-                </p>
-              ) : visiveis.length === 0 ? (
-                <p className="text-tinta-suave text-[13px]">
-                  {!painel.monitoramentos.length
-                    ? "Acompanhe uma OAB ou um processo para as intimações aparecerem aqui."
-                    : filtro === "pendentes" && publicacoes.length
-                      ? "Nenhuma intimação a tratar. Tudo em dia."
-                      : "Nenhuma intimação encontrada no DJEN para o que você acompanha."}
-                </p>
-              ) : (
-                <ul className="flex flex-col gap-3">
-                  {visiveis.map((pub) => (
-                    <li key={pub.id}>
-                      <CartaoIntimacao
-                        publicacao={pub}
-                        caso={casoPorId(casoDoProcesso.get(pub.numeroProcesso) ?? null)}
-                        casosParaLigar={modoCaso ? undefined : casosAtivos}
-                        aoAgendar={() => setModal({ modo: "novo", publicacao: pub })}
-                        aoMarcar={async (situacao) => trocarPublicacao(await prazosApi.marcarSituacao(pub.id, situacao))}
-                        aoLigarCaso={modoCaso ? undefined : (destino) => ligarAoCaso(pub, destino)}
-                      />
-                    </li>
-                  ))}
-                </ul>
+      {/* Única rolagem da tela (o título fica parado, como no repositório e nas listas de casos).
+          `relative` prende aqui os rótulos só para leitor de tela (`sr-only`, posição absoluta):
+          sem ele, os dos cartões lá embaixo esticavam a página e surgia uma segunda barra. */}
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <div className="flex w-full max-w-[960px] flex-col gap-6 px-7 pt-1 pb-8 max-[700px]:px-4">
+          {mensagem ? (
+            <p
+              role={mensagem.tipo === "erro" ? "alert" : "status"}
+              className={cn(
+                "rounded-[8px] px-3 py-2.5 text-[12px] font-medium",
+                mensagem.tipo === "erro" ? "bg-destructive/10 text-destructive" : "bg-destaque-suave text-destaque",
               )}
-            </Secao>
-
-            <p className="text-tinta-suave text-[11px] leading-relaxed">
-              Fonte: API pública de comunicações processuais do CNJ (DJEN). Ficam de fora citações pelo Domicílio Judicial
-              Eletrônico, intimações feitas só dentro do sistema do tribunal e publicações do STF, que tem diário próprio.
-              Continue acompanhando esses canais.
+            >
+              {mensagem.texto}
             </p>
-          </>
-        )}
+          ) : null}
+
+          {erroCarga ? (
+            <div role="alert" className="text-[13px]">
+              <p className="bg-destructive/10 text-destructive rounded-[8px] px-3 py-2.5 text-[12px] font-medium">{erroCarga}</p>
+              <button
+                type="button"
+                className="text-destaque mt-2 underline"
+                onClick={() => {
+                  setErroCarga("");
+                  setTentativa((valor) => valor + 1);
+                }}
+              >
+                Tentar novamente
+              </button>
+            </div>
+          ) : !painel ? (
+            <p role="status" className="text-tinta-suave text-[13px]">
+              Carregando prazos…
+            </p>
+          ) : vazioNoCaso ? (
+            <section className="bg-campo border-borda flex flex-col gap-3 rounded-[12px] border px-5 py-4">
+              <div className="flex flex-col gap-1">
+                <h2 className="text-[15px] font-semibold">Acompanhar os prazos deste caso (opcional)</h2>
+                <p className="text-tinta-suave text-[12px] leading-relaxed">
+                  Se este caso já virou um processo, informe o número para receber aqui as intimações do DJEN e agendar os
+                  prazos. Se ainda não há processo — ou se ele não vai ser protocolado —, não precisa fazer nada.
+                </p>
+              </div>
+              <FormularioAcompanhar somenteProcesso aoEnviar={acompanhar} />
+              <button
+                type="button"
+                onClick={() => setModal({ modo: "novo", publicacao: null })}
+                className="text-destaque w-fit text-[12px] font-semibold"
+              >
+                Agendar um prazo sem número de processo
+              </button>
+            </section>
+          ) : (
+            <>
+              <Secao
+                titulo={modoCaso ? "Processo acompanhado" : "Acompanhando"}
+                descricao={
+                  modoCaso
+                    ? "As intimações deste número chegam aqui e na tela geral de prazos."
+                    : "Informe sua OAB para receber todas as intimações em seu nome, ou um número de processo específico."
+                }
+              >
+                {painel.monitoramentos.length ? (
+                  <ul className="flex flex-wrap gap-2">
+                    {painel.monitoramentos.map((mon) => {
+                      const ligado = !modoCaso ? casoPorId(mon.casoId) : null;
+                      return (
+                        <li
+                          key={mon.id}
+                          className="bg-chip border-borda flex h-8 max-w-full items-center gap-2 rounded-full border pr-1 pl-3 text-[12px]"
+                        >
+                          <span className={cn("truncate font-medium", mon.tipo === "processo" && "font-mono tracking-tight")}>
+                            {rotuloMonitoramento(mon)}
+                          </span>
+                          {ligado ? <span className="text-destaque truncate font-medium">· {rotuloCaso(ligado)}</span> : null}
+                          {mon.ultimoErro ? (
+                            <span title={mon.ultimoErro} className="text-amber-600 dark:text-amber-400">
+                              <TriangleAlert className="size-3.5" aria-hidden />
+                              <span className="sr-only">Última consulta falhou: {mon.ultimoErro}</span>
+                            </span>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setErroRemover("");
+                              setRemover(mon);
+                            }}
+                            aria-label={`Deixar de acompanhar ${rotuloMonitoramento(mon)}`}
+                            title="Deixar de acompanhar"
+                            className="text-tinta-suave hover:bg-tinta/10 flex size-6 shrink-0 items-center justify-center rounded-full"
+                          >
+                            <X className="size-3.5" aria-hidden />
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : null}
+                <FormularioAcompanhar somenteProcesso={modoCaso} aoEnviar={acompanhar} />
+              </Secao>
+
+              <Secao
+                titulo="Prazos agendados"
+                acao={
+                  <button
+                    type="button"
+                    onClick={() => setModal({ modo: "novo", publicacao: null })}
+                    className="pressionavel border-borda bg-campo flex h-8 items-center gap-1.5 rounded-[8px] border px-3 text-[12px] font-semibold"
+                  >
+                    <CalendarPlus className="size-3.5" aria-hidden />
+                    Novo prazo
+                  </button>
+                }
+              >
+                <ListaPrazos
+                  prazos={painel.prazos}
+                  hoje={hoje}
+                  casoPorId={casoPorId}
+                  mostrarCaso={!modoCaso}
+                  aoEditar={(prazo) => setModal({ modo: "editar", prazo })}
+                  aoAlternarCumprido={alternarCumprido}
+                  aoExcluir={excluirPrazo}
+                />
+              </Secao>
+
+              <Secao
+                titulo="Intimações"
+                descricao="Leia, agende o prazo ou marque que não há providência. A Sophia não calcula o prazo por você."
+                acao={
+                  <div role="group" aria-label="Filtrar intimações" className="bg-chip border-borda flex rounded-[8px] border p-0.5">
+                    {(
+                      [
+                        ["pendentes", `A tratar (${pendentes.length})`],
+                        ["todas", `Todas (${publicacoes.length})`],
+                      ] as const
+                    ).map(([valor, rotulo]) => (
+                      <button
+                        key={valor}
+                        type="button"
+                        aria-pressed={filtro === valor}
+                        onClick={() => {
+                          setFiltro(valor);
+                          setPaginaIntimacoes(1);
+                        }}
+                        className={cn(
+                          "h-7 rounded-[6px] px-3 text-[12px] font-medium",
+                          filtro === valor ? "bg-campo text-destaque shadow-sm" : "text-tinta-suave hover:text-tinta",
+                        )}
+                      >
+                        {rotulo}
+                      </button>
+                    ))}
+                  </div>
+                }
+              >
+                {sincronizando && !publicacoes.length ? (
+                  <p className="text-tinta-suave flex items-center gap-2 text-[13px]">
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                    Consultando o DJEN…
+                  </p>
+                ) : visiveis.length === 0 ? (
+                  <p className="text-tinta-suave text-[13px]">
+                    {!painel.monitoramentos.length
+                      ? "Acompanhe uma OAB ou um processo para as intimações aparecerem aqui."
+                      : filtro === "pendentes" && publicacoes.length
+                        ? "Nenhuma intimação a tratar. Tudo em dia."
+                        : "Nenhuma intimação encontrada no DJEN para o que você acompanha."}
+                  </p>
+                ) : (
+                  <>
+                    <ul className="flex flex-col gap-3">
+                      {paginaDeIntimacoes.itens.map((pub) => (
+                        <li key={pub.id}>
+                          <CartaoIntimacao
+                            publicacao={pub}
+                            caso={casoPorId(casoDoProcesso.get(pub.numeroProcesso) ?? null)}
+                            casosParaLigar={modoCaso ? undefined : casosAtivos}
+                            aoAgendar={() => setModal({ modo: "novo", publicacao: pub })}
+                            aoMarcar={async (situacao) => trocarPublicacao(await prazosApi.marcarSituacao(pub.id, situacao))}
+                            aoLigarCaso={modoCaso ? undefined : (destino) => ligarAoCaso(pub, destino)}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                    <Paginacao pagina={paginaDeIntimacoes} rotulo="Páginas das intimações" aoMudar={setPaginaIntimacoes} />
+                  </>
+                )}
+              </Secao>
+
+              <p className="text-tinta-suave text-[11px] leading-relaxed">
+                Fonte: API pública de comunicações processuais do CNJ (DJEN). Ficam de fora citações pelo Domicílio Judicial
+                Eletrônico, intimações feitas só dentro do sistema do tribunal e publicações do STF, que tem diário próprio.
+                Continue acompanhando esses canais.
+              </p>
+            </>
+          )}
+        </div>
       </div>
 
       <ModalPrazo
@@ -480,7 +495,7 @@ export function PainelPrazos({ casoId }: { casoId?: string }) {
         }}
         aoConfirmar={() => void confirmarRemocao()}
       />
-    </div>
+    </>
   );
 }
 
@@ -496,7 +511,7 @@ function Secao({
   children: ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-3" aria-label={titulo}>
+    <section className="flex scroll-mt-3 flex-col gap-3" aria-label={titulo}>
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="flex min-w-0 flex-col gap-0.5">
           <h2 className="text-[15px] font-semibold">{titulo}</h2>
