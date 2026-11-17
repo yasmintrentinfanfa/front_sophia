@@ -28,19 +28,23 @@ vi.mock("next/headers", () => ({
   }),
 }));
 
-const { POST: iniciar } = await import("@/app/api/auth/google/inicio/route");
+const { GET: configuracao, POST: iniciar } = await import("@/app/api/auth/google/inicio/route");
 const { POST: entrar } = await import("@/app/api/auth/google/route");
 const { POST: vincular } = await import("@/app/api/auth/google/vincular/route");
 
 let backend: ReturnType<typeof vi.fn<typeof fetch>>;
 
+const CLIENTE = "sophia-teste.apps.googleusercontent.com";
+
 beforeEach(() => {
   backend = vi.fn<typeof fetch>(async () => Response.json({ usuario: { _id: ANA } }));
   vi.stubGlobal("fetch", backend);
+  vi.stubEnv("GOOGLE_CLIENT_ID", CLIENTE);
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   jar.cookies.clear();
 });
 
@@ -68,6 +72,35 @@ describe("nonce", () => {
     const primeiro = nonceDoCookie();
     await iniciar();
     expect(nonceDoCookie()).not.toBe(primeiro);
+  });
+});
+
+describe("ID do cliente vem do servidor (GOOGLE_CLIENT_ID, sem NEXT_PUBLIC_)", () => {
+  it("GET devolve só o ID e não grava cookie (pode repetir sem trocar o nonce)", async () => {
+    await iniciar();
+    const nonce = nonceDoCookie();
+    expect(await configuracao().json()).toEqual({ ativo: true, clientId: CLIENTE });
+    expect(nonceDoCookie()).toBe(nonce);
+    vi.stubEnv("GOOGLE_CLIENT_ID", "");
+    expect(await configuracao().json()).toEqual({ ativo: false });
+  });
+
+  it("vai junto com o nonce para o botão", async () => {
+    const dados = (await (await iniciar()).json()) as { ativo: boolean; clientId: string };
+    expect(dados).toMatchObject({ ativo: true, clientId: CLIENTE });
+  });
+
+  it("com mais de um id separado por vírgula (como no backend), usa o primeiro", async () => {
+    vi.stubEnv("GOOGLE_CLIENT_ID", ` ${CLIENTE} , outro.apps.googleusercontent.com`);
+    expect(((await (await iniciar()).json()) as { clientId: string }).clientId).toBe(CLIENTE);
+  });
+
+  it("sem a variável, o login com Google fica desligado e nenhum cookie é criado", async () => {
+    vi.stubEnv("GOOGLE_CLIENT_ID", "");
+    const res = await iniciar();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ativo: false });
+    expect(jar.cookies.has(COOKIE_NONCE_GOOGLE)).toBe(false);
   });
 });
 

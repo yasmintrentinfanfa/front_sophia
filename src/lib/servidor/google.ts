@@ -20,6 +20,16 @@ const VALIDADE_DO_NONCE = 30 * 60;
 /** Um ID token do Google tem ~1 KB; acima disso é lixo e nem vai ao backend. */
 const TAMANHO_MAXIMO = 4096;
 
+/**
+ * "ID do cliente" OAuth do Google (`GOOGLE_CLIENT_ID`, o mesmo nome do backend). É público, mas
+ * fica no servidor e vai ao navegador por `/api/auth/google/inicio`: sem prefixo NEXT_PUBLIC_,
+ * a Vercel aceita o nome e trocar o valor não exige um novo build. Vazio = login com Google
+ * desligado. Se houver mais de um id separado por vírgula (como no backend), usa o primeiro.
+ */
+export function idDoClienteGoogle() {
+  return (process.env.GOOGLE_CLIENT_ID ?? "").split(",")[0].trim();
+}
+
 export function hashDoNonce(nonce: string) {
   return createHash("sha256").update(nonce).digest("base64url");
 }
