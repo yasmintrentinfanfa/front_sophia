@@ -4,8 +4,10 @@ import { useState } from "react";
 import { Check, Pencil, Trash2 } from "lucide-react";
 
 import { ModalConfirmar } from "@/components/casos/modal-confirmar";
+import { Paginacao } from "@/components/ui/paginacao";
 import type { PrazoAgendado } from "@/lib/api/prazos";
 import type { Caso } from "@/lib/api/types";
+import { paginar } from "@/lib/paginacao";
 import { formatarDataComSemana } from "@/lib/prazos/calendario";
 import { descreverPrazo, ordenarPrazos, urgenciaDoPrazo, type UrgenciaPrazo } from "@/lib/prazos/estado";
 import { formatarProcesso } from "@/lib/prazos/numeros";
@@ -20,7 +22,7 @@ const COR: Record<UrgenciaPrazo, string> = {
   cumprido: "bg-chip text-tinta-suave",
 };
 
-/** Prazos agendados pelo advogado, do mais urgente ao mais distante. */
+/** Prazos agendados pelo advogado, do mais urgente ao mais distante, 10 por página. */
 export function ListaPrazos({
   prazos,
   hoje,
@@ -43,10 +45,12 @@ export function ListaPrazos({
   const [excluindo, setExcluindo] = useState(false);
   const [erro, setErro] = useState("");
   const [alternando, setAlternando] = useState<string | null>(null);
+  const [pagina, setPagina] = useState(1);
 
   const ordenados = ordenarPrazos(prazos);
   const cumpridos = ordenados.filter((prazo) => prazo.cumprido).length;
   const visiveis = verCumpridos ? ordenados : ordenados.filter((prazo) => !prazo.cumprido);
+  const paginaAtual = paginar(visiveis, pagina);
 
   async function alternar(prazo: PrazoAgendado) {
     setAlternando(prazo.id);
@@ -82,7 +86,7 @@ export function ListaPrazos({
         </p>
       ) : (
         <ul className="flex flex-col gap-1.5">
-          {visiveis.map((prazo) => {
+          {paginaAtual.itens.map((prazo) => {
             const urgencia = urgenciaDoPrazo(prazo, hoje);
             const caso = mostrarCaso ? casoPorId(prazo.casoId) : null;
             return (
@@ -151,10 +155,14 @@ export function ListaPrazos({
           })}
         </ul>
       )}
+      <Paginacao pagina={paginaAtual} rotulo="Páginas dos prazos agendados" aoMudar={setPagina} />
       {cumpridos ? (
         <button
           type="button"
-          onClick={() => setVerCumpridos((valor) => !valor)}
+          onClick={() => {
+            setVerCumpridos((valor) => !valor);
+            setPagina(1);
+          }}
           className="text-tinta-suave hover:text-tinta w-fit text-[12px] font-medium"
         >
           {verCumpridos ? "Esconder cumpridos" : `Mostrar cumpridos (${cumpridos})`}

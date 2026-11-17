@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { CalendarPlus, ChevronDown, ExternalLink, Loader2, Undo2 } from "lucide-react";
 
 import { prazosApi, type Publicacao } from "@/lib/api/prazos";
@@ -8,6 +8,7 @@ import type { Caso } from "@/lib/api/types";
 import { datasDaIntimacao, formatarData } from "@/lib/prazos/calendario";
 import { formatarProcesso } from "@/lib/prazos/numeros";
 import { rotuloCaso } from "@/lib/casos/rotulo";
+import { mostrarInicio } from "@/lib/rolagem";
 import { cn } from "@/lib/utils";
 
 const SITUACAO: Record<Publicacao["situacao"], { rotulo: string; classe: string }> = {
@@ -37,6 +38,7 @@ export function CartaoIntimacao({
   aoLigarCaso?: (casoId: string) => Promise<void>;
 }) {
   const idTeor = useId();
+  const cartao = useRef<HTMLElement>(null);
   const [aberto, setAberto] = useState(false);
   const [inteiroTeor, setInteiroTeor] = useState<string | null>(publicacao.textoTruncado ? null : publicacao.texto);
   const [carregandoTeor, setCarregandoTeor] = useState(false);
@@ -48,7 +50,13 @@ export function CartaoIntimacao({
   const resumo = longo ? `${publicacao.texto.slice(0, TAMANHO_RESUMO).trimEnd()}…` : publicacao.texto;
 
   async function alternarTeor() {
-    if (aberto) return setAberto(false);
+    if (aberto) {
+      setAberto(false);
+      // O inteiro teor abre na própria página (sem rolagem dentro do cartão); ao recolher um
+      // texto longo, o começo do cartão pode ter ficado acima da tela: traz de volta.
+      requestAnimationFrame(() => mostrarInicio(cartao.current));
+      return;
+    }
     if (inteiroTeor === null) {
       setCarregandoTeor(true);
       setErro("");
@@ -78,8 +86,9 @@ export function CartaoIntimacao({
 
   return (
     <article
+      ref={cartao}
       className={cn(
-        "bg-campo border-borda flex flex-col gap-2 rounded-[12px] border px-4 py-3",
+        "bg-campo border-borda flex scroll-mt-3 flex-col gap-2 rounded-[12px] border px-4 py-3",
         publicacao.situacao === "pendente" && "border-l-[3px] border-l-amber-500",
       )}
     >
@@ -112,7 +121,7 @@ export function CartaoIntimacao({
       </div>
 
       <div className="text-[12px] leading-relaxed">
-        <p id={idTeor} className={cn("whitespace-pre-line", aberto && "max-h-[420px] overflow-y-auto")}>
+        <p id={idTeor} className="whitespace-pre-line">
           {aberto && inteiroTeor !== null ? inteiroTeor : resumo}
         </p>
         {longo ? (
