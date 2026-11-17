@@ -6,9 +6,6 @@ import { useEffect, useRef, useState } from "react";
 import { usuarioDaApi, type UsuarioApi } from "@/lib/api/http/mapeadores";
 import type { Usuario } from "@/lib/api/types";
 
-/** "ID do cliente" OAuth do Google Cloud. É público; sem ele o botão não aparece. */
-const ID_DO_CLIENTE = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
-
 /** Só o que usamos da biblioteca do Google (Google Identity Services). */
 interface GoogleIdentity {
   initialize(opcoes: {
@@ -72,14 +69,38 @@ export function BotaoGoogle({ contexto, ...acoes }: { contexto: "signin" | "sign
   const [pronto, setPronto] = useState(false);
   const [indisponivel, setIndisponivel] = useState(false);
   const [entrando, setEntrando] = useState(false);
+  /** ID do cliente OAuth vindo do servidor: `null` enquanto carrega; `false` = desligado. */
+  const [idDoCliente, setIdDoCliente] = useState<string | false | null>(null);
+  /** Muda para pedir uma tentativa nova (nonce vencido ou token recusado). */
+  const [rodada, setRodada] = useState(0);
 
   useEffect(() => {
     ultimas.current = acoes;
   });
 
+  // Só a configuração (GET, sem cookie): pode rodar mais de uma vez sem efeito colateral.
+  useEffect(() => {
+    let ativo = true;
+    fetch("/api/auth/google/inicio")
+      .then(async (res) => {
+        const dados = (await res.json()) as { ativo?: boolean; clientId?: string };
+        if (!ativo) return;
+        if (res.ok && dados.ativo === false) setIdDoCliente(false);
+        else if (res.ok && dados.clientId) setIdDoCliente(dados.clientId);
+        else setIndisponivel(true);
+      })
+      .catch(() => {
+        if (ativo) setIndisponivel(true);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
   useEffect(() => {
     const google = window.google?.accounts?.id;
-    if (!pronto || !google) return;
+    if (!pronto || !google || !idDoCliente) return;
+    const clientId = idDoCliente;
     let ativo = true;
 
     /**
@@ -134,7 +155,7 @@ export function BotaoGoogle({ contexto, ...acoes }: { contexto: "signin" | "sign
         }
         ultimas.current.aoFalhar(dados.erro ?? "Não foi possível entrar com o Google.");
         // Nonce vencido ou token recusado: a próxima tentativa começa do zero.
-        if (res.status === 401 && ativo) void preparar();
+        if (res.status === 401 && ativo) setRodada((r) => r + 1);
       } catch {
         ultimas.current.aoFalhar("Não foi possível conectar ao servidor. Verifique sua internet.");
       } finally {
@@ -142,6 +163,11 @@ export function BotaoGoogle({ contexto, ...acoes }: { contexto: "signin" | "sign
       }
     }
 
+    /**
+     * O nonce (POST, grava o cookie) é pedido uma vez só, depois de o script do Google
+     * carregar: dois pedidos ao mesmo tempo poderiam deixar no cookie um nonce diferente do
+     * que o botão recebeu, e o login falharia.
+     */
     async function preparar() {
       try {
         const res = await fetch("/api/auth/google/inicio", { method: "POST" });
@@ -149,7 +175,7 @@ export function BotaoGoogle({ contexto, ...acoes }: { contexto: "signin" | "sign
         if (!res.ok || !nonce) throw new Error("sem nonce");
         if (!ativo || !google) return;
         google.initialize({
-          client_id: ID_DO_CLIENTE,
+          client_id: clientId,
           callback: (resposta) => void aoVoltarDoGoogle(resposta),
           nonce,
           context: contexto,
@@ -168,18 +194,21 @@ export function BotaoGoogle({ contexto, ...acoes }: { contexto: "signin" | "sign
       ativo = false;
       google.cancel();
     };
-  }, [pronto, contexto]);
+  }, [pronto, idDoCliente, contexto, rodada]);
 
-  if (!ID_DO_CLIENTE) return null;
+  // Ainda sem resposta do servidor, ou login com Google desligado: nem a linha "ou" aparece.
+  if (!idDoCliente && !indisponivel) return null;
 
   return (
     <div className="flex flex-col gap-4">
-      <Script
-        src="https://accounts.google.com/gsi/client"
-        strategy="afterInteractive"
-        onReady={() => setPronto(true)}
-        onError={() => setIndisponivel(true)}
-      />
+      {idDoCliente ? (
+        <Script
+          src="https://accounts.google.com/gsi/client"
+          strategy="afterInteractive"
+          onReady={() => setPronto(true)}
+          onError={() => setIndisponivel(true)}
+        />
+      ) : null}
       <div className="text-tinta-suave flex items-center gap-3 text-[12px]">
         <span aria-hidden className="bg-borda h-px flex-1" />
         ou
