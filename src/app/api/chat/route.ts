@@ -1,7 +1,9 @@
+import { LIMITE_MENSAGEM_CHAT } from "@/lib/chat/limites";
 import { corpoJson, doUsuario, repassarJson } from "@/lib/servidor/repassar";
 import { idDoUsuarioNaSessao } from "@/lib/servidor/sessao-usuario";
 
-export const maxDuration = 120;
+/** Resposta longa com busca na web pode passar de 2 minutos; o mesmo teto da análise e das peças. */
+export const maxDuration = 300;
 
 /**
  * Chat com IA sobre o caso. O front manda só a mensagem nova: o histórico fica no banco e o
@@ -22,7 +24,7 @@ export async function GET(pedido: Request) {
 export async function POST(pedido: Request) {
   const corpo = (await pedido.json().catch(() => ({}))) as { casoId?: string; mensagem?: string };
   const casoId = (corpo.casoId ?? "").trim();
-  const mensagem = (corpo.mensagem ?? "").trim().slice(0, 4000);
+  const mensagem = (corpo.mensagem ?? "").trim().slice(0, LIMITE_MENSAGEM_CHAT);
   const userId = await idDoUsuarioNaSessao();
   if (!userId) return Response.json({ erro: "Entre na sua conta para conversar." }, { status: 401 });
   if (!casoId || !mensagem) return Response.json({ erro: "Informe o caso e a mensagem." }, { status: 400 });

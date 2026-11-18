@@ -11,6 +11,7 @@ import { ConteudoCaso } from "@/components/fluxo/conteudo-caso";
 import { api } from "@/lib/api";
 import type { MensagemChat } from "@/lib/api/analise";
 import { comAnexos, separarAnexos, tamanhoDoArquivo } from "@/lib/chat/anexos";
+import { LIMITE_MENSAGEM_CHAT } from "@/lib/chat/limites";
 import { salvarDocumentoDoCaso } from "@/lib/transcricao/fluxo";
 import { cn } from "@/lib/utils";
 
@@ -503,7 +504,7 @@ function Chat({
             id="pergunta-chat"
             value={pergunta}
             onChange={(evento) => setPergunta(evento.target.value)}
-            maxLength={4000}
+            maxLength={LIMITE_MENSAGEM_CHAT}
             readOnly={enviando}
             placeholder={
               separados.length ? "O que você quer saber sobre o arquivo? (opcional)" : "Pergunte algo sobre o caso..."

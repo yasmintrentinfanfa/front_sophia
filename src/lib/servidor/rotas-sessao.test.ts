@@ -6,6 +6,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { LIMITE_MENSAGEM_CHAT } from "@/lib/chat/limites";
 import { assinarSessao } from "@/lib/servidor/cookie-assinado";
 
 const ANA = "98ff6434-655e-486f-b255-1bd89542ea7f";
@@ -34,6 +35,7 @@ const { GET: listarAreas } = await import("@/app/api/areas/route");
 const { PATCH: atualizarCaso, DELETE: excluirCaso } = await import("@/app/api/casos/[casoId]/route");
 const rotaAnalise = await import("@/app/api/analise/route");
 const rotaChat = await import("@/app/api/chat/route");
+const rotaChatAoVivo = await import("@/app/api/chat/stream/route");
 const rotaPecas = await import("@/app/api/pecas/route");
 const { GET: obterPeca, PATCH: atualizarPeca } = await import("@/app/api/pecas/[pecaId]/route");
 const { GET: baixarPeca, POST: baixarPecaEditada } = await import("@/app/api/pecas/[pecaId]/docx/route");
@@ -296,6 +298,19 @@ describe("análise, chat e minutas com IA", () => {
       }),
     );
     expect(corpoChamado()).toEqual({ user_id: ANA, modelo_id: "contestacao" });
+  });
+
+  it("chat: mensagem de até 10 mil caracteres e 5 minutos para a resposta", async () => {
+    cookieAtual.valor = assinarSessao(ANA);
+    const mensagem = "a".repeat(LIMITE_MENSAGEM_CHAT) + "b".repeat(500);
+    for (const rota of [rotaChat, rotaChatAoVivo]) {
+      backend.mockClear();
+      await rota.POST(
+        new Request("http://x/api/chat", { method: "POST", body: JSON.stringify({ casoId: "caso-1", mensagem }) }),
+      );
+      expect(corpoChamado().mensagem).toBe("a".repeat(10_000));
+      expect(rota.maxDuration).toBe(300);
+    }
   });
 
   it("atualizar a análise com o chat só liga incluir_chat quando pedido explicitamente", async () => {
