@@ -51,6 +51,31 @@ export function IconePrazos() {
   );
 }
 
+/** Folha de calendário com a grade dos dias: calendário de prazos. */
+export function IconeCalendario() {
+  return (
+    <span className="flex size-5 items-center justify-center">
+      <svg aria-hidden viewBox="0 0 20 20" className="text-tinta-suave size-5">
+        <path
+          d="M5.5 4h9A1.5 1.5 0 0 1 16 5.5v9a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 4 14.5v-9A1.5 1.5 0 0 1 5.5 4ZM4 8h12M7.5 2.75v2.5M12.5 2.75v2.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <g fill="currentColor">
+          <circle cx="7.25" cy="10.75" r="0.85" />
+          <circle cx="10" cy="10.75" r="0.85" />
+          <circle cx="12.75" cy="10.75" r="0.85" />
+          <circle cx="7.25" cy="13.25" r="0.85" />
+          <circle cx="10" cy="13.25" r="0.85" />
+        </g>
+      </svg>
+    </span>
+  );
+}
+
 export function IconeConfiguracoes() {
   return (
     <span className="flex size-5 items-center justify-center">

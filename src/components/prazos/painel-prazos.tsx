@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { CalendarPlus, Loader2, RefreshCw, TriangleAlert, X } from "lucide-react";
+import Link from "next/link";
+import { CalendarDays, CalendarPlus, Loader2, RefreshCw, TriangleAlert, X } from "lucide-react";
 
 import { useListaCasos } from "@/components/casos/contexto-lista-casos";
 import { ModalConfirmar } from "@/components/casos/modal-confirmar";
@@ -374,14 +375,25 @@ export function PainelPrazos({ casoId }: { casoId?: string }) {
               <Secao
                 titulo="Prazos agendados"
                 acao={
-                  <button
-                    type="button"
-                    onClick={() => setModal({ modo: "novo", publicacao: null })}
-                    className="pressionavel border-borda bg-campo flex h-8 items-center gap-1.5 rounded-[8px] border px-3 text-[12px] font-semibold"
-                  >
-                    <CalendarPlus className="size-3.5" aria-hidden />
-                    Novo prazo
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {!modoCaso ? (
+                      <Link
+                        href="/casos/calendario"
+                        className="pressionavel border-borda bg-campo flex h-8 items-center gap-1.5 rounded-[8px] border px-3 text-[12px] font-semibold"
+                      >
+                        <CalendarDays className="size-3.5" aria-hidden />
+                        Ver no calendário
+                      </Link>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => setModal({ modo: "novo", publicacao: null })}
+                      className="pressionavel border-borda bg-campo flex h-8 items-center gap-1.5 rounded-[8px] border px-3 text-[12px] font-semibold"
+                    >
+                      <CalendarPlus className="size-3.5" aria-hidden />
+                      Novo prazo
+                    </button>
+                  </div>
                 }
               >
                 <ListaPrazos
