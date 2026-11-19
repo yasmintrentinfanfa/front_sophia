@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Hamburguer,
+  IconeCalendario,
   IconeCasos,
   IconeConfiguracoes,
   IconeNovoCaso,
@@ -52,7 +53,8 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
   const botaoConta = useRef<HTMLButtonElement>(null);
   const [ancora, setAncora] = useState({ top: 0, left: 0 });
   const segmento = pathname.match(/^\/casos\/([^/]+)/)?.[1] ?? null;
-  const rotaDePainel = segmento === "novo" || segmento === "arquivo" || segmento === "prazos";
+  const rotaDePainel =
+    segmento === "novo" || segmento === "arquivo" || segmento === "prazos" || segmento === "calendario";
   const idDaRota = segmento && !rotaDePainel ? segmento : null;
 
   const casosAtivos = useMemo(
@@ -309,6 +311,7 @@ function TrilhaIcones({
   const emRepositorio = estaNoRepositorio(pathname);
   // Prazos da conta. Os prazos de um caso ficam com "Casos", como as peças e o chat.
   const emPrazos = pathname === "/casos/prazos";
+  const emCalendario = pathname === "/casos/calendario";
   const emCasos =
     !emRepositorio &&
     (pathname === "/casos" ||
@@ -383,6 +386,22 @@ function TrilhaIcones({
           }
         />
         <TooltipContent side="right">Prazos</TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Link
+              href="/casos/calendario"
+              aria-current={emCalendario ? "page" : undefined}
+              className={classeTrilha(emCalendario)}
+            >
+              <IconeCalendario />
+              <span className="sr-only">Calendário de prazos</span>
+            </Link>
+          }
+        />
+        <TooltipContent side="right">Calendário de prazos</TooltipContent>
       </Tooltip>
 
       {mostrarRepositorio ? (

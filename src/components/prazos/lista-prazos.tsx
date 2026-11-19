@@ -28,6 +28,7 @@ export function ListaPrazos({
   hoje,
   casoPorId,
   mostrarCaso,
+  cumpridosVisiveis = false,
   aoEditar,
   aoAlternarCumprido,
   aoExcluir,
@@ -36,11 +37,13 @@ export function ListaPrazos({
   hoje: string;
   casoPorId: (id: string | null) => Caso | null;
   mostrarCaso: boolean;
+  /** Começa mostrando os cumpridos (ex.: os prazos de um dia, no calendário). */
+  cumpridosVisiveis?: boolean;
   aoEditar: (prazo: PrazoAgendado) => void;
   aoAlternarCumprido: (prazo: PrazoAgendado) => Promise<void>;
   aoExcluir: (prazo: PrazoAgendado) => Promise<void>;
 }) {
-  const [verCumpridos, setVerCumpridos] = useState(false);
+  const [verCumpridos, setVerCumpridos] = useState(cumpridosVisiveis);
   const [paraExcluir, setParaExcluir] = useState<PrazoAgendado | null>(null);
   const [excluindo, setExcluindo] = useState(false);
   const [erro, setErro] = useState("");

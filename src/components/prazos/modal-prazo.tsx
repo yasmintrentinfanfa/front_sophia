@@ -26,6 +26,7 @@ export function ModalPrazo({
   publicacao,
   prazo,
   pedirProcesso,
+  dataInicial,
   aoFechar,
   aoSalvar,
 }: {
@@ -36,6 +37,8 @@ export function ModalPrazo({
   prazo?: PrazoAgendado | null;
   /** Prazo avulso: mostra o campo opcional de número do processo. */
   pedirProcesso?: boolean;
+  /** Data final já preenchida ao agendar (ex.: o dia clicado no calendário). */
+  dataInicial?: string | null;
   aoFechar: () => void;
   aoSalvar: (dados: NovoPrazo) => Promise<void>;
 }) {
@@ -53,6 +56,7 @@ export function ModalPrazo({
         publicacao={publicacao ?? null}
         prazo={prazo ?? null}
         pedirProcesso={!!pedirProcesso && !prazo && !publicacao}
+        dataInicial={dataInicial ?? ""}
         salvando={salvando}
         setSalvando={setSalvando}
         aoFechar={aoFechar}
@@ -66,6 +70,7 @@ function Formulario({
   publicacao,
   prazo,
   pedirProcesso,
+  dataInicial,
   salvando,
   setSalvando,
   aoFechar,
@@ -74,6 +79,7 @@ function Formulario({
   publicacao: Publicacao | null;
   prazo: PrazoAgendado | null;
   pedirProcesso: boolean;
+  dataInicial: string;
   salvando: boolean;
   setSalvando: (valor: boolean) => void;
   aoFechar: () => void;
@@ -81,7 +87,7 @@ function Formulario({
 }) {
   const datas = publicacao ? datasDaIntimacao(publicacao.dataDisponibilizacao) : null;
   const [descricao, setDescricao] = useState(prazo?.descricao ?? "");
-  const [dataFinal, setDataFinal] = useState(prazo?.dataFinal ?? "");
+  const [dataFinal, setDataFinal] = useState(prazo?.dataFinal ?? dataInicial);
   const [processo, setProcesso] = useState("");
   const [quantidade, setQuantidade] = useState("15");
   const [tipo, setTipo] = useState<TipoContagem>("uteis");
