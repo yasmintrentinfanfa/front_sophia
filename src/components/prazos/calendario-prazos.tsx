@@ -9,7 +9,7 @@ import { BotaoVoltar } from "@/components/fluxo/botao-voltar";
 import { ListaPrazos } from "@/components/prazos/lista-prazos";
 import { ModalPrazo } from "@/components/prazos/modal-prazo";
 import { Modal } from "@/components/ui/modal";
-import { prazosApi, type NovoPrazo, type PrazoAgendado } from "@/lib/api/prazos";
+import { prazosApi, type Monitoramento, type NovoPrazo, type PrazoAgendado } from "@/lib/api/prazos";
 import type { Caso } from "@/lib/api/types";
 import { rotuloCaso } from "@/lib/casos/rotulo";
 import { emRecesso, formatarData, hojeEmBrasilia, nomeDoFeriado, type DataIso } from "@/lib/prazos/calendario";
@@ -64,7 +64,7 @@ const ESTILO: Record<UrgenciaPrazo, { chip: string; ponto: string; rotulo: strin
 const BOTAO =
   "pressionavel border-borda bg-campo flex h-8 items-center justify-center gap-1.5 rounded-[8px] border px-3 text-[12px] font-semibold disabled:opacity-50";
 const BOTAO_PRINCIPAL =
-  "pressionavel bg-acao text-acao-tinta flex h-8 items-center gap-1.5 rounded-[8px] px-3 text-[12px] font-semibold";
+  "pressionavel bg-acao text-acao-tinta flex h-8 items-center gap-1.5 rounded-[8px] px-3 text-[12px] font-semibold disabled:opacity-50";
 
 const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
 
@@ -82,7 +82,9 @@ export function CalendarioPrazos() {
   const [tentativa, setTentativa] = useState(0);
   const [situacao, setSituacao] = useState<Situacao>("a_cumprir");
   const [filtroCaso, setFiltroCaso] = useState("todos");
+  const [monitoramentos, setMonitoramentos] = useState<Monitoramento[]>([]);
   const [dia, setDia] = useState<DataIso | null>(null);
+  const [diaAberto, setDiaAberto] = useState(false);
   const [modal, setModal] = useState<EstadoModal>(null);
   const [mensagem, setMensagem] = useState<Mensagem>(null);
 
@@ -91,7 +93,9 @@ export function CalendarioPrazos() {
     prazosApi
       .obterPainel()
       .then((painel) => {
-        if (ativo) setPrazos(painel.prazos);
+        if (!ativo) return;
+        setPrazos(painel.prazos);
+        setMonitoramentos(painel.monitoramentos);
       })
       .catch((falha: unknown) => {
         if (ativo) setErroCarga(falha instanceof Error ? falha.message : "Não foi possível carregar os prazos.");
@@ -106,7 +110,24 @@ export function CalendarioPrazos() {
     return (id: string | null) => (id ? (mapa.get(id) ?? null) : null);
   }, [casos]);
 
-  const todos = useMemo(() => prazos ?? [], [prazos]);
+  // Prazo agendado de uma intimação antes de o processo ser ligado ao caso fica sem caso_id; o
+  // caso vem do processo acompanhado, como na tela de prazos do caso (backend: listar_prazos).
+  const casoDoProcesso = useMemo(() => {
+    const mapa = new Map<string, string>();
+    for (const mon of monitoramentos) {
+      if (mon.tipo === "processo" && mon.numeroProcesso && mon.casoId) mapa.set(mon.numeroProcesso, mon.casoId);
+    }
+    return mapa;
+  }, [monitoramentos]);
+  const todos = useMemo(
+    () =>
+      (prazos ?? []).map((prazo) =>
+        prazo.casoId || !prazo.numeroProcesso
+          ? prazo
+          : { ...prazo, casoId: casoDoProcesso.get(prazo.numeroProcesso) ?? null },
+      ),
+    [prazos, casoDoProcesso],
+  );
   // Filtro de caso só aparece se algum prazo estiver ligado a um caso.
   const casosComPrazo = useMemo(() => {
     const ids = new Set(todos.map((prazo) => prazo.casoId).filter(Boolean));
@@ -132,6 +153,12 @@ export function CalendarioPrazos() {
   const vencidosForaDoMes = ordenarPrazos(
     aCumprir.filter((prazo) => prazo.dataFinal < hoje && !mesmoMes(mesDe(prazo.dataFinal), mes)),
   );
+  // `dia` continua preenchido enquanto o modal fecha, para o conteúdo não sumir na animação.
+  function abrirDia(data: DataIso) {
+    setDia(data);
+    setDiaAberto(true);
+  }
+  const fecharDia = () => setDiaAberto(false);
   const prazosDoDia = dia ? ordenarPrazos(doCaso.filter((prazo) => prazo.dataFinal === dia)) : [];
 
   function trocar(atualizado: PrazoAgendado) {
@@ -148,8 +175,13 @@ export function CalendarioPrazos() {
       setMes(mesDe(atualizado.dataFinal));
       setMensagem({ tipo: "ok", texto: `Prazo “${atualizado.descricao}” salvo para ${formatarData(atualizado.dataFinal)}.` });
     } else {
-      const novo = await prazosApi.agendar(dados);
+      // Com o filtro num caso, o prazo novo já nasce ligado a ele (senão sumiria do filtro).
+      const doFiltro = casoFiltrado !== "todos" && casoFiltrado !== "sem_caso" ? { casoId: casoFiltrado } : {};
+      const novo = await prazosApi.agendar({ ...dados, ...doFiltro });
       setPrazos((atual) => [...(atual ?? []), novo]);
+      if (casoFiltrado === "sem_caso" && novo.numeroProcesso && casoDoProcesso.has(novo.numeroProcesso)) {
+        setFiltroCaso("todos");
+      }
       setMes(mesDe(novo.dataFinal));
       setMensagem({ tipo: "ok", texto: `Prazo “${novo.descricao}” agendado para ${formatarData(novo.dataFinal)}.` });
     }
@@ -182,7 +214,12 @@ export function CalendarioPrazos() {
             <List className="size-3.5" aria-hidden />
             Lista e intimações
           </Link>
-          <button type="button" onClick={() => setModal({ modo: "novo", data: null })} className={BOTAO_PRINCIPAL}>
+          <button
+            type="button"
+            onClick={() => setModal({ modo: "novo", data: null })}
+            disabled={prazos === null}
+            className={BOTAO_PRINCIPAL}
+          >
             <Plus className="size-3.5" aria-hidden />
             Novo prazo
           </button>
@@ -360,7 +397,7 @@ export function CalendarioPrazos() {
                           hoje={hoje}
                           prazos={porDia.get(data) ?? []}
                           casoPorId={casoPorId}
-                          aoAbrirDia={setDia}
+                          aoAbrirDia={abrirDia}
                           aoAgendar={(alvo) => setModal({ modo: "novo", data: alvo })}
                         />
                       ))}
@@ -388,8 +425,8 @@ export function CalendarioPrazos() {
       </div>
 
       <Modal
-        aberto={dia !== null}
-        aoFechar={() => setDia(null)}
+        aberto={diaAberto}
+        aoFechar={fecharDia}
         titulo={dia ? diaPorExtenso(dia) : ""}
         descricao={
           [
@@ -411,7 +448,7 @@ export function CalendarioPrazos() {
               mostrarCaso
               cumpridosVisiveis
               aoEditar={(prazo) => {
-                setDia(null);
+                fecharDia();
                 setModal({ modo: "editar", prazo });
               }}
               aoAlternarCumprido={alternarCumprido}
@@ -421,14 +458,14 @@ export function CalendarioPrazos() {
             <p className="text-tinta-suave text-[13px]">Nenhum prazo neste dia.</p>
           )}
           <div className="flex flex-wrap justify-end gap-2">
-            <button type="button" onClick={() => setDia(null)} className={cn(BOTAO, "h-9")}>
+            <button type="button" onClick={fecharDia} className={cn(BOTAO, "h-9")}>
               Fechar
             </button>
             <button
               type="button"
               onClick={() => {
                 const alvo = dia;
-                setDia(null);
+                fecharDia();
                 setModal({ modo: "novo", data: alvo });
               }}
               className={cn(BOTAO_PRINCIPAL, "h-9")}
@@ -488,8 +525,7 @@ function CelulaDoDia({
       role="cell"
       className={cn(
         "group border-borda relative flex min-h-[116px] min-w-0 flex-col gap-1 border-r border-b p-1.5 last:border-r-0 @max-2xl:min-h-[64px] @max-2xl:p-1",
-        emRecesso(data) && "bg-tinta/[0.05]",
-        !doMes && "bg-fundo/60",
+        emRecesso(data) ? (doMes ? "bg-tinta/[0.05]" : "bg-tinta/[0.08]") : !doMes && "bg-fundo/60",
       )}
     >
       <div className="flex items-center justify-between gap-1">
@@ -512,7 +548,7 @@ function CelulaDoDia({
           onClick={() => aoAgendar(data)}
           aria-label={`Agendar prazo em ${formatarData(data)}`}
           title="Agendar prazo neste dia"
-          className="text-tinta-suave hover:bg-tinta/5 hover:text-destaque flex size-6 items-center justify-center rounded-[6px] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 @max-2xl:hidden"
+          className="text-tinta-suave hover:bg-tinta/5 hover:text-destaque flex size-6 items-center justify-center rounded-[6px] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100 @max-2xl:hidden"
         >
           <Plus className="size-3.5" aria-hidden />
         </button>
