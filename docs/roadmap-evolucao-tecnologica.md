@@ -37,7 +37,7 @@ A ordem de cada módulo é a mesma:
 4. `npm test` e os testes do backend passam antes do merge na `main`.
 5. O card correspondente sai de Próximas entregas, passa por Em andamento e chega em Concluído no [quadro](https://trello.com/b/sJg9xNKm/sophia-backlog).
 
-Nenhum módulo novo substitui os atuais. O caso continua sendo o centro: cliente, prazo, jurisprudência e andamento apontam para o caso que já existe.
+Nenhum módulo novo substitui os atuais. O caso continua sendo o centro: prazo, audiência, andamento e escritório apontam para o caso que já existe.
 
 ## 3. Melhorias técnicas que sustentam os módulos
 
@@ -66,7 +66,6 @@ O DJEN hoje só é consultado quando alguém abre a tela ou aperta "Atualizar ag
 O módulo avisa o advogado quando entra intimação nova ou quando um prazo que ele marcou está perto do vencimento. A sincronização deixa de depender de alguém lembrar de abrir o Sophia.
 
 Pronto quando a rotina roda sem o navegador aberto, o advogado recebe o aviso e a tela de prazos mostra a data da última sincronização.
-
 
 ### Segunda leva
 
@@ -114,10 +113,10 @@ flowchart LR
   planos[Planos e cobrança]
 
   base --> alertas
-  alertas --> clientes
+  alertas --> agenda
   agenda --> andamentos
   andamentos --> escritorio
   escritorio --> planos
 ```
 
-Alertas de prazo é o primeiro porque o gancho já está no código e não exige cadastro novo. Clientes vem em seguida porque jurisprudência, andamento e escritório precisam apontar para uma pessoa e para um caso estáveis. Planos fecham a sequência, quando houver uso para cobrar.
+Alertas de prazo é o primeiro porque o gancho já está no código. Audiências, andamentos e escritório vêm em seguida. Planos fecham a sequência, quando houver uso para cobrar.
