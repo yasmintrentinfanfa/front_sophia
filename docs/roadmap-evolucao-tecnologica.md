@@ -108,8 +108,6 @@ Pronto quando a escolha do plano fica fora do cadastro, a cobrança usa um gatew
 flowchart LR
   base[Homologação, deploy da API e testes no merge]
   alertas[Alertas de prazo]
-  clientes[Clientes]
-  juris[Pesquisa de jurisprudência]
   agenda[Audiências e compromissos]
   andamentos[Andamentos do processo]
   escritorio[Escritório]
@@ -117,8 +115,6 @@ flowchart LR
 
   base --> alertas
   alertas --> clientes
-  clientes --> juris
-  juris --> agenda
   agenda --> andamentos
   andamentos --> escritorio
   escritorio --> planos
