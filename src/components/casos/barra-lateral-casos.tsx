@@ -56,6 +56,9 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
   const rotaDePainel =
     segmento === "novo" || segmento === "arquivo" || segmento === "prazos" || segmento === "calendario";
   const idDaRota = segmento && !rotaDePainel ? segmento : null;
+  // Prazos e Calendário de prazos não mostram a lista de casos: a barra fica só com a trilha.
+  const semLista = segmento === "prazos" || segmento === "calendario";
+  const mostrarLista = expandida && !semLista;
 
   const casosAtivos = useMemo(
     () => casos.filter((caso) => pastaDoCaso(caso) === "ativo"),
@@ -162,11 +165,12 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
       ref={asideRef}
       className={cn(
         "bg-barra relative flex h-full shrink-0 items-stretch overflow-hidden px-2 py-2.5 transition-[width] duration-200 ease-out",
-        expandida ? "w-[248px]" : "w-[56px]",
+        mostrarLista ? "w-[248px]" : "w-[56px]",
       )}
     >
       <TrilhaIcones
-        expandida={expandida}
+        expandida={mostrarLista}
+        comLista={!semLista}
         aoAlternar={() => setExpandida((atual) => !atual)}
         casoId={idDaRota ?? casosAtivos[0]?.id}
         mostrarRepositorio={!carregando && casosAtivos.length > 0}
@@ -176,7 +180,7 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
         botaoRef={botaoConta}
       />
 
-      {expandida ? (
+      {mostrarLista ? (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <div
             id="painel-lista-casos"
@@ -245,7 +249,7 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
         </div>
       ) : null}
 
-      {menuAberto && expandida ? (
+      {menuAberto && mostrarLista ? (
         <div
           ref={menuRef}
           role="menu"
@@ -254,7 +258,7 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
           {linhasMenu}
         </div>
       ) : null}
-      {menuAberto && !expandida
+      {menuAberto && !mostrarLista
         ? createPortal(
             <div
               ref={menuRef}
@@ -289,6 +293,7 @@ export function BarraLateralCasos({ casos, carregando = false }: BarraLateralCas
 
 function TrilhaIcones({
   expandida,
+  comLista,
   aoAlternar,
   casoId,
   mostrarRepositorio,
@@ -298,6 +303,8 @@ function TrilhaIcones({
   botaoRef,
 }: {
   expandida: boolean;
+  /** false em Prazos e no Calendário: sem lista de casos, sem o botão que a abre e fecha. */
+  comLista: boolean;
   aoAlternar: () => void;
   casoId?: string;
   mostrarRepositorio: boolean;
@@ -326,27 +333,32 @@ function TrilhaIcones({
         expandida ? "rounded-tl-[8px] rounded-tr-[8px] rounded-bl-[8px]" : "rounded-[8px]",
       )}
     >
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <button
-              type="button"
-              aria-expanded={expandida}
-              aria-controls="painel-lista-casos"
-              onClick={aoAlternar}
-              className="hover:bg-tinta/5 flex h-6 w-full items-center justify-center rounded-[6px]"
-            >
-              <Hamburguer />
-              <span className="sr-only">
-                {expandida ? "Recolher lista de casos" : "Expandir lista de casos"}
-              </span>
-            </button>
-          }
-        />
-        <TooltipContent side="right">
-          {expandida ? "Recolher lista" : "Expandir lista"}
-        </TooltipContent>
-      </Tooltip>
+      {comLista ? (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                aria-expanded={expandida}
+                aria-controls="painel-lista-casos"
+                onClick={aoAlternar}
+                className="hover:bg-tinta/5 flex h-6 w-full items-center justify-center rounded-[6px]"
+              >
+                <Hamburguer />
+                <span className="sr-only">
+                  {expandida ? "Recolher lista de casos" : "Expandir lista de casos"}
+                </span>
+              </button>
+            }
+          />
+          <TooltipContent side="right">
+            {expandida ? "Recolher lista" : "Expandir lista"}
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        // Prazos e Calendário não têm a lista; o espaço fica para os ícones não mudarem de lugar.
+        <span aria-hidden className="h-6 w-full" />
+      )}
 
       <Tooltip>
         <TooltipTrigger
