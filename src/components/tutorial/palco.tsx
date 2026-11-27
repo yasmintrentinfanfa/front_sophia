@@ -16,9 +16,11 @@ import { FileText } from "lucide-react";
 import { IconeArea } from "@/components/casos/icone-area";
 import {
   Hamburguer,
+  IconeCalendario,
   IconeCasos,
   IconeConfiguracoes,
   IconeNovoCaso,
+  IconePrazos,
   IconeRepositorio,
   IconeSair,
 } from "@/components/casos/icones-trilha";
@@ -389,7 +391,7 @@ export const MARIANA: CasoMini = { id: "mariana", titulo: "Plano nega cirurgia",
 export const RAFAEL: CasoMini = { id: "rafael", titulo: "Acidente de trânsito", cliente: "Rafael Lima", area: "civil" };
 export const CASOS_EXEMPLO = [CARLOS, MARIANA, RAFAEL];
 
-type SecaoTrilha = "novo" | "casos" | "repositorio";
+type SecaoTrilha = "novo" | "casos" | "prazos" | "calendario" | "repositorio";
 
 export interface PropsBarra {
   /** Item aceso na trilha, como o `aria-current` da barra real. */
@@ -434,7 +436,9 @@ function BarraMini({
   menuConta = false,
 }: PropsBarra) {
   const { compacto } = usePalco();
-  const expandida = !compacto;
+  // Prazos e Calendário de prazos não mostram a lista de casos: só a trilha, como na barra real.
+  const semLista = secao === "prazos" || secao === "calendario";
+  const expandida = !compacto && !semLista;
 
   return (
     <aside
@@ -449,14 +453,25 @@ function BarraMini({
           expandida ? "rounded-tl-[8px] rounded-tr-[8px] rounded-bl-[8px]" : "rounded-[8px]",
         )}
       >
-        <span className="flex h-6 w-full items-center justify-center">
-          <Hamburguer />
-        </span>
+        {semLista ? (
+          // Sem a lista, o menu sai e o espaço fica: os ícones não mudam de lugar.
+          <span className="h-6 w-full" />
+        ) : (
+          <span className="flex h-6 w-full items-center justify-center">
+            <Hamburguer />
+          </span>
+        )}
         <ItemTrilha id="novo" rotulo="Novo caso" ativo={secao === "novo"}>
           <IconeNovoCaso />
         </ItemTrilha>
         <ItemTrilha id="casos" rotulo="Casos em análise" ativo={secao === "casos"}>
           <IconeCasos />
+        </ItemTrilha>
+        <ItemTrilha id="prazos" rotulo="Prazos" ativo={secao === "prazos"}>
+          <IconePrazos />
+        </ItemTrilha>
+        <ItemTrilha id="calendario" rotulo="Calendário de prazos" ativo={secao === "calendario"}>
+          <IconeCalendario />
         </ItemTrilha>
         {casos.length ? (
           <ItemTrilha id="repositorio" rotulo="Repositório" ativo={secao === "repositorio"}>

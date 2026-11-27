@@ -7,12 +7,14 @@ import { ArrowLeft, ArrowRight, ChevronRight, TriangleAlert, X } from "lucide-re
 
 import {
   CenaBoasVindas,
+  CenaCalendario,
   CenaCards,
   CenaCasos,
   CenaChat,
   CenaCriarCaso,
   CenaGravacao,
   CenaPecas,
+  CenaPrazos,
   CenaPronto,
   CenaRelato,
   CenaRepositorio,
@@ -41,6 +43,7 @@ const PASSOS: Passo[] = [
       { nome: "Repositório", detalhe: "grave, envie ou escreva o relato" },
       { nome: "Análise", detalhe: "teses, jurisprudência e perguntas" },
       { nome: "Chat e peças", detalhe: "tire dúvidas e gere minutas" },
+      { nome: "Prazos", detalhe: "intimações do DJEN e o calendário de prazos" },
     ],
     Cena: CenaBoasVindas,
   },
@@ -135,6 +138,33 @@ const PASSOS: Passo[] = [
       { nome: "Material novo", detalhe: "você escolhe se atualiza a análise com ele" },
     ],
     Cena: CenaRepositorio,
+  },
+  {
+    rotulo: "Prazos",
+    caminho: ["Barra lateral", "Prazos"],
+    titulo: "Acompanhe as intimações",
+    texto:
+      "Informe o número do processo e clique em Acompanhar: a Sophia consulta o Diário de Justiça Eletrônico Nacional (DJEN) e traz as intimações. Em cada uma, clique em Agendar prazo.",
+    itens: [
+      { nome: "Número da OAB", detalhe: "traz todas as intimações em seu nome, de todos os processos" },
+      { nome: "Calculadora", detalhe: "sugere a data final em dias úteis ou corridos; você confere e salva" },
+      { nome: "Prazos agendados", detalhe: "do mais urgente ao mais distante: cumprir, editar ou excluir" },
+    ],
+    aviso: "A data final é sempre sua. Confira feriados locais e suspensões do tribunal antes de salvar.",
+    Cena: CenaPrazos,
+  },
+  {
+    rotulo: "Calendário",
+    caminho: ["Barra lateral", "Calendário de prazos"],
+    titulo: "Veja os prazos no calendário",
+    texto:
+      "Cada prazo agendado aparece no dia em que vence. Clique num prazo para abrir o dia, ou no + de um dia para agendar com a data já preenchida.",
+    itens: [
+      { nome: "Vencido", detalhe: "fica riscado e em vermelho até ser marcado como cumprido" },
+      { nome: "Cores", detalhe: "vermelho vence hoje, amarelo em até 3 dias, verde a vencer" },
+      { nome: "Filtros", detalhe: "a cumprir ou todos, e por caso" },
+    ],
+    Cena: CenaCalendario,
   },
   {
     rotulo: "Pronto",

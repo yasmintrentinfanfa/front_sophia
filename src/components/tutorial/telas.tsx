@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
+  CalendarClock,
   Check,
   ChevronDown,
   ChevronRight,
@@ -83,7 +84,7 @@ function Voltar() {
   );
 }
 
-function Cabecalho({
+export function Cabecalho({
   titulo,
   subtitulo,
   voltar = true,
@@ -828,6 +829,10 @@ export function TelaAnalise({
               <Paperclip />
               Anexar documento
             </span>
+            <Botao alvo="botao-prazos" variante="contorno" className="font-medium">
+              <CalendarClock />
+              Prazos
+            </Botao>
             <Botao alvo="botao-pecas" variante="contorno" className="font-medium">
               Peças processuais
             </Botao>
