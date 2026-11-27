@@ -19,6 +19,19 @@ import {
   type PropsBarra,
 } from "@/components/tutorial/palco";
 import {
+  AgendarPrazoMini,
+  DIA_LIVRE,
+  DiaDoCalendarioMini,
+  MES_DA_REPLICA,
+  MES_DE_HOJE,
+  PRAZOS_ANTERIORES,
+  PRAZOS_COM_REPLICA,
+  REPLICA,
+  TelaCalendario,
+  TelaPrazos,
+  type PrazoMini,
+} from "@/components/tutorial/telas-prazos";
+import {
   ASSUNTOS_CHAT,
   ConfiguracoesMini,
   ConfirmarAnalise,
@@ -42,6 +55,7 @@ import {
   type ItemListaMini,
   type MensagemMini,
 } from "@/components/tutorial/telas";
+import { mesVizinho, semanasDoMes } from "@/lib/prazos/mes";
 import { cn } from "@/lib/utils";
 
 export { COLUNAS_TUTORIAL } from "@/components/tutorial/telas";
@@ -95,6 +109,7 @@ const JORNADA = roteiro([
   { nome: "repositorio", ms: 1300 },
   { nome: "analise", ms: 1300 },
   { nome: "chat", ms: 1300 },
+  { nome: "prazos", ms: 1300 },
   { nome: "tudo", ms: 2000 },
 ]);
 
@@ -185,11 +200,38 @@ function MiniChat() {
   );
 }
 
+/** O mês com os prazos do escritório: um vencido, um perto de vencer e um a vencer. */
+function MiniPrazos() {
+  return (
+    <span className="flex w-full flex-col gap-1.5">
+      <Traco className="h-[2px] w-2/5" />
+      <span className="grid grid-cols-7 gap-[2px]">
+        {Array.from({ length: 21 }, (_, dia) => (
+          <span
+            key={dia}
+            className={cn(
+              "h-[8px] rounded-[2px] border",
+              dia === 8
+                ? "border-red-500/60 bg-red-500/15"
+                : dia === 11
+                  ? "border-amber-500/60 bg-amber-500/20"
+                  : dia === 17
+                    ? "border-destaque/60 bg-destaque-suave"
+                    : "border-borda",
+            )}
+          />
+        ))}
+      </span>
+    </span>
+  );
+}
+
 const ETAPAS_JORNADA: { titulo: string; detalhe: string; Miniatura: ComponentType }[] = [
   { titulo: "Novo caso", detalhe: "Cliente e área jurídica", Miniatura: MiniNovo },
   { titulo: "Repositório", detalhe: "Grave, envie ou escreva", Miniatura: MiniRepositorio },
   { titulo: "Análise", detalhe: "Teses e jurisprudência", Miniatura: MiniAnalise },
   { titulo: "Chat e peças", detalhe: "Dúvidas e minutas", Miniatura: MiniChat },
+  { titulo: "Prazos", detalhe: "Intimações e calendário", Miniatura: MiniPrazos },
 ];
 
 function Jornada() {
@@ -200,9 +242,9 @@ function Jornada() {
       <div className={cn("flex flex-1 flex-col items-center justify-center px-7", compacto ? "gap-5" : "gap-7")}>
         <div className="animate-in fade-in slide-in-from-bottom-2 flex flex-col items-center gap-1.5 duration-700">
           <p className="text-destaque text-[30px] leading-none font-bold tracking-tight">SOPHIA</p>
-          <p className="text-tinta-suave text-[12px]">Da conversa com o cliente à minuta</p>
+          <p className="text-tinta-suave text-[12px]">Da conversa com o cliente à minuta, com os prazos em dia</p>
         </div>
-        <ol className={cn("grid w-full", compacto ? "max-w-[300px] grid-cols-2 gap-x-4 gap-y-3" : "grid-cols-4 gap-4")}>
+        <ol className={cn("grid w-full", compacto ? "max-w-[330px] grid-cols-3 gap-x-3 gap-y-3" : "grid-cols-5 gap-4")}>
           {ETAPAS_JORNADA.map(({ titulo, detalhe, Miniatura }, posicao) => {
             const acesa = posicao < indice;
             const atual = posicao === indice - 1;
@@ -699,7 +741,162 @@ export function CenaRepositorio() {
   );
 }
 
-// ------------------------------------------------------------------- 10. pronto
+// ------------------------------------------------------------------- 10. prazos
+
+// O advogado acompanha o processo pelo número; o DJEN traz a intimação e ele agenda o prazo
+// pela calculadora. Prazos não mostra a lista de casos: a barra fica só com os ícones.
+const PRAZOS = roteiro([
+  { nome: "analise", ms: 1000, alvo: "trilha-prazos" },
+  { nome: "abre", ms: 400, clique: true },
+  { nome: "tela", ms: 1000, alvo: "aba-processo" },
+  { nome: "escolheAba", ms: 380, clique: true },
+  { nome: "irCampo", ms: 600, alvo: "campo-processo" },
+  { nome: "foca", ms: 280, clique: true },
+  { nome: "digita", ms: 1300 },
+  { nome: "irAcompanhar", ms: 650, alvo: "acompanhar" },
+  { nome: "acompanha", ms: 400, clique: true },
+  { nome: "consultando", ms: 1300 },
+  { nome: "intimacao", ms: 1700, alvo: "agendar-intimacao" },
+  { nome: "abreModal", ms: 400, clique: true },
+  { nome: "modal", ms: 750, alvo: "campo-descricao" },
+  { nome: "focaDescricao", ms: 280, clique: true },
+  { nome: "digitaDescricao", ms: 800 },
+  { nome: "irUsarData", ms: 800, alvo: "usar-data" },
+  { nome: "usaData", ms: 400, clique: true },
+  { nome: "irSalvar", ms: 1000, alvo: "salvar-prazo" },
+  { nome: "salva", ms: 400, clique: true },
+  { nome: "agendado", ms: 2400, alvo: null },
+]);
+
+export function CenaPrazos() {
+  const { indice, alvo, clique } = useRoteiro(PRAZOS.batidas, PRAZOS.em.intimacao);
+  const { em } = PRAZOS;
+  const naAnalise = indice <= em.abre;
+  const agendado = indice >= em.agendado;
+  const fase = (comeca: number, termina: number): FaseTexto =>
+    indice < comeca ? "vazio" : indice < termina ? "digitando" : "pronto";
+
+  return (
+    <Cena
+      tela={naAnalise ? "Análise preliminar de caso" : "Prazos"}
+      barra={naAnalise ? { secao: "casos", casoAberto: CARLOS.id } : { secao: "prazos" }}
+      sobreposicao={
+        indice >= em.modal && indice <= em.salva ? (
+          <ModalMini className="max-w-[330px]">
+            <AgendarPrazoMini
+              origem="intimacao"
+              descricao={fase(em.digitaDescricao, em.irUsarData)}
+              focoDescricao={indice >= em.focaDescricao && indice < em.irUsarData}
+              dataFinal={indice > em.usaData ? REPLICA.dataFinal : null}
+              realceData={indice === em.irSalvar}
+            />
+          </ModalMini>
+        ) : null
+      }
+      cursor={{ alvo, clique, marca: indice }}
+    >
+      {naAnalise ? (
+        <TelaAnalise caso={CARLOS} />
+      ) : (
+        <TelaPrazos
+          aba={indice > em.escolheAba ? "processo" : "oab"}
+          numero={fase(em.digita, em.irAcompanhar)}
+          focoNumero={indice >= em.foca && indice <= em.acompanha}
+          etapa={indice >= em.intimacao ? "acompanhando" : indice >= em.consultando ? "consultando" : "inicio"}
+          mensagem={indice >= em.intimacao}
+          intimacao={agendado ? "tratada" : indice >= em.intimacao ? "pendente" : null}
+          prazos={agendado ? PRAZOS_COM_REPLICA : PRAZOS_ANTERIORES}
+          novo={agendado ? REPLICA.id : null}
+          rolarPara={agendado ? "prazo-novo" : indice >= em.intimacao ? "intimacao" : null}
+        />
+      )}
+    </Cena>
+  );
+}
+
+// ------------------------------------------------------------------- 11. calendário
+
+// As datas da cena dependem de hoje (como na tela real): um prazo de três dias atrás pode cair
+// fora da grade do mês, e a réplica pode vencer no mês seguinte (ou dois meses à frente, se o
+// recesso de fim de ano suspender a contagem). O roteiro se ajusta a isso.
+const NA_GRADE_DE_HOJE = new Set(semanasDoMes(MES_DE_HOJE).flat());
+const alvoNaGrade = (prazo: PrazoMini) => (NA_GRADE_DE_HOJE.has(prazo.dataFinal) ? `chip-${prazo.id}` : null);
+const MESES_ATE_A_REPLICA =
+  MES_DA_REPLICA.ano * 12 + MES_DA_REPLICA.mes - (MES_DE_HOJE.ano * 12 + MES_DE_HOJE.mes);
+const [VENCIDO, DE_HOJE, PROXIMO] = PRAZOS_ANTERIORES;
+
+const CALENDARIO = roteiro([
+  { nome: "prazos", ms: 1000, alvo: "trilha-calendario" },
+  { nome: "abre", ms: 400, clique: true },
+  { nome: "mes", ms: 1100, alvo: null },
+  { nome: "vencido", ms: 1500, alvo: alvoNaGrade(VENCIDO) },
+  { nome: "deHoje", ms: 1200, alvo: alvoNaGrade(DE_HOJE) },
+  { nome: "proximo", ms: 1200, alvo: alvoNaGrade(PROXIMO) },
+  // Só quando a réplica vence em outro mês: avança pela seta, como o advogado faria.
+  { nome: "irMesSeguinte", ms: MESES_ATE_A_REPLICA > 0 ? 800 : 1, alvo: MESES_ATE_A_REPLICA > 0 ? "mes-seguinte" : undefined },
+  { nome: "avanca", ms: MESES_ATE_A_REPLICA > 0 ? 450 : 1, clique: MESES_ATE_A_REPLICA > 0 },
+  { nome: "avancaDeNovo", ms: MESES_ATE_A_REPLICA > 1 ? 450 : 1, clique: MESES_ATE_A_REPLICA > 1 },
+  { nome: "replica", ms: 1300, alvo: `chip-${REPLICA.id}` },
+  { nome: "abreDia", ms: 400, clique: true },
+  { nome: "dia", ms: 1100, alvo: "dia-cumprido" },
+  { nome: "editar", ms: 800, alvo: "dia-editar" },
+  { nome: "excluir", ms: 800, alvo: "dia-excluir" },
+  { nome: "irFechar", ms: 700, alvo: "dia-fechar" },
+  { nome: "fecha", ms: 400, clique: true },
+  { nome: "irMais", ms: 1100, alvo: `mais-${DIA_LIVRE}` },
+  { nome: "clicaMais", ms: 400, clique: true },
+  { nome: "novoNoDia", ms: 2200, alvo: "campo-data" },
+  { nome: "fim", ms: 900, alvo: null },
+]);
+
+export function CenaCalendario() {
+  const { indice, alvo, clique } = useRoteiro(CALENDARIO.batidas, CALENDARIO.em.vencido);
+  const { em } = CALENDARIO;
+  const naLista = indice <= em.abre;
+  const mes =
+    MESES_ATE_A_REPLICA > 1 && indice >= em.avancaDeNovo
+      ? MES_DA_REPLICA
+      : MESES_ATE_A_REPLICA > 0 && indice >= em.avanca
+        ? mesVizinho(MES_DE_HOJE, 1)
+        : MES_DE_HOJE;
+  const realce =
+    indice === em.vencido
+      ? "vencido"
+      : indice === em.deHoje
+        ? "hoje"
+        : indice === em.proximo
+          ? "proximo"
+          : indice === em.replica || indice === em.abreDia
+            ? "futuro"
+            : null;
+
+  return (
+    <Cena
+      tela={naLista ? "Prazos" : "Calendário de prazos"}
+      barra={{ secao: naLista ? "prazos" : "calendario" }}
+      sobreposicao={
+        indice >= em.dia && indice <= em.fecha ? (
+          <ModalMini className="max-w-[340px]">
+            <DiaDoCalendarioMini data={REPLICA.dataFinal} prazos={PRAZOS_COM_REPLICA} />
+          </ModalMini>
+        ) : indice >= em.novoNoDia && indice < em.fim ? (
+          <ModalMini className="max-w-[330px]">
+            <AgendarPrazoMini origem="dia" dataFinal={DIA_LIVRE} realceData />
+          </ModalMini>
+        ) : null
+      }
+      cursor={{ alvo, clique, marca: indice }}
+    >
+      {naLista ? (
+        <TelaPrazos etapa="acompanhando" intimacao="tratada" prazos={PRAZOS_COM_REPLICA} />
+      ) : (
+        <TelaCalendario mes={mes} prazos={PRAZOS_COM_REPLICA} realce={realce} />
+      )}
+    </Cena>
+  );
+}
+
+// ------------------------------------------------------------------- 12. pronto
 
 const PRONTO = roteiro([
   { nome: "inicio", ms: 1000, alvo: "conta" },
